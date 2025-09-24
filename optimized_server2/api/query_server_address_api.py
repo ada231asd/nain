@@ -1,11 +1,10 @@
 """
-API для запроса адреса сервера
+API для запроса адреса сервера станции
 """
-from aiohttp import web
-from aiohttp.web import Request, Response
-import json
 import logging
 import os
+from aiohttp import web
+from aiohttp.web import Request, Response
 from datetime import datetime
 
 from models.station import Station
@@ -14,7 +13,7 @@ from utils.auth_middleware import jwt_middleware
 
 
 class QueryServerAddressAPI:
-    """API для работы с запросами адреса сервера"""
+    """API для запроса адреса сервера станции"""
     
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
@@ -40,6 +39,7 @@ class QueryServerAddressAPI:
         """
         Запрашивает адрес сервера станции
         POST /api/query-server-address
+        { "station_id": 123 }
         """
         user_id = request['user']['user_id']
         self.logger.info(f"Администратор {user_id} запросил адрес сервера станции.")
@@ -50,136 +50,66 @@ class QueryServerAddressAPI:
             
             if not station_id:
                 self.logger.warning(f"Администратор {user_id}: Не указан station_id для запроса адреса сервера.")
-                return web.json_response({
-                    'success': False,
-                    'error': 'Не указан ID станции'
-                }, status=400)
+                return web.json_response({"error": "Не указан ID станции"}, status=400)
             
-            # Проверяем, что станция существует
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
                 self.logger.warning(f"Администратор {user_id}: Станция с ID {station_id} не найдена.")
-                return web.json_response({
-                    'success': False,
-                    'error': f'Станция с ID {station_id} не найдена'
-                }, status=404)
+                return web.json_response({"error": "Станция не найдена"}, status=404)
             
-            # Отправляем запрос адреса сервера
-            result = await self.query_server_address_handler.send_query_server_address_request(station_id)
+            response = await self.query_server_address_handler.send_query_server_address_request(station_id)
             
-            if result['success']:
+            if response["success"]:
                 self.logger.info(f"Администратор {user_id} успешно отправил запрос адреса сервера на станцию {station_id}.")
                 return web.json_response({
-                    'success': True,
-                    'message': result['message'],
-                    'station_box_id': result['station_box_id'],
-                    'packet_hex': result.get('packet_hex')
+                    "success": True,
+                    "message": response["message"],
+                    "packet_hex": response.get("packet_hex")
                 })
             else:
-                self.logger.error(f"Администратор {user_id}: Ошибка отправки запроса адреса сервера на станцию {station_id}: {result['error']}")
-                return web.json_response({
-                    'success': False,
-                    'error': result['error']
-                }, status=500)
+                self.logger.error(f"Администратор {user_id}: Ошибка отправки запроса адреса сервера на станцию {station_id}: {response['message']}")
+                return web.json_response({"error": response["message"]}, status=500)
                 
         except Exception as e:
             self.logger.error(f"Администратор {user_id}: Непредвиденная ошибка при запросе адреса сервера: {e}", exc_info=True)
-            return web.json_response({
-                'success': False,
-                'error': f"Внутренняя ошибка сервера: {e}"
-            }, status=500)
+            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
     
     @jwt_middleware
-    async def get_server_address(self, request: Request) -> Response:
-        """
-        Получает сохраненный адрес сервера станции
-        GET /api/query-server-address/station/{station_id}
-        """
+    async def get_station_server_address(self, request: Request) -> Response:
+        """Получение кэшированного адреса сервера станции"""
         user_id = request['user']['user_id']
-        station_id = request.match_info.get('station_id')
-        self.logger.info(f"Администратор {user_id} запросил сохраненный адрес сервера станции {station_id}.")
-        
-        if not station_id:
-            return web.json_response({
-                "success": False,
-                "error": "Не указан ID станции"
-            }, status=400)
+        self.logger.info(f"Администратор {user_id} запросил кэшированный адрес сервера станции.")
         
         try:
-            station_id = int(station_id)
-            station = await Station.get_by_id(self.db_pool, station_id)
-            if not station:
-                return web.json_response({
-                    "success": False,
-                    "error": "Станция не найдена"
-                }, status=404)
+            station_id = int(request.match_info['station_id'])
             
-            # Получаем адрес сервера из базы данных
+            # Получаем данные из кэша
             result = await self.query_server_address_handler.get_station_server_address(station_id)
             
-            if result["success"]:
+            if result['success']:
+                self.logger.info(f"Администратор {user_id} получил адрес сервера станции {station_id}.")
                 return web.json_response({
                     "success": True,
-                    "station": {
-                        "station_id": result["station_id"],
-                        "box_id": result["box_id"],
-                        "server_address": result["server_address"],
-                        "server_ports": result["server_ports"],
-                        "heartbeat_interval": result["heartbeat_interval"],
-                        "server_address_updated_at": result["server_address_updated_at"],
-                        "has_server_address": result["has_server_address"]
-                    }
+                    "station_id": station_id,
+                    "server_address": result['server_address']
                 })
             else:
+                self.logger.warning(f"Администратор {user_id}: {result['error']} для станции {station_id}")
                 return web.json_response({
                     "success": False,
-                    "error": result["error"]
-                }, status=500)
+                    "error": result['error']
+                }, status=404)
                 
         except ValueError:
+            self.logger.warning(f"Администратор {user_id}: Неверный ID станции")
             return web.json_response({
                 "success": False,
-                "error": "Неверный формат ID станции"
+                "error": "Неверный ID станции"
             }, status=400)
         except Exception as e:
-            self.logger.error(f"Ошибка получения адреса сервера станции {station_id}: {e}", exc_info=True)
+            self.logger.error(f"Администратор {user_id}: Ошибка получения адреса сервера станции: {e}")
             return web.json_response({
                 "success": False,
-                "error": f"Внутренняя ошибка сервера: {e}"
+                "error": "Внутренняя ошибка сервера"
             }, status=500)
     
-    @jwt_middleware
-    async def get_server_address_logs(self, request: Request) -> Response:
-        """
-        Получает логи запросов адреса сервера
-        GET /api/query-server-address/logs
-        """
-        user_id = request['user']['user_id']
-        self.logger.info(f"Администратор {user_id} запросил логи адреса сервера.")
-        
-        log_file_path = 'logs/query_server_address.log'
-        logs = []
-        
-        try:
-            with open(log_file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                recent_lines = lines[-50:] if len(lines) > 50 else lines
-                
-                for line in recent_lines:
-                    if line.strip():
-                        parts = line.split(' - ', 2)
-                        if len(parts) == 3:
-                            logs.append({
-                                'timestamp': parts[0],
-                                'level': parts[1],
-                                'message': parts[2].strip()
-                            })
-                        else:
-                            logs.append({'message': line.strip()})
-        except FileNotFoundError:
-            logs = [{'message': 'Файл логов адреса сервера не найден'}]
-        except Exception as e:
-            self.logger.error(f"Ошибка чтения логов адреса сервера: {e}", exc_info=True)
-            logs = [{'message': f'Ошибка чтения логов: {e}'}]
-        
-        return web.json_response({'logs': logs})

@@ -40,6 +40,18 @@ def compute_checksum(payload_bytes: bytes) -> int:
     return checksum
 
 
+def verify_token(payload: bytes, secret_key: bytes, received_token: int) -> bool:
+    """Проверяет токен в пакете"""
+    try:
+        md5_hash = hashlib.md5(payload + secret_key).digest()
+        expected_token = md5_hash[15:16] + md5_hash[11:12] + md5_hash[7:8] + md5_hash[3:4]
+        expected_token_int = int.from_bytes(expected_token, byteorder='big')
+        return expected_token_int == received_token
+    except Exception as e:
+        print(f"Ошибка проверки токена: {e}")
+        return False
+
+
 def parse_terminal_id(bytes8: bytes) -> str:
     """Парсит terminal ID из 8 байт"""
     ascii_part = bytes8[:4].decode('ascii')

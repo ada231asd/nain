@@ -83,6 +83,28 @@ class QueryInventoryHandler:
                 print(f" Получен некорректный ответ на запрос инвентаря от станции {connection.box_id}")
                 return
             
+            # Проверяем токен
+            from utils.packet_utils import verify_token
+            import struct
+            payload = struct.pack("BB", response.get('SlotsNum', 0), response.get('RemainNum', 0))
+            # Добавляем данные слотов
+            for slot_data in response.get('Slots', []):
+                payload += struct.pack("B8sBHHBBB", 
+                    slot_data['Slot'],
+                    slot_data['TerminalID'].encode('ascii'),
+                    slot_data['Level'],
+                    slot_data['Voltage'],
+                    slot_data['Current'],
+                    slot_data['Temperature'],
+                    0,  # status byte
+                    slot_data['SOH']
+                )
+            
+            received_token = int(response.get("Token", "0x0"), 16)
+            if not verify_token(payload, connection.secret_key, received_token):
+                print(f"Неверный токен в ответе инвентаря от станции {connection.box_id}")
+                return
+            
             print(f" Получен ответ на запрос инвентаря от станции {connection.box_id}")
             print(f" Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}")
             print(f" Повербанков в ответе: {len(response.get('Slots', []))}")

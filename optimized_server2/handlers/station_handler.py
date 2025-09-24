@@ -114,6 +114,21 @@ class StationHandler:
             # Логируем входящий пакет с информацией о станции
             log_packet(data, "INCOMING", connection.box_id or "unknown", "Heartbeat")
             
+            # Парсим пакет heartbeat
+            from utils.packet_utils import parse_heartbeat_packet, verify_token
+            parsed = parse_heartbeat_packet(data)
+            
+            if "Error" in parsed:
+                print(f"Ошибка парсинга heartbeat: {parsed['Error']}")
+                return None
+            
+            # Проверяем токен
+            payload = b''  # Для heartbeat payload пустой
+            received_token = int(parsed["Token"], 16)
+            if not verify_token(payload, connection.secret_key, received_token):
+                print(f"Неверный токен в heartbeat от станции {connection.box_id}")
+                return None
+            
             # Извлекаем VSN из пакета
             vsn = data[3]
             
@@ -128,6 +143,11 @@ class StationHandler:
                 try:
                     station = await Station.get_by_id(self.db_pool, connection.station_id)
                     if station:
+                        # Проверяем, что станция все еще активна в БД
+                        if station.status != "active":
+                            print(f"Станция {connection.box_id} имеет статус {station.status} - разрываем соединение")
+                            return None
+                        
                         # Обновляем время последнего контакта (last_seen)
                         await station.update_last_seen(self.db_pool)
                         

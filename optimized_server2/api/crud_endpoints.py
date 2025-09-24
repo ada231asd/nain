@@ -22,7 +22,7 @@ class CRUDEndpoints:
         """POST /api/users - Создать пользователя"""
         try:
             data = await request.json()
-            required_fields = ['phone_e164', 'email', 'password']
+            required_fields = ['fio', 'phone_e164', 'email', 'role', 'статус', 'password']
             
             for field in required_fields:
                 if field not in data:
@@ -30,6 +30,34 @@ class CRUDEndpoints:
                         "success": False,
                         "error": f"Отсутствует обязательное поле: {field}"
                     }, status=400)
+            
+            # Валидация enum значений
+            valid_statuses = ['pending', 'active', 'blocked']
+            if data['статус'] not in valid_statuses:
+                return web.json_response({
+                    "success": False,
+                    "error": f"Недопустимый статус пользователя. Допустимые значения: {', '.join(valid_statuses)}"
+                }, status=400)
+            
+            valid_roles = ['user', 'subgroup_admin', 'group_admin', 'service_admin']
+            if data['role'] not in valid_roles:
+                return web.json_response({
+                    "success": False,
+                    "error": f"Недопустимая роль пользователя. Допустимые значения: {', '.join(valid_roles)}"
+                }, status=400)
+            
+            # Валидация parent_org_unit_id
+            parent_org_unit_id = data.get('parent_org_unit_id', '')
+            if parent_org_unit_id and parent_org_unit_id != '':
+                try:
+                    parent_org_unit_id = int(parent_org_unit_id)
+                except ValueError:
+                    return web.json_response({
+                        "success": False,
+                        "error": "parent_org_unit_id должен быть числом или пустой строкой"
+                    }, status=400)
+            else:
+                parent_org_unit_id = None
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -44,38 +72,46 @@ class CRUDEndpoints:
                             "error": "Пользователь с таким телефоном или email уже существует"
                         }, status=400)
                     
-            # Валидация enum значений
-            valid_statuses = ['pending', 'active', 'blocked']
-            if 'status' in data and data['status'] not in valid_statuses:
-                return web.json_response({
-                    "success": False,
-                    "error": f"Недопустимый статус пользователя. Допустимые значения: {', '.join(valid_statuses)}"
-                }, status=400)
-            
-            # Хешируем пароль
-            import bcrypt
-            password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            
-            # Создаем пользователя
-            await cur.execute("""
-                INSERT INTO app_user (phone_e164, email, password_hash, fio, status)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                data['phone_e164'],
-                data['email'],
-                password_hash,
-                data.get('fio'),
-                data.get('status', 'pending')
-            ))
-            
-            user_id = cur.lastrowid
-            
-            return web.json_response({
-                "success": True,
-                "data": {"user_id": user_id},
-                "message": "Пользователь создан"
-            })
-            
+                    # Хешируем пароль
+                    import bcrypt
+                    password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    
+                    # Создаем пользователя
+                    await cur.execute("""
+                        INSERT INTO app_user (phone_e164, email, password_hash, fio, status)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (
+                        data['phone_e164'],
+                        data['email'],
+                        password_hash,
+                        data['fio'],
+                        data['статус']
+                    ))
+                    
+                    user_id = cur.lastrowid
+                    
+                    # Создаем роль пользователя
+                    await cur.execute("""
+                        INSERT INTO user_role (user_id, role, org_unit_id)
+                        VALUES (%s, %s, %s)
+                    """, (user_id, data['role'], parent_org_unit_id))
+                    
+                    await conn.commit()
+                    
+                    return web.json_response({
+                        "success": True,
+                        "data": {
+                            "user_id": user_id,
+                            "fio": data['fio'],
+                            "phone_e164": data['phone_e164'],
+                            "email": data['email'],
+                            "role": data['role'],
+                            "parent_org_unit_id": parent_org_unit_id,
+                            "статус": data['статус']
+                        },
+                        "message": "Пользователь создан"
+                    })
+                    
         except Exception as e:
             return web.json_response({
                 "success": False,
@@ -113,10 +149,11 @@ class CRUDEndpoints:
                             au.phone_e164, 
                             au.email, 
                             au.fio, 
-                            au.status, 
+                            au.status as статус, 
                             au.created_at, 
                             au.last_login_at,
-                            COALESCE(ur.role, 'user') as role
+                            COALESCE(ur.role, 'user') as role,
+                            ur.org_unit_id as parent_org_unit_id
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
                         {where_clause.replace('status', 'au.status') if where_clause else ''}
@@ -156,10 +193,11 @@ class CRUDEndpoints:
                             au.phone_e164, 
                             au.email, 
                             au.fio, 
-                            au.status, 
+                            au.status as статус, 
                             au.created_at, 
                             au.last_login_at,
-                            COALESCE(ur.role, 'user') as role
+                            COALESCE(ur.role, 'user') as role,
+                            ur.org_unit_id as parent_org_unit_id
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
                         WHERE au.user_id = %s
@@ -194,38 +232,42 @@ class CRUDEndpoints:
             user_id = int(request.match_info['user_id'])
             data = await request.json()
             
-            # Поля для обновления
-            update_fields = []
-            params = []
-            
-            allowed_fields = ['phone_e164', 'email', 'fio', 'status', 'org_unit_id']
-            
-            # Если обновляется пароль, хешируем его
-            if 'password' in data:
-                import bcrypt
-                data['password_hash'] = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                allowed_fields.append('password_hash')
-                del data['password']
+            # Валидация обязательных полей
+            required_fields = ['fio', 'phone_e164', 'email', 'role', 'статус']
+            for field in required_fields:
+                if field not in data:
+                    return web.json_response({
+                        "success": False,
+                        "error": f"Отсутствует обязательное поле: {field}"
+                    }, status=400)
             
             # Валидация enum значений
             valid_statuses = ['pending', 'active', 'blocked']
-            if 'status' in data and data['status'] not in valid_statuses:
+            if data['статус'] not in valid_statuses:
                 return web.json_response({
                     "success": False,
                     "error": f"Недопустимый статус пользователя. Допустимые значения: {', '.join(valid_statuses)}"
                 }, status=400)
-            for field in allowed_fields:
-                if field in data:
-                    update_fields.append(f"{field} = %s")
-                    params.append(data[field])
             
-            if not update_fields:
+            valid_roles = ['user', 'subgroup_admin', 'group_admin', 'service_admin']
+            if data['role'] not in valid_roles:
                 return web.json_response({
                     "success": False,
-                    "error": "Нет полей для обновления"
+                    "error": f"Недопустимая роль пользователя. Допустимые значения: {', '.join(valid_roles)}"
                 }, status=400)
             
-            params.append(user_id)
+            # Валидация parent_org_unit_id
+            parent_org_unit_id = data.get('parent_org_unit_id', '')
+            if parent_org_unit_id and parent_org_unit_id != '':
+                try:
+                    parent_org_unit_id = int(parent_org_unit_id)
+                except ValueError:
+                    return web.json_response({
+                        "success": False,
+                        "error": "parent_org_unit_id должен быть числом или пустой строкой"
+                    }, status=400)
+            else:
+                parent_org_unit_id = None
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -237,13 +279,82 @@ class CRUDEndpoints:
                             "error": "Пользователь не найден"
                         }, status=404)
                     
-                    # Обновляем
+                    # Проверяем уникальность email и phone_e164
+                    await cur.execute(
+                        "SELECT user_id FROM app_user WHERE (email = %s OR phone_e164 = %s) AND user_id != %s",
+                        (data['email'], data['phone_e164'], user_id)
+                    )
+                    if await cur.fetchone():
+                        return web.json_response({
+                            "success": False,
+                            "error": "Пользователь с таким email или телефоном уже существует"
+                        }, status=400)
+                    
+                    # Если обновляется пароль, хешируем его
+                    password_hash = None
+                    if 'password' in data and data['password']:
+                        import bcrypt
+                        password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    
+                    # Обновляем основную таблицу пользователя
+                    update_fields = []
+                    params = []
+                    
+                    # Обновляем основные поля
+                    update_fields.append("fio = %s")
+                    params.append(data['fio'])
+                    
+                    update_fields.append("phone_e164 = %s")
+                    params.append(data['phone_e164'])
+                    
+                    update_fields.append("email = %s")
+                    params.append(data['email'])
+                    
+                    update_fields.append("status = %s")
+                    params.append(data['статус'])
+                    
+                    if password_hash:
+                        update_fields.append("password_hash = %s")
+                        params.append(password_hash)
+                    
+                    params.append(user_id)
+                    
+                    # Обновляем пользователя
                     query = f"UPDATE app_user SET {', '.join(update_fields)} WHERE user_id = %s"
                     await cur.execute(query, params)
                     
+                    # Обновляем или создаем роль пользователя
+                    await cur.execute("SELECT id FROM user_role WHERE user_id = %s", (user_id,))
+                    existing_role = await cur.fetchone()
+                    
+                    if existing_role:
+                        # Обновляем существующую роль
+                        await cur.execute("""
+                            UPDATE user_role 
+                            SET role = %s, org_unit_id = %s 
+                            WHERE user_id = %s
+                        """, (data['role'], parent_org_unit_id, user_id))
+                    else:
+                        # Создаем новую роль
+                        await cur.execute("""
+                            INSERT INTO user_role (user_id, role, org_unit_id)
+                            VALUES (%s, %s, %s)
+                        """, (user_id, data['role'], parent_org_unit_id))
+                    
+                    await conn.commit()
+                    
                     return web.json_response({
                         "success": True,
-                        "message": "Пользователь обновлен"
+                        "message": "Пользователь успешно обновлен",
+                        "data": {
+                            "user_id": user_id,
+                            "fio": data['fio'],
+                            "phone_e164": data['phone_e164'],
+                            "email": data['email'],
+                            "role": data['role'],
+                            "parent_org_unit_id": parent_org_unit_id,
+                            "статус": data['статус']
+                        }
                     })
                     
         except ValueError:

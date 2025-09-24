@@ -100,37 +100,3 @@ class QueryVoiceVolumeAPI:
                 'error': error_msg
             }, status=500)
     
-    async def get_voice_volume_logs(self, request: Request) -> Response:
-        """
-        Получает логи запросов уровня громкости
-        GET /api/query-voice-volume/logs
-        """
-        try:
-            # Читаем логи из файла
-            log_file_path = 'logs/query_voice_volume.log'
-            logs = []
-            
-            try:
-                with open(log_file_path, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    # Берем последние 50 строк
-                    recent_lines = lines[-50:] if len(lines) > 50 else lines
-                    
-                    for line in recent_lines:
-                        if line.strip():
-                            logs.append({
-                                'timestamp': line.split(' - ')[0] if ' - ' in line else '',
-                                'level': line.split(' - ')[1] if ' - ' in line else '',
-                                'message': ' - '.join(line.split(' - ')[2:]).strip() if ' - ' in line else line.strip()
-                            })
-            except FileNotFoundError:
-                logs = [{'message': 'Файл логов не найден'}]
-            
-            return web.json_response({
-                'logs': logs
-            })
-            
-        except Exception as e:
-            return web.json_response({
-                'error': f'Ошибка получения логов: {str(e)}'
-            }, status=500)

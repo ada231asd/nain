@@ -73,41 +73,6 @@ class QueryInventoryAPI:
             self.logger.error(f"Администратор {user_id}: Непредвиденная ошибка при запросе инвентаря: {e}", exc_info=True)
             return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
 
-    @jwt_middleware
-    async def get_inventory_logs(self, request: web.Request):
-        """
-        Возвращает последние логи запросов инвентаря.
-        GET /api/query-inventory/logs
-        """
-        user_id = request['user']['user_id']
-        self.logger.info(f"Администратор {user_id} запросил логи инвентаря.")
-
-        log_file_path = 'logs/query_inventory.log'
-        logs = []
-
-        try:
-            with open(log_file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                recent_lines = lines[-50:] if len(lines) > 50 else lines
-
-                for line in recent_lines:
-                    if line.strip():
-                        parts = line.split(' - ', 2)
-                        if len(parts) == 3:
-                            logs.append({
-                                'timestamp': parts[0],
-                                'level': parts[1],
-                                'message': parts[2].strip()
-                            })
-                        else:
-                            logs.append({'message': line.strip()})
-        except FileNotFoundError:
-            logs = [{'message': 'Файл логов инвентаря не найден'}]
-        except Exception as e:
-            self.logger.error(f"Ошибка чтения логов инвентаря: {e}", exc_info=True)
-            logs = [{'message': f'Ошибка чтения логов: {e}'}]
-
-        return web.json_response({'logs': logs})
 
     @jwt_middleware
     async def get_station_inventory(self, request: web.Request):

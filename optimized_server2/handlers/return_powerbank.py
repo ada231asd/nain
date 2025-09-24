@@ -43,6 +43,14 @@ class ReturnPowerbankHandler:
             vsn = return_request.get("VSN")
             token = int(return_request.get("Token", "0x0"), 16)
             
+            # Проверяем токен
+            from utils.packet_utils import verify_token
+            import struct
+            payload = struct.pack("BB8sBHHBBB", slot, 0, terminal_id.encode('ascii'), level, voltage, current, temperature, 0, soh)
+            if not verify_token(payload, connection.secret_key, token):
+                print(f"Неверный токен в запросе возврата от станции {connection.box_id}")
+                return self._build_error_response(return_request)
+            
             # Проверяем, существует ли повербанк в БД
             powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
             

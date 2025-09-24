@@ -16,7 +16,6 @@ from api.powerbank_crud import PowerbankCRUD
 from api.orders_crud import OrdersCRUD
 from api.org_unit_crud import OrgUnitCRUD
 from api.other_entities_crud import OtherEntitiesCRUD
-from api.logs_crud import LogsCRUD
 from api.restart_cabinet_api import RestartCabinetAPI
 from api.query_inventory_api import QueryInventoryAPI
 from api.query_voice_volume_api import QueryVoiceVolumeAPI
@@ -43,7 +42,6 @@ class HTTPServer:
         self.orders_crud: OrdersCRUD = None
         self.org_unit_crud: OrgUnitCRUD = None
         self.other_entities_crud: OtherEntitiesCRUD = None
-        self.logs_crud: LogsCRUD = None
         self.restart_cabinet_api: RestartCabinetAPI = None
         self.query_inventory_api: QueryInventoryAPI = None
         self.query_voice_volume_api: QueryVoiceVolumeAPI = None
@@ -124,7 +122,6 @@ class HTTPServer:
         self.orders_crud = OrdersCRUD(self.db_pool)
         self.org_unit_crud = OrgUnitCRUD(self.db_pool)
         self.other_entities_crud = OtherEntitiesCRUD(self.db_pool)
-        self.logs_crud = LogsCRUD(self.db_pool)
         self.restart_cabinet_api = RestartCabinetAPI(self.db_pool, connection_manager)
         self.query_inventory_api = QueryInventoryAPI(self.db_pool, connection_manager)
         self.query_voice_volume_api = QueryVoiceVolumeAPI(self.db_pool, connection_manager)
@@ -164,33 +161,26 @@ class HTTPServer:
         self.orders_crud.setup_routes(app)
         self.org_unit_crud.setup_routes(app)
         self.other_entities_crud.setup_routes(app)
-        self.logs_crud.setup_routes(app)
         
         # API для команды перезагрузки кабинета
         app.router.add_post('/api/restart-cabinet', self.restart_cabinet_api.restart_cabinet)
-        app.router.add_get('/api/restart-cabinet/logs', self.restart_cabinet_api.get_restart_logs)
         
         # API для запроса инвентаря кабинета
         app.router.add_post('/api/query-inventory', self.query_inventory_api.query_inventory)
-        app.router.add_get('/api/query-inventory/logs', self.query_inventory_api.get_inventory_logs)
         app.router.add_get('/api/query-inventory/station/{station_id}', self.query_inventory_api.get_station_inventory)
         
         # API для запроса уровня громкости голосового вещания
         app.router.add_post('/api/query-voice-volume', self.query_voice_volume_api.query_voice_volume)
-        app.router.add_get('/api/query-voice-volume/logs', self.query_voice_volume_api.get_voice_volume_logs)
         
         # API для установки уровня громкости голосового вещания
         app.router.add_post('/api/set-voice-volume', self.set_voice_volume_api.set_voice_volume)
-        app.router.add_get('/api/set-voice-volume/logs', self.set_voice_volume_api.get_set_voice_volume_logs)
         
         # API для установки адреса сервера
         app.router.add_post('/api/set-server-address', self.set_server_address_api.set_server_address)
-        app.router.add_get('/api/set-server-address/logs', self.set_server_address_api.get_set_server_address_logs)
         
         # API для запроса адреса сервера
         app.router.add_post('/api/query-server-address', self.query_server_address_api.query_server_address)
-        app.router.add_get('/api/query-server-address/station/{station_id}', self.query_server_address_api.get_server_address)
-        app.router.add_get('/api/query-server-address/logs', self.query_server_address_api.get_server_address_logs)
+        app.router.add_get('/api/query-server-address/station/{station_id}', self.query_server_address_api.get_station_server_address)
         
         # API для пользователей
         app.router.add_get('/api/user/powerbanks/available', self.user_powerbank_api.get_available_powerbanks)
@@ -284,12 +274,6 @@ class HTTPServer:
             print("  GET /api/station-secret-keys - Получить секретные ключи станций")
             print("  DELETE /api/station-secret-keys/{key_id} - Удалить секретный ключ")
             print("  DELETE /api/station-secret-keys - Удалить секретный ключ по station_id")
-            print("\n=== CRUD API - ЛОГИ ДЕЙСТВИЙ ===")
-            print("  GET /api/logs - Получить список логов")
-            print("  GET /api/logs/{log_id} - Получить лог по ID")
-            print("  POST /api/logs - Создать лог")
-            print("  GET /api/logs/stats - Получить статистику логов")
-            print("  POST /api/logs/clean - Очистить старые логи")
             print("\n=== ИНВЕНТАРЬ СТАНЦИЙ (0x64) ===")
             print("  GET /api/inventory/stations/{station_id} - Получить инвентарь станции")
             print("  POST /api/inventory/stations/{station_id}/query - Запросить инвентарь через TCP")
@@ -299,12 +283,11 @@ class HTTPServer:
             print("  POST /api/restart/stations/{station_id} - Перезагрузить станцию")
             print("  POST /api/restart/stations/bulk - Массовая перезагрузка станций")
             print("\n=== ЗАПРОС АДРЕСА СЕРВЕРА (0x6A) ===")
-            print("  POST /api/query-server-address - Запросить адрес сервера")
-            print("  GET /api/query-server-address/station/{station_id} - Получить адрес сервера")
-            print("  GET /api/query-server-address/logs - Получить логи запросов")
+            print("  POST /api/server-address/stations/{station_id}/query - Запросить адрес сервера")
+            print("  GET /api/server-address/stations/{station_id} - Получить адрес сервера")
             print("\n=== УСТАНОВКА АДРЕСА СЕРВЕРА (0x63) ===")
-            print("  POST /api/set-server-address - Установить адрес сервера")
-            print("  GET /api/set-server-address/logs - Получить логи установки")
+            print("  POST /api/set-server-address/stations/{station_id}/set - Установить адрес сервера")
+            print("  GET /api/set-server-address/stations/{station_id} - Получить результат установки")
             print("\n=== УПРАВЛЕНИЕ ГРОМКОСТЬЮ ГОЛОСОВОГО ВЕЩАНИЯ (0x77, 0x70) ===")
             print("  POST /api/voice-volume/stations/{station_id}/query - Запросить уровень громкости")
             print("  POST /api/voice-volume/stations/{station_id}/set - Установить уровень громкости")

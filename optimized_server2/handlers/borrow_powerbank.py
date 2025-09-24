@@ -27,6 +27,15 @@ class BorrowPowerbankHandler:
             borrow_request = parse_borrow_request(data)
             print(f"Обработан запрос на выдачу: слот {borrow_request['Slot']}")
             
+            # Проверяем токен
+            from utils.packet_utils import verify_token
+            import struct
+            payload = struct.pack("B", borrow_request['Slot'])
+            received_token = int(borrow_request['Token'], 16)
+            if not verify_token(payload, connection.secret_key, received_token):
+                print(f"Неверный токен в запросе выдачи от станции {connection.box_id}")
+                return None
+            
             # Получаем информацию о станции
             station_id = connection.station_id
             if not station_id:
