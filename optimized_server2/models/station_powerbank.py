@@ -118,11 +118,16 @@ class StationPowerbank:
         """Добавляет повербанк в станцию"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
+                # Конвертируем значения в int, чтобы избежать MySQL warnings
+                level_int = int(level) if level is not None else None
+                voltage_int = int(voltage) if voltage is not None else None
+                temperature_int = int(temperature) if temperature is not None else None
+                
                 await cur.execute("""
                     INSERT INTO station_powerbank 
                     (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
                     VALUES (%s, %s, %s, %s, %s, %s, NOW())
-                """, (station_id, powerbank_id, slot_number, level, voltage, temperature))
+                """, (station_id, powerbank_id, slot_number, level_int, voltage_int, temperature_int))
                 
                 return cls(
                     id=cur.lastrowid,
@@ -185,13 +190,13 @@ class StationPowerbank:
                 
                 if level is not None:
                     updates.append("level = %s")
-                    params.append(level)
+                    params.append(int(level))
                 if voltage is not None:
                     updates.append("voltage = %s")
-                    params.append(voltage)
+                    params.append(int(voltage))
                 if temperature is not None:
                     updates.append("temperature = %s")
-                    params.append(temperature)
+                    params.append(int(temperature))
                 
                 if not updates:
                     return False
@@ -253,7 +258,12 @@ class StationPowerbank:
                     if powerbank_result:
                         powerbank_id = powerbank_result[0]
                         
-                        # Добавляем в station_powerbank (независимо от статуса)
+                        # Добавляем в station_powerbank 
+                       
+                        level = int(slot.get('Level', 0)) if slot.get('Level') is not None else None
+                        voltage = int(slot.get('Voltage', 0)) if slot.get('Voltage') is not None else None
+                        temperature = int(slot.get('Temp', 0)) if slot.get('Temp') is not None else None
+                        
                         await cur.execute("""
                             INSERT INTO station_powerbank 
                             (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
@@ -261,10 +271,10 @@ class StationPowerbank:
                         """, (
                             station_id,
                             powerbank_id,
-                            slot['Slot'],
-                            slot.get('Level'),
-                            slot.get('Voltage'),
-                            slot.get('Temp')
+                            int(slot['Slot']),
+                            level,
+                            voltage,
+                            temperature
                         ))
                         
                         added_count += 1

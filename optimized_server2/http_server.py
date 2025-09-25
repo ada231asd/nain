@@ -285,7 +285,6 @@ class HTTPServer:
         """Останавливает HTTP сервер"""
         print("Остановка HTTP сервера...")
         if self.app:
-            #
             pass
 
 

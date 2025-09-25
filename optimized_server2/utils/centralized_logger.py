@@ -14,7 +14,7 @@ _main_logger: Optional[logging.Logger] = None
 def get_logger(name: str) -> logging.Logger:
     """
     Получает логгер с указанным именем.
-    Все логгеры используют один файловый дескриптор.
+    ВСЕ логгеры используют ОДИН файловый дескриптор.
     """
     global _main_logger
     
@@ -22,9 +22,9 @@ def get_logger(name: str) -> logging.Logger:
     if _main_logger is None:
         _setup_main_logger()
     
-    # Создаем дочерний логгер с указанным именем
-    logger = _main_logger.getChild(name)
-    return logger
+    # ВОЗВРАЩАЕМ ОДИН И ТОТ ЖЕ ЛОГГЕР ДЛЯ ВСЕХ
+    # Это минимизирует файловые дескрипторы
+    return _main_logger
 
 def _setup_main_logger():
     """Настраивает основной логгер с ротацией и оптимизацией"""
@@ -83,10 +83,16 @@ def get_logger_stats() -> dict:
     """Возвращает статистику использования логгера"""
     global _main_logger
     if not _main_logger:
-        return {"handlers": 0, "children": 0}
+        return {"handlers": 0, "file_descriptors": 0}
+    
+    # Считаем только файловые дескрипторы
+    file_handlers = 0
+    for handler in _main_logger.handlers:
+        if hasattr(handler, 'stream') and hasattr(handler.stream, 'fileno'):
+            file_handlers += 1
     
     return {
         "handlers": len(_main_logger.handlers),
-        "children": len(_main_logger.manager.loggerDict),
+        "file_descriptors": file_handlers,
         "level": _main_logger.level
     }

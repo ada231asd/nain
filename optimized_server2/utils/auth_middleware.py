@@ -5,7 +5,7 @@ import jwt
 import json
 from aiohttp import web
 from typing import Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 
 # Секретный ключ для JWT (в продакшене должен быть в переменных окружения)
@@ -90,7 +90,8 @@ def create_jwt_token(user_data: Dict[str, Any], expires_hours: int = 24) -> str:
         JWT токен в виде строки
     """
     # Добавляем время истечения
-    now = datetime.now(timezone.utc)
+    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
+    now = datetime.now(moscow_tz)
     exp_time = now.timestamp() + (expires_hours * 3600)
     
     payload = {
@@ -155,7 +156,8 @@ def is_token_expired(token: str) -> bool:
     try:
         payload = verify_jwt_token(token)
         exp_time = payload.get('exp', 0)
-        current_time = datetime.now(timezone.utc).timestamp()
+        moscow_tz = timezone(timedelta(hours=3))  # UTC+3
+        current_time = datetime.now(moscow_tz).timestamp()
         return current_time >= exp_time
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return True

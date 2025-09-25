@@ -198,8 +198,6 @@ class StationHandler:
             existing_powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
             
             if existing_powerbank:
-                print(f"Повербанк {terminal_id} уже существует в БД со статусом {existing_powerbank.status}")
-                
                 # Проверяем совместимость групп - выплевываем повербанки других групп
                 if existing_powerbank.org_unit_id != station.org_unit_id:
                     print(f"Повербанк {terminal_id} из группы {existing_powerbank.org_unit_id} не принадлежит группе станции {station.org_unit_id} - выплевываем")
@@ -210,7 +208,9 @@ class StationHandler:
                 
                 # Обновляем SOH если есть данные
                 if slot.get('SOH') is not None:
-                    await existing_powerbank.update_soh(self.db_pool, slot['SOH'])
+                    # Конвертируем SOH в int, чтобы избежать MySQL warnings
+                    soh_int = int(slot['SOH']) if slot['SOH'] is not None else 0
+                    await existing_powerbank.update_soh(self.db_pool, soh_int)
             else:
                 # Создаем новый повербанк со статусом unknown в группе 1 (глобальная сервисная группа)
                 new_powerbank = await Powerbank.create_unknown(
@@ -222,7 +222,9 @@ class StationHandler:
                 
                 # Обновляем SOH если есть данные
                 if slot.get('SOH') is not None:
-                    await new_powerbank.update_soh(self.db_pool, slot['SOH'])
+                    # Конвертируем SOH в int, чтобы избежать MySQL warnings
+                    soh_int = int(slot['SOH']) if slot['SOH'] is not None else 0
+                    await new_powerbank.update_soh(self.db_pool, soh_int)
     
     async def _check_and_extract_incompatible_powerbanks(self, station_id: int) -> None:
         """Проверяет и извлекает несовместимые повербанки"""

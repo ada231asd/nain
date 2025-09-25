@@ -1,60 +1,11 @@
 """
-Специализированный логгер для TCP пакетов
-Записывает только пакеты от станций и к станциям
+TCP пакет логгер - использует основной логгер для минимизации файловых дескрипторов
 """
-import logging
-import logging.handlers
-import os
-from datetime import datetime
-from typing import Optional
-from config.settings import TCP_PACKETS_LOG, LOG_LEVEL
+from utils.centralized_logger import get_logger
 
-# Глобальная переменная для TCP логгера
-_tcp_logger: Optional[logging.Logger] = None
-
-def get_tcp_logger() -> logging.Logger:
-    """Получает или создает TCP логгер"""
-    global _tcp_logger
-    
-    if _tcp_logger is None:
-        _tcp_logger = _setup_tcp_logger()
-    
-    return _tcp_logger
-
-def _setup_tcp_logger() -> logging.Logger:
-    """Настраивает TCP логгер"""
-    # Создаем директорию для логов если не существует
-    os.makedirs(os.path.dirname(TCP_PACKETS_LOG), exist_ok=True)
-    
-    # Создаем логгер
-    logger = logging.getLogger('tcp_packets')
-    logger.setLevel(getattr(logging, LOG_LEVEL.upper()))
-    
-    # Очищаем существующие обработчики
-    logger.handlers.clear()
-    
-    # Создаем файловый обработчик с ротацией
-    file_handler = logging.handlers.RotatingFileHandler(
-        TCP_PACKETS_LOG,
-        maxBytes=50*1024*1024,  # 50MB
-        backupCount=10,
-        encoding='utf-8'
-    )
-    
-    # Создаем форматтер для TCP пакетов
-    formatter = logging.Formatter(
-        '%(asctime)s | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    file_handler.setFormatter(formatter)
-    
-    # Добавляем обработчик
-    logger.addHandler(file_handler)
-    
-    # Отключаем распространение в родительские логгеры
-    logger.propagate = False
-    
-    return logger
+def get_tcp_logger():
+    """Возвращает основной логгер для TCP пакетов"""
+    return get_logger('tcp_packets')
 
 def log_tcp_packet(direction: str, packet_type: str, station_id: str, 
                   packet_size: int, command: str, packet_data: str, 
@@ -123,23 +74,15 @@ def log_tcp_error(station_id: str, error_message: str, packet_data: str = "") ->
     logger.error(message)
 
 def close_tcp_logger() -> None:
-    """Закрывает TCP логгер"""
-    global _tcp_logger
-    
-    if _tcp_logger:
-        for handler in _tcp_logger.handlers:
-            handler.close()
-        _tcp_logger = None
+    """Закрывает TCP логгер (теперь не нужно - используется основной)"""
+    pass  # TCP логгер теперь использует основной логгер
 
 def get_tcp_logger_stats() -> dict:
     """Возвращает статистику TCP логгера"""
-    global _tcp_logger
-    
-    if not _tcp_logger:
-        return {"handlers": 0, "level": "NOT_SET"}
-    
+    from utils.centralized_logger import get_logger_stats
+    stats = get_logger_stats()
     return {
-        "handlers": len(_tcp_logger.handlers),
-        "level": _tcp_logger.level,
-        "log_file": TCP_PACKETS_LOG
+        "handlers": stats["handlers"],
+        "file_descriptors": stats["file_descriptors"],
+        "log_file": "logs/server.log"  # Теперь все в одном файле
     }

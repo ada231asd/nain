@@ -337,8 +337,13 @@ class OptimizedServer:
             asyncio.create_task(self._connection_monitor())
             
             # Ждем завершения серверов
-            async with self.tcp_server:
-                await self.tcp_server.serve_forever()
+            try:
+                async with self.tcp_server:
+                    await self.tcp_server.serve_forever()
+            except asyncio.CancelledError:
+                print("TCP сервер остановлен")
+            except Exception as e:
+                print(f"Ошибка TCP сервера: {e}")
         
         except Exception as e:
             print(f"Ошибка запуска серверов: {e}")
@@ -360,11 +365,9 @@ class OptimizedServer:
                 if connections:
                     print(f"Активных соединений: {len(connections)}")
                     
-                    # Выводим статистику логгеров
-                    logger_stats = get_logger_stats()
-                    tcp_logger_stats = get_tcp_logger_stats()
-                    print(f"Логгер: {logger_stats['handlers']} обработчиков, {logger_stats['children']} дочерних логгеров")
-                    print(f"TCP логгер: {tcp_logger_stats['handlers']} обработчиков, файл: {tcp_logger_stats['log_file']}")
+                    # Статистика логгеров (скрыта)
+                    # logger_stats = get_logger_stats()
+                    # tcp_logger_stats = get_tcp_logger_stats()
                     
                     # Группируем по станциям для выявления дублирования
                     stations = {}
@@ -451,7 +454,11 @@ class OptimizedServer:
                             await station.update_status(self.db_pool, "inactive")
                             print(f" Станция {box_id} (ID: {station_id}) деактивирована")
                     except Exception as e:
-                        print(f" Ошибка деактивации станции {box_id}: {e}")
+                        # Игнорируем ошибки с закрытым пулом соединений
+                        if "Cannot acquire connection after closing pool" in str(e):
+                            print(f" Пул соединений закрыт, пропускаем деактивацию станции {box_id}")
+                        else:
+                            print(f" Ошибка деактивации станции {box_id}: {e}")
             else:
                 print(" Активных станций не найдено")
             
@@ -493,7 +500,11 @@ class OptimizedServer:
                         print(" Активных станций в БД не найдено")
                         
         except Exception as e:
-            print(f" Ошибка при деактивации станций в БД: {e}")
+            # Игнорируем ошибки с закрытым пулом соединений
+            if "Cannot acquire connection after closing pool" in str(e):
+                print(" Пул соединений закрыт, пропускаем деактивацию станций в БД")
+            else:
+                print(f" Ошибка при деактивации станций в БД: {e}")
 
 
 async def main():
@@ -523,14 +534,23 @@ async def main():
         await server.start_servers()
     except KeyboardInterrupt:
         print("Получен сигнал прерывания")
+    except asyncio.CancelledError:
+        print("Сервер остановлен")
+    except Exception as e:
+        print(f"Ошибка сервера: {e}")
     finally:
-        await server.stop_servers()
+        try:
+            await server.stop_servers()
+        except Exception as e:
+            print(f"Ошибка при остановке сервера: {e}")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
+        print("Серверы остановлены")
+    except asyncio.CancelledError:
         print("Серверы остановлены")
     except Exception as e:
         print(f"Критическая ошибка: {e}")

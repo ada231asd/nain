@@ -2,10 +2,10 @@
 Обработчик команды запроса адреса сервера
 """
 from typing import Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from models.station import Station
-from utils.packet_utils import build_query_server_address_request, parse_query_server_address_response
+from utils.packet_utils import build_query_server_address_request, parse_query_server_address_response, get_moscow_time
 from models.connection import StationConnection
 from utils.centralized_logger import get_logger
 
@@ -81,7 +81,7 @@ class QueryServerAddressHandler:
                 'address': response.get('Address', 'N/A'),
                 'port': response.get('Ports', 'N/A'),
                 'heartbeat_interval': response.get('Heartbeat', 'N/A'),
-                'last_update': datetime.now(timezone.utc).isoformat(),
+                'last_update': get_moscow_time().isoformat(),
                 'packet_hex': response.get('RawPacket', 'N/A'),
                 'vsn': response.get('VSN', 'N/A'),
                 'checksum': response.get('CheckSum', 'N/A'),

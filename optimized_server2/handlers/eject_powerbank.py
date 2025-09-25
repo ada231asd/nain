@@ -158,7 +158,7 @@ class EjectPowerbankHandler:
             
             for sp in station_powerbanks:
                 # Получаем информацию о повербанке
-                powerbank = await Powerbank.get_by_serial(
+                powerbank = await Powerbank.get_by_id(
                     self.db_pool, sp.powerbank_id
                 )
                 

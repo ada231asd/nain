@@ -2,12 +2,12 @@
 Обработчик команды запроса инвентаря кабинета
 """
 from typing import Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from utils.centralized_logger import get_logger
 from models.station import Station
 from models.powerbank import Powerbank
-from utils.packet_utils import build_query_inventory_request, parse_query_inventory_response
+from utils.packet_utils import build_query_inventory_request, parse_query_inventory_response, get_moscow_time
 from models.connection import StationConnection
 
 class QueryInventoryHandler:
@@ -101,11 +101,15 @@ class QueryInventoryHandler:
 
                 if powerbank:
                     # Повербанк существует, обновляем его статус и SOH
-                    await powerbank.update_status_and_soh(self.db_pool, 'active', soh)
-                    print(f"📱 Обновлен повербанк {terminal_id}: статус 'active', SOH {soh}")
+                    # Конвертируем SOH в int, чтобы избежать MySQL warnings
+                    soh_int = int(soh) if soh is not None else 0
+                    await powerbank.update_status_and_soh(self.db_pool, 'active', soh_int)
+                    print(f"📱 Обновлен повербанк {terminal_id}: статус 'active', SOH {soh_int}")
                 else:
                     # Повербанк не существует, создаем его
-                    new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh, 'active')
+                    # Конвертируем SOH в int, чтобы избежать MySQL warnings
+                    soh_int = int(soh) if soh is not None else 0
+                    new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh_int, 'active')
                     if new_powerbank:
                         print(f"📱 Создан новый повербанк {terminal_id} с SOH {soh}")
                     else:
@@ -128,7 +132,7 @@ class QueryInventoryHandler:
                 'slots_num': response.get('SlotsNum', 0),
                 'remain_num': response.get('RemainNum', 0),
                 'inventory': inventory_data,
-                'last_update': datetime.now(timezone.utc).isoformat()
+                'last_update': get_moscow_time().isoformat()
             }
             
             print(f"✅ Инвентарь станции {connection.box_id} сохранен в кэш: {len(inventory_data)} слотов")

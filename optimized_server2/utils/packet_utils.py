@@ -4,9 +4,13 @@
 import struct
 import hashlib
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Tuple, Optional
 from config.settings import MAX_PACKET_SIZE, PROTOCOL_COMMAND_RANGE, MAX_SUSPICIOUS_PACKETS
+
+def get_moscow_time() -> datetime:
+    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
+    return datetime.now(moscow_tz)
 
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
     """Логирование TCP пакета через специализированный логгер"""
@@ -240,7 +244,7 @@ def build_login_response(vsn: int, nonce: int, secret_key: bytes) -> Tuple[bytes
     """Создает ответ на логин"""
     command = 0x60
     result = 1
-    timestamp = int(datetime.now(timezone.utc).timestamp())
+    timestamp = int(get_moscow_time().timestamp())
     new_nonce = random.randint(0, 0xffffffff)
     payload = struct.pack(">BII", result, new_nonce, timestamp)
     checksum = compute_checksum(payload)
@@ -329,67 +333,66 @@ def parse_borrow_request(data: bytes) -> Dict[str, Any]:
 def parse_borrow_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на выдачу повербанка (команда 0x65)"""
     try:
-        if len(data) < 9:
-            raise ValueError("Слишком короткий пакет для ответа выдачи")
-        
-        # Парсим заголовок согласно протоколу:
-        # PacketLen (2) + Command (1) + VSN (1) + CheckSum (1) + Token (4) = 9 байт
+        if len(data) < 21:  # 9 байт заголовка + минимум 12 байт payload
+            raise ValueError("Слишком короткий пакет для ответа BorrowResponse")
+
+        # Заголовок
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
-        
+
         if command != 0x65:
             raise ValueError(f"Неверная команда: {hex(command)}")
-        
-        # Если есть дополнительные данные, парсим их
+
+        payload = data[9:]
+        if len(payload) < 12:
+            raise ValueError("Недостаточно данных для BorrowResponse payload")
+
+        # Разбор payload
+        slot = payload[0]
+        result_code = payload[1]
+        terminal_id_bytes = payload[2:10]
+        terminal_id = parse_terminal_id(terminal_id_bytes)
+        current_slot_lock_status = payload[10]
+        adjacent_slot_lock_status = payload[11]
+
+        # Проверка checksum
+        if compute_checksum(payload) != checksum:
+            checksum_valid = False
+            checksum_error = "Неверный checksum"
+        else:
+            checksum_valid = True
+            checksum_error = None
+
         result = {
             "Type": "BorrowResponse",
             "PacketLen": packet_len,
             "Command": hex(command),
             "VSN": vsn,
             "CheckSum": hex(checksum),
+            "CheckSumValid": checksum_valid,
             "Token": f"0x{token:08X}",
-            "CheckSumValid": True,
-            "Success": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "Slot": slot,
+            "ResultCode": result_code,
+            "TerminalID": terminal_id,
+            "CurrentSlotLockStatus": current_slot_lock_status,
+            "AdjacentSlotLockStatus": adjacent_slot_lock_status,
+            "Success": result_code == 1,
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
-        
-        # Если есть дополнительные данные (слот и terminal_id)
-        if len(data) > 8:
-            try:
-                # Парсим слот и terminal_id
-                slot = data[8]
-                terminal_id_bytes = data[9:17]
-                terminal_id = parse_terminal_id(terminal_id_bytes)
-                
-                result.update({
-                    "Slot": slot,
-                    "TerminalID": terminal_id
-                })
-                
-                # Проверяем checksum с учетом дополнительных данных
-                payload = struct.pack("B8s", slot, terminal_id_bytes)
-                if compute_checksum(payload) != checksum:
-                    result["CheckSumValid"] = False
-                    result["CheckSumError"] = "Неверный checksum с дополнительными данными"
-            except Exception as parse_error:
-                result["ParseWarning"] = f"Ошибка парсинга дополнительных данных: {parse_error}"
-        else:
-            # Проверяем checksum (payload пустой для ответа)
-            payload = b''
-            if compute_checksum(payload) != checksum:
-                result["CheckSumValid"] = False
-                result["CheckSumError"] = "Неверный checksum"
-        
+        if not checksum_valid:
+            result["CheckSumError"] = checksum_error
+
         return result
-        
+
     except Exception as e:
         return {
             "Type": "BorrowResponse",
-            "Error": f"Ошибка парсинга: {str(e)}",
+            "Error": str(e),
             "RawPacket": data.hex(),
             "Size": len(data)
         }
+
 
 
 def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
@@ -437,7 +440,7 @@ def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
         "Status": status_bits,
         "SOH": soh,
         "RawPacket": data.hex(),
-        "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+        "ReceivedAt": get_moscow_time().isoformat(),
         "CheckSumValid": True
     }
 
@@ -516,7 +519,7 @@ def parse_query_iccid_response(data: bytes) -> Dict[str, Any]:
             "ICCIDLen": iccid_len,
             "ICCID": iccid,
             "CheckSumValid": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat()
+            "ReceivedAt": get_moscow_time().isoformat()
         }
         
     except Exception as e:
@@ -581,7 +584,7 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
         "SlotNo": slot_no,
         "TerminalID": terminal_id.hex().upper(),
         "CheckSumValid": True,
-        "ReceivedAt": datetime.now(timezone.utc).isoformat()
+        "ReceivedAt": get_moscow_time().isoformat()
     }
 
 
@@ -689,7 +692,7 @@ def parse_heartbeat_packet(data: bytes) -> Dict[str, Any]:
             "CheckSum": hex(checksum),
             "Token": f"0x{token:08X}",
             "CheckSumValid": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat()
+            "ReceivedAt": get_moscow_time().isoformat()
         }
     except Exception as e:
         return {
@@ -723,7 +726,7 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
             "Token": f"0x{token:08X}",
             "CheckSumValid": True,
             "Success": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat()
+            "ReceivedAt": get_moscow_time().isoformat()
         }
         
         # Если есть дополнительные данные (слот и terminal_id)
@@ -810,7 +813,7 @@ def parse_restart_cabinet_response(data: bytes) -> Dict[str, Any]:
             "Token": f"0x{token:08X}",
             "CheckSumValid": True,
             "Success": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
         
@@ -914,7 +917,7 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
             "RemainNum": remain_num,
             "Slots": slots,
             "CheckSumValid": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
         
@@ -974,7 +977,7 @@ def parse_query_voice_volume_response(data: bytes) -> Dict[str, Any]:
             "Token": f"0x{token:08X}",
             "VolumeLevel": volume_level,
             "CheckSumValid": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
         
@@ -1031,7 +1034,7 @@ def parse_set_voice_volume_response(data: bytes) -> Dict[str, Any]:
             "Token": f"0x{token:08X}",
             "CheckSumValid": True,
             "Success": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
         
@@ -1104,7 +1107,7 @@ def parse_set_server_address_response(data: bytes) -> Dict[str, Any]:
             "Token": f"0x{token:08X}",
             "CheckSumValid": True,
             "Success": True,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
         
@@ -1195,7 +1198,7 @@ def parse_query_server_address_response(data: bytes) -> Dict[str, Any]:
             "PortLen": port_len,
             "Ports": ports,
             "Heartbeat": heartbeat,
-            "ReceivedAt": datetime.now(timezone.utc).isoformat(),
+            "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex()
         }
 
