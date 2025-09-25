@@ -11,6 +11,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import json
+from config.settings import PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_HASH_ROUNDS
 
 
 class User:
@@ -51,14 +52,49 @@ class User:
         return ''.join(secrets.choice(characters) for _ in range(length))
     
     @staticmethod
+    def validate_password(password: str) -> tuple[bool, str]:
+        """
+        Валидирует пароль для защиты от атак по стороннему каналу
+        Возвращает (is_valid, error_message)
+        """
+        if not password:
+            return False, "Пароль не может быть пустым"
+        
+        if len(password) < PASSWORD_MIN_LENGTH:
+            return False, f"Пароль должен содержать минимум {PASSWORD_MIN_LENGTH} символов"
+        
+        if len(password) > PASSWORD_MAX_LENGTH:
+            return False, f"Пароль не должен превышать {PASSWORD_MAX_LENGTH} символов"
+        
+        # Проверяем на наличие только пробельных символов
+        if password.strip() != password:
+            return False, "Пароль не должен начинаться или заканчиваться пробелами"
+        
+        return True, ""
+    
+    @staticmethod
     def hash_password(password: str) -> str:
-        """Хеширует пароль"""
-        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        """Хеширует пароль с использованием bcrypt"""
+        # Валидируем пароль перед хешированием
+        is_valid, error = User.validate_password(password)
+        if not is_valid:
+            raise ValueError(f"Некорректный пароль: {error}")
+        
+        # Используем настраиваемое количество раундов
+        salt = bcrypt.gensalt(rounds=PASSWORD_HASH_ROUNDS)
+        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     
     @staticmethod
     def verify_password(password: str, hashed: str) -> bool:
-        """Проверяет пароль"""
-        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+        """Проверяет пароль с защитой от атак по стороннему каналу"""
+        # Ограничиваем длину пароля перед проверкой
+        if len(password) > PASSWORD_MAX_LENGTH:
+            return False
+        
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+        except (ValueError, TypeError):
+            return False
     
     @classmethod
     async def create_user(cls, pool, phone_e164: str, email: str, 
@@ -136,11 +172,18 @@ class User:
     
     @classmethod
     async def authenticate(cls, pool, phone_e164: str, password: str) -> Optional['User']:
-        """Аутентифицирует пользователя"""
+        """Аутентифицирует пользователя с защитой от атак по стороннему каналу"""
+        # Проверяем длину пароля перед любыми операциями
+        if len(password) > PASSWORD_MAX_LENGTH:
+            # Логируем подозрительную попытку
+            print(f"🚨 ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
+            return None
+        
         user = await cls.get_by_phone(pool, phone_e164)
         if not user:
             return None
         
+        # Проверяем пароль с защитой от timing атак
         if not cls.verify_password(password, user.password_hash):
             return None
         

@@ -13,17 +13,15 @@ HTTP_PORT = 8000
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "appuser",
-    "password": "MyPassw0rd!",
-    "db": "zaryd",
+    "user": "root",
+    "password": "",
+    "db": "DB",
     "autocommit": True
 }
 
 # Настройки логирования
 LOG_LEVEL = "INFO"
-LOG_FILE = "tcp_server.log"
-EXCEPTION_LOG_FILE = "exceptions.log"
-API_REQUESTS_LOG = "api_requests.log"
+TCP_PACKETS_LOG = "logs/tcp_packets.log"  
 
 # Настройки JWT
 JWT_SECRET_KEY = "your-secret-key-here"
@@ -33,3 +31,13 @@ JWT_EXPIRATION_HOURS = 24
 # Настройки соединений
 CONNECTION_TIMEOUT = 300  # 5 минут
 HEARTBEAT_INTERVAL = 30   # 30 секунд
+
+# Настройки безопасности паролей
+PASSWORD_MIN_LENGTH = 6
+PASSWORD_MAX_LENGTH = 36  # Защита от атак по стороннему каналу
+PASSWORD_HASH_ROUNDS = 12  # Для bcrypt
+
+
+MAX_PACKET_SIZE = 1024  # Максимальный размер пакета в байтах
+PROTOCOL_COMMAND_RANGE = (0x60, 0x8F)  # Диапазон команд протокола
+MAX_SUSPICIOUS_PACKETS = 1  # Максимум подозрительных пакетов перед отключением

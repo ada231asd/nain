@@ -9,7 +9,8 @@ from aiohttp import web
 import aiomysql
 
 from models.user import User, EmailService, VerificationCode
-from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS
+from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, PASSWORD_MAX_LENGTH
+from utils.centralized_logger import get_logger
 
 
 class AuthHandler:
@@ -18,6 +19,7 @@ class AuthHandler:
     def __init__(self, db_pool):
         self.db_pool = db_pool
         self.email_service = EmailService()
+        self.logger = get_logger('auth_handler')
     
     def create_jwt_token(self, user_id: int, phone_e164: str) -> str:
         """Создает JWT токен"""
@@ -87,7 +89,7 @@ class AuthHandler:
             }, status=500)
     
     async def login_user(self, request):
-        """Авторизация пользователя"""
+        """Авторизация пользователя с защитой от атак по стороннему каналу"""
         try:
             data = await request.json()
             
@@ -101,6 +103,21 @@ class AuthHandler:
             
             phone_e164 = data['phone_e164']
             password = data['password']
+            
+            # Защита от атак по стороннему каналу - проверяем длину пароля
+            if len(password) > PASSWORD_MAX_LENGTH:
+                self.logger.warning(f"🚨 ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
+                return web.json_response({
+                    'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
+                }, status=401)
+            
+            # Валидация пароля
+            is_valid, error = User.validate_password(password)
+            if not is_valid:
+                self.logger.warning(f"🚨 НЕКОРРЕКТНЫЙ ПАРОЛЬ: {error} для телефона {phone_e164}")
+                return web.json_response({
+                    'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
+                }, status=401)
             
             # Аутентификация
             user = await User.authenticate(self.db_pool, phone_e164, password)

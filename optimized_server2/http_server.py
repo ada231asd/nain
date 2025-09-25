@@ -24,8 +24,7 @@ from api.set_server_address_api import SetServerAddressAPI
 from api.query_server_address_api import QueryServerAddressAPI
 from api.user_powerbank_api import UserPowerbankAPI
 
-# Импорты для безопасности
-# from middleware.simple_security import create_simple_security_middleware
+
 
 
 class HTTPServer:
@@ -50,8 +49,6 @@ class HTTPServer:
         self.query_server_address_api: QueryServerAddressAPI = None
         self.user_powerbank_api: UserPowerbankAPI = None
         
-        # Компоненты безопасности
-        # self.security_middleware = create_simple_security_middleware()
     
     async def initialize_database(self):
         """Инициализирует подключение к базе данных"""
@@ -72,25 +69,10 @@ class HTTPServer:
     def create_app(self, connection_manager=None) -> Application:
         """Создает HTTP приложение"""
         app = web.Application()
-        
-        # Добавляем middleware безопасности
-        # app.middlewares.append(self.security_middleware)
-        
-        # Добавляем CORS middleware с базовой защитой
+  
+        # Добавляем CORS middleware
         @web.middleware
         async def cors_middleware(request, handler):
-            # Базовая защита от XSS
-            if request.method in ['POST', 'PUT', 'PATCH']:
-                try:
-                    body = await request.text()
-                    # Простая проверка на XSS
-                    if '<script' in body.lower() or 'javascript:' in body.lower():
-                        return web.json_response({
-                            'error': 'Обнаружена попытка XSS атаки'
-                        }, status=400)
-                except:
-                    pass
-            
             # Обрабатываем preflight запросы
             if request.method == 'OPTIONS':
                 response = web.Response()
@@ -102,12 +84,6 @@ class HTTPServer:
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
-            
-            # Добавляем заголовки безопасности
-            response.headers['X-Content-Type-Options'] = 'nosniff'
-            response.headers['X-Frame-Options'] = 'DENY'
-            response.headers['X-XSS-Protection'] = '1; mode=block'
-            response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
             
             return response
         
@@ -309,7 +285,7 @@ class HTTPServer:
         """Останавливает HTTP сервер"""
         print("Остановка HTTP сервера...")
         if self.app:
-            # Здесь можно добавить логику остановки
+            #
             pass
 
 

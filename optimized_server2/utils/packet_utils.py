@@ -6,11 +6,13 @@ import hashlib
 import random
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple, Optional
+from config.settings import MAX_PACKET_SIZE, PROTOCOL_COMMAND_RANGE, MAX_SUSPICIOUS_PACKETS
 
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
-    """Простое логирование пакета в файл"""
+    """Логирование TCP пакета через специализированный логгер"""
     try:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        from utils.tcp_packet_logger import log_tcp_packet
+        
         hex_data = data.hex().upper()
         size = len(data)
         
@@ -19,10 +21,15 @@ def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", com
         if size >= 3:
             command_hex = f"0x{data[2]:02X}"
         
-        log_line = f"[{timestamp}] [{direction}] [{command_name}] [{size} bytes] [{command_hex}] [{hex_data}] [{station_box_id}]\n"
-        
-        with open("packet_log.txt", "a", encoding="utf-8") as f:
-            f.write(log_line)
+        # Логируем через TCP логгер
+        log_tcp_packet(
+            direction=direction,
+            packet_type=command_name,
+            station_id=station_box_id,
+            packet_size=size,
+            command=command_hex,
+            packet_data=hex_data
+        )
             
     except Exception as e:
         print(f"Ошибка логирования пакета: {e}")
@@ -31,6 +38,76 @@ def log_packet_with_station(data: bytes, direction: str, station_box_id: str, co
     """Логирование пакета с информацией о станции"""
     log_packet(data, direction, station_box_id, command_name)
 
+def validate_packet(data: bytes, connection) -> Tuple[bool, str]:
+    """
+    Проверяет валидность пакета - базовая проверка структуры
+    """
+    try:
+        # Проверка размера пакета
+        if len(data) > MAX_PACKET_SIZE:
+            return False, f"Пакет слишком большой: {len(data)} байт (максимум {MAX_PACKET_SIZE})"
+        
+        if len(data) < 9:  # Минимум: 2(длина) + 1(команда) + 1(VSN) + 1(checksum) + 4(token)
+            return False, f"Пакет слишком короткий: {len(data)} байт (минимум 9)"
+        
+        # Проверка команды
+        command = data[2]
+        min_cmd, max_cmd = PROTOCOL_COMMAND_RANGE
+        if command < min_cmd or command > max_cmd:
+            return False, f"Недопустимая команда: 0x{command:02X} (вне диапазона 0x{min_cmd:02X}-0x{max_cmd:02X})"
+        
+        # Проверка длины пакета - станция не всегда корректно указывает длину
+        packet_len = struct.unpack('>H', data[:2])[0]
+        # Допускаем расхождение, но не критичное (станция может ошибаться в длине)
+        if abs(packet_len - len(data)) > 10:  # Допускаем расхождение до 10 байт
+            return False, f"Критичное несоответствие длины: заявлено {packet_len}, фактически {len(data)}"
+        
+        # Проверка структуры пакета согласно протоколу
+        if len(data) >= 9:
+            vsn = data[3]
+            checksum = data[4]
+            token = struct.unpack('>I', data[5:9])[0]
+            payload = data[9:]  # Payload начинается после токена
+            
+            
+            if vsn < 1 or vsn > 10:
+                return False, f"Подозрительный VSN: {vsn}"
+            
+            # Проверяем checksum для payload (если есть)
+            if payload and len(payload) > 0:
+                computed_checksum = compute_checksum(payload)
+                if computed_checksum != checksum:
+                    return False, f"Неверный checksum: ожидался 0x{computed_checksum:02X}, получен 0x{checksum:02X}"
+            
+            # Проверяем токен (должен быть ненулевым для большинства команд)
+            if token == 0 and command not in [0x60]:  # Login может иметь нулевой токен
+                return False, f"Нулевой токен: 0x{token:08X}"
+        
+        return True, ""
+        
+    except Exception as e:
+        return False, f"Ошибка валидации пакета: {e}"
+
+def log_suspicious_packet(data: bytes, connection, reason: str) -> None:
+    """Логирует подозрительный пакет"""
+    try:
+        from utils.tcp_packet_logger import log_tcp_error
+        
+        station_id = connection.box_id or "unknown"
+        hex_data = data.hex().upper()
+        
+        log_tcp_error(
+            station_id=station_id,
+            error_message=f"ПОДОЗРИТЕЛЬНЫЙ ПАКЕТ: {reason}",
+            packet_data=hex_data
+        )
+        
+        # Также логируем через обычный логгер
+        log_packet(data, "SUSPICIOUS", station_id, f"SUSPICIOUS_{reason}")
+        
+    except Exception as e:
+        print(f"Ошибка логирования подозрительного пакета: {e}")
+
 
 def compute_checksum(payload_bytes: bytes) -> int:
     """Вычисляет контрольную сумму"""
@@ -38,6 +115,28 @@ def compute_checksum(payload_bytes: bytes) -> int:
     for b in payload_bytes:
         checksum ^= b
     return checksum
+
+def generate_token(payload: bytes, secret_key: str) -> bytes:
+    """
+    Генерирует токен по протоколу:
+    md5_hash = MD5(payload + SecretKey)
+    token = bytes(md5_hash[15:16] + md5_hash[11:12] + md5_hash[7:8] + md5_hash[3:4])
+    """
+    import hashlib
+    
+    # Создаем MD5 хеш от payload + secret_key
+    combined = payload + secret_key.encode('utf-8')
+    md5_hash = hashlib.md5(combined).digest()
+    
+    # Извлекаем байты по позициям 16, 12, 8, 4 (индексы 15, 11, 7, 3)
+    token = bytes([
+        md5_hash[15],  # Позиция 16
+        md5_hash[11],  # Позиция 12  
+        md5_hash[7],   # Позиция 8
+        md5_hash[3]    # Позиция 4
+    ])
+    
+    return token
 
 
 def parse_terminal_id(bytes8: bytes) -> str:

@@ -9,7 +9,7 @@ from typing import Optional
 import aiomysql
 from aiohttp import web
 
-from config.settings import SERVER_IP, TCP_PORT, HTTP_PORT, DB_CONFIG, CONNECTION_TIMEOUT
+from config.settings import SERVER_IP, TCP_PORT, HTTP_PORT, DB_CONFIG, CONNECTION_TIMEOUT, MAX_SUSPICIOUS_PACKETS, MAX_PACKET_SIZE
 from models.connection import ConnectionManager, StationConnection
 from models.station import Station
 from handlers.station_handler import StationHandler
@@ -25,9 +25,10 @@ from handlers.set_voice_volume import SetVoiceVolumeHandler
 from handlers.set_server_address import SetServerAddressHandler
 from handlers.query_server_address import QueryServerAddressHandler
 from http_server import HTTPServer
-# from utils.packet_logger import packet_logger  # Удален
-from utils.packet_utils import parse_packet
+from utils.packet_utils import parse_packet, validate_packet, log_suspicious_packet
 from utils.station_resolver import StationResolver
+from utils.centralized_logger import get_logger, close_logger, get_logger_stats
+from utils.tcp_packet_logger import close_tcp_logger, get_tcp_logger_stats
 
 
 class OptimizedServer:
@@ -37,6 +38,7 @@ class OptimizedServer:
         self.db_pool: Optional[aiomysql.Pool] = None
         self.connection_manager = ConnectionManager()
         self.station_resolver = StationResolver(self.connection_manager)
+        self.logger = get_logger('server')
         self.station_handler: Optional[StationHandler] = None
         self.borrow_handler: Optional[BorrowPowerbankHandler] = None
         self.return_handler: Optional[ReturnPowerbankHandler] = None
@@ -73,9 +75,7 @@ class OptimizedServer:
         """Отправляет команду на станцию через TCP соединение"""
         try:
             if connection.writer and not connection.writer.is_closing():
-                # Логируем исходящий пакет
-                # packet_logger.log_outgoing_packet(command_bytes, station_info, parse_packet(command_bytes))  # Удален
-                # packet_logger.log_packet_human_readable(command_bytes, "outgoing", station_info, parse_packet(command_bytes))  # Удален
+                
                 connection.writer.write(command_bytes)
                 await connection.writer.drain()
                 return True
@@ -108,10 +108,44 @@ class OptimizedServer:
                     print(f"Таймаут соединения для {addr}")
                     break
                 
-                # Определяем команду
-                if len(data) < 3:
+                # Базовая проверка размера пакета для всех соединений
+                if len(data) > MAX_PACKET_SIZE:
+                    print(f"⚠️ Слишком большой пакет от {connection.addr}: {len(data)} байт (максимум {MAX_PACKET_SIZE})")
+                    log_suspicious_packet(data, connection, f"Пакет слишком большой: {len(data)} байт")
                     continue
                 
+                # Проверяем пакет на подозрительность (только для авторизованных станций)
+                if connection.station_status == "active":
+                    is_valid, error_message = validate_packet(data, connection)
+                    if not is_valid:
+                        # Логируем подозрительный пакет
+                        log_suspicious_packet(data, connection, error_message)
+                        
+                        # Увеличиваем счетчик подозрительных пакетов
+                        connection.increment_suspicious_packets()
+                        
+                        # Проверяем, не слишком ли много подозрительных пакетов
+                        if connection.is_too_suspicious(MAX_SUSPICIOUS_PACKETS):
+                            print(f"🚨 СТАНЦИЯ ЗАБЛОКИРОВАНА: {connection.box_id} ({connection.addr}) - слишком много подозрительных пакетов ({connection.suspicious_packets})")
+                            log_suspicious_packet(data, connection, f"СТАНЦИЯ ЗАБЛОКИРОВАНА - {connection.suspicious_packets} подозрительных пакетов")
+                            
+                            # Принудительно закрываем соединение
+                            try:
+                                if not writer.is_closing():
+                                    writer.close()
+                                    await writer.wait_closed()
+                            except Exception as close_error:
+                                print(f"Ошибка при принудительном закрытии соединения: {close_error}")
+                            
+                            break  # Закрываем соединение
+                        
+                        print(f"⚠️ Подозрительный пакет от {connection.box_id}: {error_message}")
+                        continue
+                    
+                    # Сбрасываем счетчик подозрительных пакетов при получении валидного пакета
+                    connection.reset_suspicious_packets()
+                
+                # Определяем команду
                 command = data[2]
                 response = None
                 
@@ -124,8 +158,7 @@ class OptimizedServer:
                     "station_status": connection.station_status
                 }
                 parsed_data = parse_packet(data)
-                # packet_logger.log_incoming_packet(data, station_info, parsed_data)  # Удален
-                # packet_logger.log_packet_human_readable(data, "incoming", station_info, parsed_data)  # Удален
+                
                 
                 try:
                     if command == 0x60:  # Login
@@ -217,8 +250,6 @@ class OptimizedServer:
                     # Отправляем ответ
                     if response:
                         # Логируем исходящий пакет
-                        # packet_logger.log_outgoing_packet(response, station_info, parse_packet(response))  # Удален
-                        # packet_logger.log_packet_human_readable(response, "outgoing", station_info, parse_packet(response))  # Удален
                         writer.write(response)
                         await writer.drain()
                 
@@ -300,11 +331,7 @@ class OptimizedServer:
             self.running = True
             print(f"TCP сервер запущен на {SERVER_IP}:{TCP_PORT}")
             print(f"HTTP сервер запущен на 0.0.0.0:{HTTP_PORT}")
-            print("Доступные HTTP endpoints:")
-            print("  POST /api/auth/register - Регистрация пользователя (отправляет пароль на email)")
-            print("  POST /api/auth/login - Авторизация по паролю")
-            print("  GET /api/auth/profile - Получение профиля пользователя")
-            print("  PUT /api/auth/profile - Обновление профиля пользователя")
+            
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
@@ -332,6 +359,12 @@ class OptimizedServer:
                 connections = self.connection_manager.get_all_connections()
                 if connections:
                     print(f"Активных соединений: {len(connections)}")
+                    
+                    # Выводим статистику логгеров
+                    logger_stats = get_logger_stats()
+                    tcp_logger_stats = get_tcp_logger_stats()
+                    print(f"Логгер: {logger_stats['handlers']} обработчиков, {logger_stats['children']} дочерних логгеров")
+                    print(f"TCP логгер: {tcp_logger_stats['handlers']} обработчиков, файл: {tcp_logger_stats['log_file']}")
                     
                     # Группируем по станциям для выявления дублирования
                     stations = {}
@@ -370,6 +403,7 @@ class OptimizedServer:
     async def stop_servers(self):
         """Останавливает серверы"""
         print("Остановка серверов...")
+        self.logger.info("Остановка серверов...")
         self.running = False
         
         # Деактивируем все станции перед закрытием
@@ -382,6 +416,11 @@ class OptimizedServer:
         
         # Закрываем базу данных после деактивации станций
         await self.cleanup_database()
+        
+        # Закрываем логгеры
+        close_logger()
+        close_tcp_logger()
+        print("Логгеры закрыты")
     
     async def _deactivate_all_stations(self):
         """Деактивирует все станции при закрытии сервера"""
@@ -397,7 +436,7 @@ class OptimizedServer:
                     active_stations.append((conn.station_id, conn.box_id))
             
             if active_stations:
-                print(f"📡 Найдено {len(active_stations)} активных станций для деактивации")
+                print(f" Найдено {len(active_stations)} активных станций для деактивации")
                 
                 # Деактивируем каждую станцию
                 for station_id, box_id in active_stations:
@@ -414,7 +453,7 @@ class OptimizedServer:
                     except Exception as e:
                         print(f" Ошибка деактивации станции {box_id}: {e}")
             else:
-                print("📡 Активных станций не найдено")
+                print(" Активных станций не найдено")
             
             # Дополнительно деактивируем все станции со статусом 'active' в БД
             await self._deactivate_all_active_stations_in_db()
@@ -439,7 +478,7 @@ class OptimizedServer:
                     active_stations = await cur.fetchall()
                     
                     if active_stations:
-                        print(f"📡 Найдено {len(active_stations)} активных станций в БД")
+                        print(f" Найдено {len(active_stations)} активных станций в БД")
                         
                         # Деактивируем все активные станции
                         await cur.execute("UPDATE station SET status = 'inactive' WHERE status = 'active'")
@@ -451,7 +490,7 @@ class OptimizedServer:
                         for station_id, box_id in active_stations:
                             print(f"  - Станция {box_id} (ID: {station_id})")
                     else:
-                        print("📡 Активных станций в БД не найдено")
+                        print(" Активных станций в БД не найдено")
                         
         except Exception as e:
             print(f" Ошибка при деактивации станций в БД: {e}")

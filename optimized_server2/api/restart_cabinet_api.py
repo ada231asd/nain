@@ -5,7 +5,7 @@ from aiohttp import web
 from handlers.restart_cabinet import RestartCabinetHandler
 from handlers.auth_handler import AuthHandler
 from models.user import User
-import logging
+from utils.centralized_logger import get_logger
 from datetime import datetime
 
 
@@ -17,6 +17,7 @@ class RestartCabinetAPI:
         self.connection_manager = connection_manager
         self.restart_handler = RestartCabinetHandler(db_pool, connection_manager)
         self.auth_handler = AuthHandler(db_pool)
+        self.logger = get_logger('restart_cabinet_api')
     
     async def restart_cabinet(self, request):
         """Отправляет команду перезагрузки кабинета"""

@@ -23,6 +23,7 @@ class StationConnection:
         self.secret_key: Optional[bytes] = None
         self.station_status = "pending"
         self.borrow_sent = False
+        self.suspicious_packets = 0  # Счетчик подозрительных пакетов
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует соединение в словарь"""
@@ -51,6 +52,18 @@ class StationConnection:
         self.secret_key = secret_key
         self.station_status = "active"
         self.update_heartbeat()
+    
+    def increment_suspicious_packets(self):
+        """Увеличивает счетчик подозрительных пакетов"""
+        self.suspicious_packets += 1
+    
+    def reset_suspicious_packets(self):
+        """Сбрасывает счетчик подозрительных пакетов"""
+        self.suspicious_packets = 0
+    
+    def is_too_suspicious(self, max_packets: int) -> bool:
+        """Проверяет, не слишком ли много подозрительных пакетов"""
+        return self.suspicious_packets >= max_packets
 
 
 class ConnectionManager:
