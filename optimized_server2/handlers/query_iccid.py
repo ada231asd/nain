@@ -17,7 +17,6 @@ class QueryICCIDHandler:
     async def handle_query_iccid_request(self, station_id: int, connection) -> Optional[bytes]:
         """
         Обрабатывает запрос на получение ICCID SIM карты
-        Возвращает команду для отправки на станцию или None
         """
         try:
             # Проверяем, что станция подключена

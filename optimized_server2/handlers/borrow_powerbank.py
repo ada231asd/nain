@@ -20,7 +20,7 @@ class BorrowPowerbankHandler:
     async def handle_borrow_request(self, data: bytes, connection) -> Optional[bytes]:
         """
         Обрабатывает запрос на выдачу повербанка
-        Возвращает команду для отправки на станцию или None
+        
         """
         try:
             # Парсим запрос на выдачу
@@ -117,7 +117,7 @@ class BorrowPowerbankHandler:
                     await self._create_borrow_order(
                         station_id, 
                         station_powerbank.powerbank_id, 
-                        user_id=1  # Временный user_id, в реальной системе должен быть из сессии
+                        user_id=1  # Временный user_id
                     )
                     
                     # Удаляем повербанк из станции
@@ -234,8 +234,8 @@ class BorrowPowerbankHandler:
             inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
             result = await inventory_handler.send_inventory_request(station_id)
             if result["success"]:
-                print(f"📦 Запрос инвентаря отправлен после операции выдачи")
+                print(f" Запрос инвентаря отправлен после операции выдачи")
             else:
-                print(f"❌ Ошибка отправки запроса инвентаря: {result['message']}")
+                print(f" Ошибка отправки запроса инвентаря: {result['message']}")
         except Exception as e:
-            print(f"❌ Ошибка запроса инвентаря после операции: {e}")
+            print(f" Ошибка запроса инвентаря после операции: {e}")

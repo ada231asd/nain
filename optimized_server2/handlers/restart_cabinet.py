@@ -125,7 +125,6 @@ class RestartCabinetHandler:
     async def handle_restart_response(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
         """
         Обрабатывает ответ на команду перезагрузки от станции
-        Возвращает None (команда перезагрузки не требует ответа)
         """
         try:
             # Парсим ответ

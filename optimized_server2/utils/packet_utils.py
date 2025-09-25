@@ -695,7 +695,7 @@ def parse_restart_cabinet_response(data: bytes) -> Dict[str, Any]:
         if len(data) < 9:
             raise ValueError("Слишком короткий пакет для ответа перезагрузки")
         
-        # Парсим заголовок согласно протоколу:
+
         # PacketLen (2) + Command (1) + VSN (1) + CheckSum (1) + Token (4) = 9 байт
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
@@ -959,7 +959,7 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     address_bytes = server_address.encode('utf-8') + b'\x00'
     port_bytes = server_port.encode('utf-8') + b'\x00'  # Добавляем null-terminator
     
-    # Создаем payload согласно протоколу:
+
     # AddressLen (2) + Address (AddressLen) + PortLen (2) + Port (PortLen) + Heartbeat (1)
     payload = struct.pack(">H", len(address_bytes))  # AddressLen 
     payload += address_bytes  
@@ -967,7 +967,7 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     payload += port_bytes  
     payload += struct.pack(">B", heartbeat_interval)  # Heartbeat
     
-    # Вычисляем длину пакета (заголовок 8 байт + payload)
+
     packet_len = 8 + len(payload)  # 8 байт заголовка + payload
     
     # Вычисляем checksum и token
@@ -998,7 +998,7 @@ def parse_set_server_address_response(data: bytes) -> Dict[str, Any]:
         if command != 0x63:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Проверяем checksum (payload пустой для ответа)
+        # Проверяем checksum
         payload = b''
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")

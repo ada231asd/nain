@@ -73,8 +73,7 @@ class OptimizedServer:
         try:
             if connection.writer and not connection.writer.is_closing():
                 # Логируем исходящий пакет
-                # packet_logger.log_outgoing_packet(command_bytes, station_info, parse_packet(command_bytes))  # Удален
-                # packet_logger.log_packet_human_readable(command_bytes, "outgoing", station_info, parse_packet(command_bytes))  # Удален
+                
                 connection.writer.write(command_bytes)
                 await connection.writer.drain()
                 return True
@@ -130,8 +129,6 @@ class OptimizedServer:
                     "station_status": connection.station_status
                 }
                 parsed_data = parse_packet(data)
-                # packet_logger.log_incoming_packet(data, station_info, parsed_data)  # Удален
-                # packet_logger.log_packet_human_readable(data, "incoming", station_info, parsed_data)  # Удален
                 
                 try:
                     if command == 0x60:  # Login
@@ -229,9 +226,7 @@ class OptimizedServer:
                     
                     # Отправляем ответ
                     if response:
-                        # Логируем исходящий пакет
-                        # packet_logger.log_outgoing_packet(response, station_info, parse_packet(response))  # Удален
-                        # packet_logger.log_packet_human_readable(response, "outgoing", station_info, parse_packet(response))  # Удален
+                     
                         writer.write(response)
                         await writer.drain()
                 
@@ -321,11 +316,7 @@ class OptimizedServer:
             self.running = True
             print(f"TCP сервер запущен на {SERVER_IP}:{TCP_PORT}")
             print(f"HTTP сервер запущен на 0.0.0.0:{HTTP_PORT}")
-            print("Доступные HTTP endpoints:")
-            print("  POST /api/auth/register - Регистрация пользователя (отправляет пароль на email)")
-            print("  POST /api/auth/login - Авторизация по паролю")
-            print("  GET /api/auth/profile - Получение профиля пользователя")
-            print("  PUT /api/auth/profile - Обновление профиля пользователя")
+            
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
@@ -368,7 +359,7 @@ class OptimizedServer:
                     # Выводим информацию о станциях
                     for station_id, station_connections in stations.items():
                         if len(station_connections) > 1:
-                            print(f"  ⚠️  Станция {station_id} имеет {len(station_connections)} соединений:")
+                            print(f"    Станция {station_id} имеет {len(station_connections)} соединений:")
                             for fd, conn in station_connections:
                                 print(f"    fd={fd} | BoxID={conn.box_id} | Status={conn.station_status}")
                         else:
@@ -410,7 +401,7 @@ class OptimizedServer:
     async def _deactivate_all_stations(self):
         """Деактивирует все станции при закрытии сервера"""
         try:
-            print("🔄 Деактивация всех станций...")
+            print(" Деактивация всех станций...")
             
             # Сначала деактивируем станции с активными соединениями
             connections = self.connection_manager.get_all_connections()
@@ -421,40 +412,40 @@ class OptimizedServer:
                     active_stations.append((conn.station_id, conn.box_id))
             
             if active_stations:
-                print(f"📡 Найдено {len(active_stations)} активных станций для деактивации")
+                print(f" Найдено {len(active_stations)} активных станций для деактивации")
                 
                 # Деактивируем каждую станцию
                 for station_id, box_id in active_stations:
                     try:
                         # Проверяем, что пул соединений еще доступен
                         if not self.db_pool or self.db_pool._closed:
-                            print(f"⚠️ Пул соединений с БД уже закрыт, пропускаем деактивацию станции {box_id}")
+                            print(f" Пул соединений с БД уже закрыт, пропускаем деактивацию станции {box_id}")
                             continue
                             
                         from models.station import Station
                         station = await Station.get_by_id(self.db_pool, station_id)
                         if station:
                             await station.update_status(self.db_pool, "inactive")
-                            print(f"✅ Станция {box_id} (ID: {station_id}) деактивирована")
+                            print(f" Станция {box_id} (ID: {station_id}) деактивирована")
                     except Exception as e:
-                        print(f"❌ Ошибка деактивации станции {box_id}: {e}")
+                        print(f" Ошибка деактивации станции {box_id}: {e}")
             else:
-                print("📡 Активных станций не найдено")
+                print(" Активных станций не найдено")
             
             # Дополнительно деактивируем все станции со статусом 'active' в БД
             await self._deactivate_all_active_stations_in_db()
                 
         except Exception as e:
-            print(f"❌ Ошибка при деактивации станций: {e}")
+            print(f" Ошибка при деактивации станций: {e}")
     
     async def _deactivate_all_active_stations_in_db(self):
         """Деактивирует все станции со статусом 'active' в базе данных"""
         try:
-            print("🔄 Деактивация всех активных станций в БД...")
+            print(" Деактивация всех активных станций в БД...")
             
             # Проверяем, что пул соединений еще доступен
             if not self.db_pool or self.db_pool._closed:
-                print("⚠️ Пул соединений с БД уже закрыт, пропускаем деактивацию станций в БД")
+                print(" Пул соединений с БД уже закрыт, пропускаем деактивацию станций в БД")
                 return
             
             async with self.db_pool.acquire() as conn:
@@ -464,22 +455,22 @@ class OptimizedServer:
                     active_stations = await cur.fetchall()
                     
                     if active_stations:
-                        print(f"📡 Найдено {len(active_stations)} активных станций в БД")
+                        print(f" Найдено {len(active_stations)} активных станций в БД")
                         
                         # Деактивируем все активные станции
                         await cur.execute("UPDATE station SET status = 'inactive' WHERE status = 'active'")
                         affected_rows = cur.rowcount
                         
-                        print(f"✅ Деактивировано {affected_rows} станций в БД")
+                        print(f" Деактивировано {affected_rows} станций в БД")
                         
                         # Выводим информацию о деактивированных станциях
                         for station_id, box_id in active_stations:
                             print(f"  - Станция {box_id} (ID: {station_id})")
                     else:
-                        print("📡 Активных станций в БД не найдено")
+                        print(" Активных станций в БД не найдено")
                         
         except Exception as e:
-            print(f"❌ Ошибка при деактивации станций в БД: {e}")
+            print(f" Ошибка при деактивации станций в БД: {e}")
     
     async def _deactivate_inactive_stations(self):
         """Деактивирует станции, которые неактивны в БД, но имеют активные соединения"""

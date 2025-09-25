@@ -24,7 +24,7 @@ class StationHandler:
     async def handle_login(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
         """
         Обрабатывает логин станции
-        Возвращает ответный пакет или None если соединение должно быть закрыто
+        
         """
         try:
             # Логируем входящий пакет логина

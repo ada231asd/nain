@@ -133,12 +133,12 @@ class QueryInventoryHandler:
                 if powerbank:
                     # Повербанк существует, обновляем его статус и SOH
                     await powerbank.update_status_and_soh(self.db_pool, 'active', soh)
-                    print(f"📱 Обновлен повербанк {terminal_id}: статус 'active', SOH {soh}")
+                    print(f" Обновлен повербанк {terminal_id}: статус 'active', SOH {soh}")
                 else:
                     # Повербанк не существует, создаем его
                     new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh, 'active')
                     if new_powerbank:
-                        print(f"📱 Создан новый повербанк {terminal_id} с SOH {soh}")
+                        print(f" Создан новый повербанк {terminal_id} с SOH {soh}")
                     else:
                         print(f" Не удалось создать повербанк для TerminalID {terminal_id}")
 
