@@ -20,21 +20,12 @@ class BorrowPowerbankHandler:
     async def handle_borrow_request(self, data: bytes, connection) -> Optional[bytes]:
         """
         Обрабатывает запрос на выдачу повербанка
-        
+        Возвращает команду для отправки на станцию или None
         """
         try:
             # Парсим запрос на выдачу
             borrow_request = parse_borrow_request(data)
             print(f"Обработан запрос на выдачу: слот {borrow_request['Slot']}")
-            
-            # Проверяем токен
-            from utils.packet_utils import verify_token
-            import struct
-            payload = struct.pack("B", borrow_request['Slot'])
-            received_token = int(borrow_request['Token'], 16)
-            if not verify_token(payload, connection.secret_key, received_token):
-                print(f"Неверный токен в запросе выдачи от станции {connection.box_id}")
-                return None
             
             # Получаем информацию о станции
             station_id = connection.station_id
@@ -117,7 +108,7 @@ class BorrowPowerbankHandler:
                     await self._create_borrow_order(
                         station_id, 
                         station_powerbank.powerbank_id, 
-                        user_id=1  # Временный user_id
+                        user_id=1  # Временный user_id, в реальной системе должен быть из сессии
                     )
                     
                     # Удаляем повербанк из станции
@@ -230,12 +221,17 @@ class BorrowPowerbankHandler:
         Запрашивает инвентарь после операции с повербанком
         """
         try:
-            from handlers.query_inventory import QueryInventoryHandler
-            inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
-            result = await inventory_handler.send_inventory_request(station_id)
-            if result["success"]:
-                print(f" Запрос инвентаря отправлен после операции выдачи")
-            else:
-                print(f" Ошибка отправки запроса инвентаря: {result['message']}")
+            from utils.inventory_manager import InventoryManager
+            inventory_manager = InventoryManager(self.db_pool)
+            
+            # Получаем соединение со станцией
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                print(f"Соединение со станцией {station_id} не найдено")
+                return
+            
+            await inventory_manager.request_inventory_after_operation(station_id, connection)
+            print(f"📦 Запрос инвентаря отправлен после операции выдачи")
+            
         except Exception as e:
-            print(f" Ошибка запроса инвентаря после операции: {e}")
+            print(f"❌ Ошибка запроса инвентаря после операции: {e}")

@@ -5,12 +5,10 @@ import asyncio
 from typing import Optional
 from datetime import datetime
 
+from utils.centralized_logger import get_logger
 from models.station import Station
 from models.connection import StationConnection
 from utils.packet_utils import build_restart_cabinet_request, parse_restart_cabinet_response
-import logging
-import os
-from datetime import datetime
 
 
 class RestartCabinetHandler:
@@ -19,31 +17,7 @@ class RestartCabinetHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        self.logger = self._setup_logger()
-    
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        # Создаем папку для логов, если её нет
-        os.makedirs('logs', exist_ok=True)
-        
-        logger = logging.getLogger('restart_cabinet')
-        logger.setLevel(logging.INFO)
-        
-        # Очищаем существующие обработчики
-        logger.handlers.clear()
-        
-        # Создаем обработчик для записи в файл
-        handler = logging.FileHandler('logs/restart_cabinet.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        
-        # Создаем форматтер
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        
-        # Добавляем обработчик к логгеру
-        logger.addHandler(handler)
-        
-        return logger
+        self.logger = get_logger('restartcabinethandler')
     
     async def send_restart_command(self, station_id: int, admin_user_id: int) -> dict:
         """

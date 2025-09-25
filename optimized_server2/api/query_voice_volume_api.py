@@ -4,12 +4,11 @@ API для запроса уровня громкости голосового �
 from aiohttp import web
 from aiohttp.web import Request, Response
 import json
-import logging
-import os
 from datetime import datetime
 
 from models.station import Station
 from handlers.query_voice_volume import QueryVoiceVolumeHandler
+from utils.centralized_logger import get_logger
 
 
 class QueryVoiceVolumeAPI:
@@ -19,31 +18,7 @@ class QueryVoiceVolumeAPI:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.voice_volume_handler = QueryVoiceVolumeHandler(db_pool, connection_manager)
-        self.logger = self._setup_logger()
-    
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        # Создаем папку для логов, если её нет
-        os.makedirs('logs', exist_ok=True)
-        
-        logger = logging.getLogger('query_voice_volume_api')
-        logger.setLevel(logging.INFO)
-        
-        # Очищаем существующие обработчики
-        logger.handlers.clear()
-        
-        # Создаем обработчик для записи в файл
-        handler = logging.FileHandler('logs/query_voice_volume_api.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        
-        # Создаем форматтер
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        
-        # Добавляем обработчик к логгеру
-        logger.addHandler(handler)
-        
-        return logger
+        self.logger = get_logger('query_voice_volume_api')
     
     async def query_voice_volume(self, request: Request) -> Response:
         """
@@ -99,4 +74,66 @@ class QueryVoiceVolumeAPI:
                 'success': False,
                 'error': error_msg
             }, status=500)
+    
+    async def get_voice_volume_data(self, request: Request) -> Response:
+        """
+        Получает данные о громкости станции из кэша соединения
+        GET /api/query-voice-volume/station/{station_id}
+        """
+        try:
+            station_id = request.match_info.get('station_id')
+            
+            if not station_id:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Не указан station_id'
+                }, status=400)
+            
+            # Проверяем, что станция существует
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return web.json_response({
+                    'success': False,
+                    'error': f'Станция с ID {station_id} не найдена'
+                }, status=404)
+            
+            # Получаем соединение для станции
+            connection = self.connection_manager.get_connection_by_station_id(int(station_id))
+            if not connection:
+                return web.json_response({
+                    'success': False,
+                    'error': f'Станция {station.box_id} не подключена'
+                }, status=404)
+            
+            # Проверяем, есть ли данные о громкости
+            if not hasattr(connection, 'voice_volume_data') or not connection.voice_volume_data:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Данные о громкости не найдены. Сначала запросите уровень громкости.'
+                }, status=404)
+            
+            # Возвращаем данные о громкости
+            voice_volume_data = connection.voice_volume_data
+            
+            return web.json_response({
+                'success': True,
+                'station_id': station_id,
+                'station_box_id': station.box_id,
+                'voice_volume': voice_volume_data
+            })
+            
+        except ValueError:
+            return web.json_response({
+                'success': False,
+                'error': 'Неверный формат station_id'
+            }, status=400)
+        except Exception as e:
+            error_msg = f"Ошибка получения данных о громкости: {str(e)}"
+            self.logger.error(error_msg)
+            
+            return web.json_response({
+                'success': False,
+                'error': error_msg
+            }, status=500)
+    
     

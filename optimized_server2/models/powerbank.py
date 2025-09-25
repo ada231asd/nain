@@ -113,6 +113,32 @@ class Powerbank:
                     created_at=datetime.now()
                 )
     
+    @classmethod
+    async def create(cls, db_pool, org_unit_id: int, serial_number: str, soh: int, status: str) -> Optional['Powerbank']:
+        """Создает повербанк с указанными параметрами"""
+        try:
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute(
+                        "INSERT INTO powerbank (org_unit_id, serial_number, soh, status, write_off_reason, created_at) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
+                        (org_unit_id, serial_number, soh, status, 'none', datetime.now())
+                    )
+                    powerbank_id = cursor.lastrowid
+                    
+                    return cls(
+                        powerbank_id=powerbank_id,
+                        org_unit_id=org_unit_id,
+                        serial_number=serial_number,
+                        soh=soh,
+                        status=status,
+                        write_off_reason='none',
+                        created_at=datetime.now()
+                    )
+        except Exception as e:
+            print(f"Ошибка создания повербанка {serial_number}: {e}")
+            return None
+    
     async def update_status(self, db_pool, new_status: str) -> bool:
         """Обновляет статус повербанка"""
         async with db_pool.acquire() as conn:
@@ -132,6 +158,18 @@ class Powerbank:
                     "UPDATE powerbank SET soh = %s WHERE id = %s",
                     (soh, self.powerbank_id)
                 )
+                self.soh = soh
+                return True
+    
+    async def update_status_and_soh(self, db_pool, new_status: str, soh: int) -> bool:
+        """Обновляет статус и SOH повербанка"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "UPDATE powerbank SET status = %s, soh = %s WHERE id = %s",
+                    (new_status, soh, self.powerbank_id)
+                )
+                self.status = new_status
                 self.soh = soh
                 return True
     

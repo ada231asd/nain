@@ -171,6 +171,7 @@ class HTTPServer:
         
         # API для запроса уровня громкости голосового вещания
         app.router.add_post('/api/query-voice-volume', self.query_voice_volume_api.query_voice_volume)
+        app.router.add_get('/api/query-voice-volume/station/{station_id}', self.query_voice_volume_api.get_voice_volume_data)
         
         # API для установки уровня громкости голосового вещания
         app.router.add_post('/api/set-voice-volume', self.set_voice_volume_api.set_voice_volume)
@@ -180,10 +181,12 @@ class HTTPServer:
         
         # API для запроса адреса сервера
         app.router.add_post('/api/query-server-address', self.query_server_address_api.query_server_address)
-        app.router.add_get('/api/query-server-address/station/{station_id}', self.query_server_address_api.get_station_server_address)
+        app.router.add_get('/api/query-server-address/station/{station_id}', self.query_server_address_api.get_server_address_data)
         
         # API для пользователей
         app.router.add_get('/api/user/powerbanks/available', self.user_powerbank_api.get_available_powerbanks)
+        
+        # SSE API
         app.router.add_get('/api/user/orders', self.user_powerbank_api.get_user_orders)
         app.router.add_post('/api/user/powerbanks/borrow', self.user_powerbank_api.borrow_powerbank)
         app.router.add_post('/api/user/powerbanks/return', self.user_powerbank_api.return_powerbank)

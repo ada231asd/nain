@@ -40,23 +40,16 @@ def compute_checksum(payload_bytes: bytes) -> int:
     return checksum
 
 
-def verify_token(payload: bytes, secret_key: bytes, received_token: int) -> bool:
-    """Проверяет токен в пакете"""
-    try:
-        md5_hash = hashlib.md5(payload + secret_key).digest()
-        expected_token = md5_hash[15:16] + md5_hash[11:12] + md5_hash[7:8] + md5_hash[3:4]
-        expected_token_int = int.from_bytes(expected_token, byteorder='big')
-        return expected_token_int == received_token
-    except Exception as e:
-        print(f"Ошибка проверки токена: {e}")
-        return False
-
-
 def parse_terminal_id(bytes8: bytes) -> str:
     """Парсит terminal ID из 8 байт"""
-    ascii_part = bytes8[:4].decode('ascii')
-    hex_part = ''.join(f"{b:02X}" for b in bytes8[4:])
-    return ascii_part + hex_part
+    try:
+        # Пытаемся декодировать первые 4 байта как ASCII
+        ascii_part = bytes8[:4].decode('ascii')
+        hex_part = ''.join(f"{b:02X}" for b in bytes8[4:])
+        return ascii_part + hex_part
+    except UnicodeDecodeError:
+        # Если не удается декодировать как ASCII, используем только hex
+        return ''.join(f"{b:02X}" for b in bytes8)
 
 
 def parse_login_packet(data: bytes) -> Dict[str, Any]:
@@ -639,7 +632,8 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
             try:
                 # Парсим слот и terminal_id
                 slot = data[9]
-                terminal_id_bytes = data[10:18]
+                result_code = data[10]
+                terminal_id_bytes = data[11:19]
                 terminal_id = parse_terminal_id(terminal_id_bytes)
                 
                 result.update({
@@ -648,7 +642,7 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
                 })
                 
                 # Проверяем checksum с учетом дополнительных данных
-                payload = struct.pack("B8s", slot, terminal_id_bytes)
+                payload = struct.pack("BB8s", slot, result_code, terminal_id_bytes)
                 if compute_checksum(payload) != checksum:
                     result["CheckSumValid"] = False
                     result["CheckSumError"] = "Неверный checksum с дополнительными данными"
@@ -695,7 +689,7 @@ def parse_restart_cabinet_response(data: bytes) -> Dict[str, Any]:
         if len(data) < 9:
             raise ValueError("Слишком короткий пакет для ответа перезагрузки")
         
-
+        # Парсим заголовок согласно протоколу:
         # PacketLen (2) + Command (1) + VSN (1) + CheckSum (1) + Token (4) = 9 байт
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
@@ -806,7 +800,7 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
             offset += slot_size
         
         # Проверяем checksum
-        payload = data[8:offset]  # SlotsNum + RemainNum + все слоты
+        payload = data[9:offset]  # SlotsNum + RemainNum + все слоты (начинаем с 9-го байта, после заголовка)
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
         
@@ -958,7 +952,6 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     # Кодируем строки в UTF-8
     address_bytes = server_address.encode('utf-8') + b'\x00'
     port_bytes = server_port.encode('utf-8') + b'\x00'  # Добавляем null-terminator
-    
 
     # AddressLen (2) + Address (AddressLen) + PortLen (2) + Port (PortLen) + Heartbeat (1)
     payload = struct.pack(">H", len(address_bytes))  # AddressLen 
@@ -967,7 +960,7 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     payload += port_bytes  
     payload += struct.pack(">B", heartbeat_interval)  # Heartbeat
     
-
+ 
     packet_len = 8 + len(payload)  # 8 байт заголовка + payload
     
     # Вычисляем checksum и token
@@ -998,7 +991,7 @@ def parse_set_server_address_response(data: bytes) -> Dict[str, Any]:
         if command != 0x63:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Проверяем checksum
+        # Проверяем checksum (payload пустой для ответа)
         payload = b''
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
@@ -1028,7 +1021,7 @@ def parse_set_server_address_response(data: bytes) -> Dict[str, Any]:
 def build_query_server_address_request(secret_key: bytes, vsn: int = 1) -> bytes:
     """Создает запрос на получение адреса сервера (команда 0x6A)"""
     command = 0x6A
-    packet_len = 7  # Только заголовок, payload пустой
+    packet_len = 7 
     payload = b''  # Пустой payload для запроса адреса сервера
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
@@ -1043,77 +1036,75 @@ def build_query_server_address_request(secret_key: bytes, vsn: int = 1) -> bytes
 
 
 def parse_query_server_address_response(data: bytes) -> Dict[str, Any]:
-    """Парсит ответ на запрос адреса сервера (команда 0x6A)"""
+    """
+    Парсит ответ станции на запрос адреса сервера (команда 0x6A).
+    """
     try:
-        if len(data) < 8:  # Минимум 8 байт заголовка
-            raise ValueError("Слишком короткий пакет для ответа адреса сервера")
-        
-        # Парсим заголовок
+        if len(data) < 9:
+            raise ValueError("Пакет слишком короткий для ответа QueryServerAddress")
+
+        # Заголовок: 2 + 1 + 1 + 1 + 4 = 9 байт
         packet_format = ">H B B B I"
-        packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:8])
-        
+        packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
+
         if command != 0x6A:
             raise ValueError(f"Неверная команда: {hex(command)}")
-        
-        # Парсим AddressLen
-        if len(data) < 10:
-            raise ValueError("Недостаточно данных для AddressLen")
-        address_len = struct.unpack(">H", data[8:10])[0]
-        
-        # Проверяем, что пакет содержит достаточно данных для адреса
-        if len(data) < 10 + address_len:
-            raise ValueError(f"Недостаточно данных для адреса. Ожидается {10 + address_len}, получено {len(data)}")
-        
-        # Извлекаем адрес
-        address_bytes = data[10:10 + address_len]
-        address = address_bytes.decode('ascii', errors='ignore')
-        
-        # Парсим PortLen
-        port_start = 10 + address_len
-        if len(data) < port_start + 2:
-            raise ValueError("Недостаточно данных для PortLen")
-        port_len = struct.unpack(">H", data[port_start:port_start + 2])[0]
-        
-        # Проверяем, что пакет содержит достаточно данных для портов
-        if len(data) < port_start + 2 + port_len:
-            raise ValueError(f"Недостаточно данных для портов. Ожидается {port_start + 2 + port_len}, получено {len(data)}")
-        
-        # Извлекаем порты
-        ports_bytes = data[port_start + 2:port_start + 2 + port_len]
-        ports = ports_bytes.decode('ascii', errors='ignore')
-        
-        # Парсим Heartbeat
-        heartbeat_start = port_start + 2 + port_len
-        if len(data) < heartbeat_start + 1:
-            raise ValueError("Недостаточно данных для Heartbeat")
-        heartbeat = data[heartbeat_start]
-        
-        # Проверяем checksum
-        payload = struct.pack(">H", address_len) + address_bytes + struct.pack(">H", port_len) + ports_bytes + struct.pack("B", heartbeat)
+
+        payload = data[9:]
+
+        # Проверка контрольной суммы
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
-        
+
+        # Разбор AddressLen + Address
+        if len(payload) < 2:
+            raise ValueError("Нет данных для AddressLen")
+        address_len = struct.unpack(">H", payload[:2])[0]
+
+        if len(payload) < 2 + address_len:
+            raise ValueError("Недостаточно данных для адреса")
+        address_bytes = payload[2:2 + address_len]
+        address = address_bytes.decode("ascii", errors="ignore")
+
+        # Разбор PortLen + Ports
+        port_offset = 2 + address_len
+        if len(payload) < port_offset + 2:
+            raise ValueError("Нет данных для PortLen")
+        port_len = struct.unpack(">H", payload[port_offset:port_offset + 2])[0]
+
+        if len(payload) < port_offset + 2 + port_len:
+            raise ValueError("Недостаточно данных для портов")
+        ports_bytes = payload[port_offset + 2:port_offset + 2 + port_len]
+        ports = ports_bytes.decode("ascii", errors="ignore")
+
+        # Разбор Heartbeat
+        heartbeat_offset = port_offset + 2 + port_len
+        if len(payload) < heartbeat_offset + 1:
+            raise ValueError("Нет данных для Heartbeat")
+        heartbeat = payload[heartbeat_offset]
+
         return {
             "Type": "QueryServerAddressResponse",
             "PacketLen": packet_len,
             "Command": hex(command),
             "VSN": vsn,
             "CheckSum": hex(checksum),
+            "CheckSumValid": True,
             "Token": f"0x{token:08X}",
             "AddressLen": address_len,
             "Address": address,
             "PortLen": port_len,
             "Ports": ports,
             "Heartbeat": heartbeat,
-            "CheckSumValid": True,
             "ReceivedAt": datetime.now(timezone.utc).isoformat(),
             "RawPacket": data.hex()
         }
-        
+
     except Exception as e:
         return {
             "Type": "QueryServerAddressResponse",
-            "Error": f"Ошибка парсинга: {str(e)}",
+            "Error": str(e),
             "RawPacket": data.hex(),
             "Size": len(data)
         }
+

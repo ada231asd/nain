@@ -1,11 +1,10 @@
 """
 Обработчик команды запроса инвентаря кабинета
 """
-import logging
-import os
 from typing import Dict, Any
 from datetime import datetime, timezone
 
+from utils.centralized_logger import get_logger
 from models.station import Station
 from models.powerbank import Powerbank
 from utils.packet_utils import build_query_inventory_request, parse_query_inventory_response
@@ -17,20 +16,7 @@ class QueryInventoryHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        self.logger = self._setup_logger()
-
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        os.makedirs('logs', exist_ok=True)
-        logger = logging.getLogger('query_inventory')
-        logger.setLevel(logging.INFO)
-        logger.handlers.clear()
-        handler = logging.FileHandler('logs/query_inventory.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        return logger
+        self.logger = get_logger('queryinventoryhandler')
 
     async def send_inventory_request(self, station_id: int) -> Dict[str, Any]:
         """
@@ -73,49 +59,32 @@ class QueryInventoryHandler:
     async def handle_inventory_response(self, data: bytes, connection: StationConnection) -> None:
         """
         Обрабатывает ответ на запрос инвентаря от станции
-        Сохраняет данные в кэш соединения
+        Сохраняет данные в кэш соединения и обновляет station_powerbank
         """
         try:
             # Парсим ответ
             response = parse_query_inventory_response(data)
             
             if not response.get("CheckSumValid", False):
-                print(f" Получен некорректный ответ на запрос инвентаря от станции {connection.box_id}")
+                print(f"❌ Получен некорректный ответ на запрос инвентаря от станции {connection.box_id}")
                 return
             
-            # Проверяем токен
-            from utils.packet_utils import verify_token
-            import struct
-            payload = struct.pack("BB", response.get('SlotsNum', 0), response.get('RemainNum', 0))
-            # Добавляем данные слотов
-            for slot_data in response.get('Slots', []):
-                payload += struct.pack("B8sBHHBBB", 
-                    slot_data['Slot'],
-                    slot_data['TerminalID'].encode('ascii'),
-                    slot_data['Level'],
-                    slot_data['Voltage'],
-                    slot_data['Current'],
-                    slot_data['Temperature'],
-                    0,  # status byte
-                    slot_data['SOH']
-                )
-            
-            received_token = int(response.get("Token", "0x0"), 16)
-            if not verify_token(payload, connection.secret_key, received_token):
-                print(f"Неверный токен в ответе инвентаря от станции {connection.box_id}")
-                return
-            
-            print(f" Получен ответ на запрос инвентаря от станции {connection.box_id}")
-            print(f" Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}")
-            print(f" Повербанков в ответе: {len(response.get('Slots', []))}")
+            print(f"📦 Получен ответ на запрос инвентаря от станции {connection.box_id}")
+            print(f"   Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}")
+            print(f"   Повербанков в ответе: {len(response.get('Slots', []))}")
             
             # Обновляем remain_num станции в БД
             station = await Station.get_by_id(self.db_pool, connection.station_id)
             if station:
                 await station.update_remain_num(self.db_pool, response.get('RemainNum', 0))
-                print(f" Обновлен remain_num для станции {station.box_id}: {response.get('RemainNum', 0)}")
+                print(f"   Обновлен remain_num для станции {station.box_id}: {response.get('RemainNum', 0)}")
             
-            # Обрабатываем каждый слот из ответа
+            # Используем InventoryManager для обновления station_powerbank
+            from utils.inventory_manager import InventoryManager
+            inventory_manager = InventoryManager(self.db_pool)
+            await inventory_manager.process_inventory_response(data, connection.station_id)
+            
+            # Обрабатываем каждый слот из ответа для кэша
             inventory_data = []
             for slot_data in response.get('Slots', []):
                 slot_number = slot_data['Slot']
@@ -133,14 +102,14 @@ class QueryInventoryHandler:
                 if powerbank:
                     # Повербанк существует, обновляем его статус и SOH
                     await powerbank.update_status_and_soh(self.db_pool, 'active', soh)
-                    print(f" Обновлен повербанк {terminal_id}: статус 'active', SOH {soh}")
+                    print(f"📱 Обновлен повербанк {terminal_id}: статус 'active', SOH {soh}")
                 else:
                     # Повербанк не существует, создаем его
                     new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh, 'active')
                     if new_powerbank:
-                        print(f" Создан новый повербанк {terminal_id} с SOH {soh}")
+                        print(f"📱 Создан новый повербанк {terminal_id} с SOH {soh}")
                     else:
-                        print(f" Не удалось создать повербанк для TerminalID {terminal_id}")
+                        print(f"❌ Не удалось создать повербанк для TerminalID {terminal_id}")
 
                 # Добавляем данные слота в инвентарь
                 inventory_data.append({
@@ -162,7 +131,7 @@ class QueryInventoryHandler:
                 'last_update': datetime.now(timezone.utc).isoformat()
             }
             
-            print(f" Инвентарь станции {connection.box_id} сохранен в кэш: {len(inventory_data)} слотов")
+            print(f"✅ Инвентарь станции {connection.box_id} сохранен в кэш: {len(inventory_data)} слотов")
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос инвентаря от станции {connection.box_id} (ID: {connection.station_id}) | "
@@ -170,7 +139,7 @@ class QueryInventoryHandler:
                            f"Повербанков: {len(response.get('Slots', []))}")
             
         except Exception as e:
-            print(f" Ошибка обработки ответа на запрос инвентаря: {e}")
+            print(f"❌ Ошибка обработки ответа на запрос инвентаря: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос инвентаря от станции {connection.box_id}: {e}")
 
     async def get_station_inventory(self, station_id: int) -> dict:

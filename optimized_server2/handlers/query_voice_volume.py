@@ -1,12 +1,11 @@
 """
 Обработчик команды запроса уровня громкости голосового вещания
 """
-import logging
-import os
 from datetime import datetime
 
 from models.station import Station
 from utils.packet_utils import build_query_voice_volume_request, parse_query_voice_volume_response
+from utils.centralized_logger import get_logger
 
 
 class QueryVoiceVolumeHandler:
@@ -15,31 +14,7 @@ class QueryVoiceVolumeHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        self.logger = self._setup_logger()
-    
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        # Создаем папку для логов, если её нет
-        os.makedirs('logs', exist_ok=True)
-        
-        logger = logging.getLogger('query_voice_volume')
-        logger.setLevel(logging.INFO)
-        
-        # Очищаем существующие обработчики
-        logger.handlers.clear()
-        
-        # Создаем обработчик для записи в файл
-        handler = logging.FileHandler('logs/query_voice_volume.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        
-        # Создаем форматтер
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        
-        # Добавляем обработчик к логгеру
-        logger.addHandler(handler)
-        
-        return logger
+        self.logger = get_logger('query_voice_volume')
     
     async def send_voice_volume_request(self, station_id: int) -> dict:
         """
@@ -143,6 +118,19 @@ class QueryVoiceVolumeHandler:
             print(f" CheckSum: {checksum}")
             print(f" Token: {token}")
             
+            print(f" Уровень громкости станции {connection.box_id} получен")
+            
+            # Сохраняем данные уровня громкости в объект соединения для передачи на фронтенд
+            connection.voice_volume_data = {
+                'volume_level': volume_level,
+                'volume_percentage': int(volume_level) * 10 if volume_level != 'N/A' else 0,
+                'last_update': datetime.now().isoformat(),
+                'packet_hex': raw_packet,
+                'vsn': vsn,
+                'checksum': checksum,
+                'token': token
+            }
+            
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос уровня громкости от станции {connection.box_id} (ID: {connection.station_id}) | "
                            f"Уровень громкости: {volume_level} | Пакет: {raw_packet}")
@@ -150,3 +138,4 @@ class QueryVoiceVolumeHandler:
         except Exception as e:
             print(f" Ошибка обработки ответа на запрос уровня громкости от станции {connection.box_id}: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос уровня громкости от станции {connection.box_id}: {e}")
+

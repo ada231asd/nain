@@ -198,12 +198,17 @@ class EjectPowerbankHandler:
         Запрашивает инвентарь после операции с повербанком
         """
         try:
-            from handlers.query_inventory import QueryInventoryHandler
-            inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
-            result = await inventory_handler.send_inventory_request(station_id)
-            if result["success"]:
-                print(f" Запрос инвентаря отправлен после операции извлечения")
-            else:
-                print(f" Ошибка отправки запроса инвентаря: {result['message']}")
+            from utils.inventory_manager import InventoryManager
+            inventory_manager = InventoryManager(self.db_pool)
+            
+            # Получаем соединение со станцией
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                print(f"Соединение со станцией {station_id} не найдено")
+                return
+            
+            await inventory_manager.request_inventory_after_operation(station_id, connection)
+            print(f" Запрос инвентаря отправлен после операции извлечения")
+            
         except Exception as e:
             print(f" Ошибка запроса инвентаря после операции: {e}")

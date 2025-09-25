@@ -1,13 +1,12 @@
 """
 API для запроса инвентаря кабинета
 """
-import logging
-import os
 from aiohttp import web
 from aiohttp.web import Application
 import aiomysql
 
 from handlers.query_inventory import QueryInventoryHandler
+from utils.centralized_logger import get_logger
 from models.station import Station
 from utils.auth_middleware import jwt_middleware
 
@@ -18,20 +17,7 @@ class QueryInventoryAPI:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.query_inventory_handler = QueryInventoryHandler(db_pool, connection_manager)
-        self.logger = self._setup_logger()
-
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        os.makedirs('logs', exist_ok=True)
-        logger = logging.getLogger('query_inventory_api')
-        logger.setLevel(logging.INFO)
-        logger.handlers.clear()
-        handler = logging.FileHandler('logs/query_inventory_api.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        return logger
+        self.logger = get_logger('queryinventoryapi')
 
     @jwt_middleware
     async def query_inventory(self, request: web.Request):

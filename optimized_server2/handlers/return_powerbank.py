@@ -43,14 +43,6 @@ class ReturnPowerbankHandler:
             vsn = return_request.get("VSN")
             token = int(return_request.get("Token", "0x0"), 16)
             
-            # Проверяем токен
-            from utils.packet_utils import verify_token
-            import struct
-            payload = struct.pack("BB8sBHHBBB", slot, 0, terminal_id.encode('ascii'), level, voltage, current, temperature, 0, soh)
-            if not verify_token(payload, connection.secret_key, token):
-                print(f"Неверный токен в запросе возврата от станции {connection.box_id}")
-                return self._build_error_response(return_request)
-            
             # Проверяем, существует ли повербанк в БД
             powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
             
@@ -346,12 +338,17 @@ class ReturnPowerbankHandler:
         Запрашивает инвентарь после операции с повербанком
         """
         try:
-            from handlers.query_inventory import QueryInventoryHandler
-            inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
-            result = await inventory_handler.send_inventory_request(station_id)
-            if result["success"]:
-                print(f"📦 Запрос инвентаря отправлен после операции возврата")
-            else:
-                print(f"❌ Ошибка отправки запроса инвентаря: {result['message']}")
+            from utils.inventory_manager import InventoryManager
+            inventory_manager = InventoryManager(self.db_pool)
+            
+            # Получаем соединение со станцией
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                print(f"Соединение со станцией {station_id} не найдено")
+                return
+            
+            await inventory_manager.request_inventory_after_operation(station_id, connection)
+            print(f"📦 Запрос инвентаря отправлен после операции возврата")
+            
         except Exception as e:
             print(f"❌ Ошибка запроса инвентаря после операции: {e}")

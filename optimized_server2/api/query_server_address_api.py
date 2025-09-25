@@ -1,12 +1,11 @@
 """
 API для запроса адреса сервера станции
 """
-import logging
-import os
 from aiohttp import web
 from aiohttp.web import Request, Response
 from datetime import datetime
 
+from utils.centralized_logger import get_logger
 from models.station import Station
 from handlers.query_server_address import QueryServerAddressHandler
 from utils.auth_middleware import jwt_middleware
@@ -19,20 +18,7 @@ class QueryServerAddressAPI:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.query_server_address_handler = QueryServerAddressHandler(db_pool, connection_manager)
-        self.logger = self._setup_logger()
-    
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        os.makedirs('logs', exist_ok=True)
-        logger = logging.getLogger('query_server_address_api')
-        logger.setLevel(logging.INFO)
-        logger.handlers.clear()
-        handler = logging.FileHandler('logs/query_server_address_api.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        return logger
+        self.logger = get_logger('queryserveraddressapi')
     
     @jwt_middleware
     async def query_server_address(self, request: Request) -> Response:
@@ -74,42 +60,65 @@ class QueryServerAddressAPI:
             self.logger.error(f"Администратор {user_id}: Непредвиденная ошибка при запросе адреса сервера: {e}", exc_info=True)
             return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
     
-    @jwt_middleware
-    async def get_station_server_address(self, request: Request) -> Response:
-        """Получение кэшированного адреса сервера станции"""
-        user_id = request['user']['user_id']
-        self.logger.info(f"Администратор {user_id} запросил кэшированный адрес сервера станции.")
-        
+    async def get_server_address_data(self, request: Request) -> Response:
+        """
+        Получает данные о адресе сервера станции из кэша соединения
+        GET /api/query-server-address/station/{station_id}
+        """
         try:
-            station_id = int(request.match_info['station_id'])
+            station_id = request.match_info.get('station_id')
             
-            # Получаем данные из кэша
-            result = await self.query_server_address_handler.get_station_server_address(station_id)
+            if not station_id:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Не указан station_id'
+                }, status=400)
             
-            if result['success']:
-                self.logger.info(f"Администратор {user_id} получил адрес сервера станции {station_id}.")
+            # Проверяем, что станция существует
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
                 return web.json_response({
-                    "success": True,
-                    "station_id": station_id,
-                    "server_address": result['server_address']
-                })
-            else:
-                self.logger.warning(f"Администратор {user_id}: {result['error']} для станции {station_id}")
-                return web.json_response({
-                    "success": False,
-                    "error": result['error']
+                    'success': False,
+                    'error': f'Станция с ID {station_id} не найдена'
                 }, status=404)
-                
-        except ValueError:
-            self.logger.warning(f"Администратор {user_id}: Неверный ID станции")
+            
+            # Получаем соединение для станции
+            connection = self.connection_manager.get_connection_by_station_id(int(station_id))
+            if not connection:
+                return web.json_response({
+                    'success': False,
+                    'error': f'Станция {station.box_id} не подключена'
+                }, status=404)
+            
+            # Проверяем, есть ли данные о адресе сервера
+            if not hasattr(connection, 'server_address_data') or not connection.server_address_data:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Данные о адресе сервера не найдены. Сначала запросите адрес сервера.'
+                }, status=404)
+            
+            # Возвращаем данные о адресе сервера
+            server_address_data = connection.server_address_data
+            
             return web.json_response({
-                "success": False,
-                "error": "Неверный ID станции"
+                'success': True,
+                'station_id': station_id,
+                'station_box_id': station.box_id,
+                'server_address': server_address_data
+            })
+            
+        except ValueError:
+            return web.json_response({
+                'success': False,
+                'error': 'Неверный формат station_id'
             }, status=400)
         except Exception as e:
-            self.logger.error(f"Администратор {user_id}: Ошибка получения адреса сервера станции: {e}")
+            error_msg = f"Ошибка получения данных о адресе сервера: {str(e)}"
+            self.logger.error(error_msg)
+            
             return web.json_response({
-                "success": False,
-                "error": "Внутренняя ошибка сервера"
+                'success': False,
+                'error': error_msg
             }, status=500)
+    
     

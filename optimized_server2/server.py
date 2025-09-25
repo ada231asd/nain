@@ -11,6 +11,7 @@ from aiohttp import web
 
 from config.settings import SERVER_IP, TCP_PORT, HTTP_PORT, DB_CONFIG, CONNECTION_TIMEOUT
 from models.connection import ConnectionManager, StationConnection
+from models.station import Station
 from handlers.station_handler import StationHandler
 from handlers.borrow_powerbank import BorrowPowerbankHandler
 from handlers.return_powerbank import ReturnPowerbankHandler
@@ -73,7 +74,8 @@ class OptimizedServer:
         try:
             if connection.writer and not connection.writer.is_closing():
                 # Логируем исходящий пакет
-                
+                # packet_logger.log_outgoing_packet(command_bytes, station_info, parse_packet(command_bytes))  # Удален
+                # packet_logger.log_packet_human_readable(command_bytes, "outgoing", station_info, parse_packet(command_bytes))  # Удален
                 connection.writer.write(command_bytes)
                 await connection.writer.drain()
                 return True
@@ -99,18 +101,11 @@ class OptimizedServer:
             while self.running:
                 # Читаем данные с таймаутом
                 try:
-                    data = await asyncio.wait_for(reader.read(1024), timeout=30)  # 30 секунд для heartbeat
+                    data = await asyncio.wait_for(reader.read(1024), timeout=CONNECTION_TIMEOUT)
                     if not data:
-                        print(f"Получен пустой пакет от {addr} (fd={fd}) - закрываем соединение")
                         break
                 except asyncio.TimeoutError:
-                    print(f"Таймаут heartbeat для {addr} (fd={fd}) - закрываем соединение")
-                    break
-                except ConnectionResetError:
-                    print(f"Соединение сброшено клиентом {addr} (fd={fd})")
-                    break
-                except OSError as e:
-                    print(f"Ошибка сети для {addr} (fd={fd}): {e}")
+                    print(f"Таймаут соединения для {addr}")
                     break
                 
                 # Определяем команду
@@ -129,6 +124,8 @@ class OptimizedServer:
                     "station_status": connection.station_status
                 }
                 parsed_data = parse_packet(data)
+                # packet_logger.log_incoming_packet(data, station_info, parsed_data)  # Удален
+                # packet_logger.log_packet_human_readable(data, "incoming", station_info, parsed_data)  # Удален
                 
                 try:
                     if command == 0x60:  # Login
@@ -139,9 +136,6 @@ class OptimizedServer:
                     
                     elif command == 0x61:  # Heartbeat
                         response = await self.station_handler.handle_heartbeat(data, connection)
-                        if response is None:
-                            # Соединение должно быть закрыто (станция неактивна)
-                            break
                     
                     elif command == 0x65:  # Borrow Power Bank
                         # Проверяем, это запрос или ответ
@@ -217,16 +211,14 @@ class OptimizedServer:
                         continue
                     
                     else:
-                        print(f"Неизвестная команда: {hex(command)} от станции {connection.box_id or 'unknown'}")
-                        # Логируем неизвестный пакет
-                        from utils.packet_utils import log_packet
-                        log_packet(data, "INCOMING", connection.box_id or "unknown", f"UnknownCommand_{hex(command)}")
-                        # Разрываем соединение при неизвестной команде
-                        break
+                        print(f"Неизвестная команда: {hex(command)}")
+                        continue
                     
                     # Отправляем ответ
                     if response:
-                     
+                        # Логируем исходящий пакет
+                        # packet_logger.log_outgoing_packet(response, station_info, parse_packet(response))  # Удален
+                        # packet_logger.log_packet_human_readable(response, "outgoing", station_info, parse_packet(response))  # Удален
                         writer.write(response)
                         await writer.drain()
                 
@@ -266,14 +258,6 @@ class OptimizedServer:
                 # Игнорируем ошибки закрытия для сброшенных соединений
                 if not isinstance(close_error, (ConnectionResetError, OSError)):
                     print(f"Ошибка при закрытии соединения {addr}: {close_error}")
-            
-            # Дополнительная очистка ресурсов
-            try:
-                if hasattr(writer, 'transport') and writer.transport:
-                    writer.transport.abort()
-            except Exception as abort_error:
-                if not isinstance(abort_error, (ConnectionResetError, OSError)):
-                    print(f"Ошибка при прерывании транспорта {addr}: {abort_error}")
     
     async def start_servers(self):
         """Запускает TCP и HTTP серверы"""
@@ -316,7 +300,11 @@ class OptimizedServer:
             self.running = True
             print(f"TCP сервер запущен на {SERVER_IP}:{TCP_PORT}")
             print(f"HTTP сервер запущен на 0.0.0.0:{HTTP_PORT}")
-            
+            print("Доступные HTTP endpoints:")
+            print("  POST /api/auth/register - Регистрация пользователя (отправляет пароль на email)")
+            print("  POST /api/auth/login - Авторизация по паролю")
+            print("  GET /api/auth/profile - Получение профиля пользователя")
+            print("  PUT /api/auth/profile - Обновление профиля пользователя")
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
@@ -335,13 +323,10 @@ class OptimizedServer:
         """Мониторинг соединений"""
         while self.running:
             try:
-                # Очищаем неактивные соединения (30 секунд для heartbeat)
-                cleaned = self.connection_manager.cleanup_inactive_connections(30)
+                # Очищаем неактивные соединения
+                cleaned = self.connection_manager.cleanup_inactive_connections(CONNECTION_TIMEOUT)
                 if cleaned > 0:
                     print(f"Очищено {cleaned} неактивных соединений")
-                
-                # Дополнительная проверка: деактивируем станции, которые неактивны в БД
-                await self._deactivate_inactive_stations()
                 
                 # Выводим статистику соединений
                 connections = self.connection_manager.get_all_connections()
@@ -412,7 +397,7 @@ class OptimizedServer:
                     active_stations.append((conn.station_id, conn.box_id))
             
             if active_stations:
-                print(f" Найдено {len(active_stations)} активных станций для деактивации")
+                print(f"📡 Найдено {len(active_stations)} активных станций для деактивации")
                 
                 # Деактивируем каждую станцию
                 for station_id, box_id in active_stations:
@@ -422,7 +407,6 @@ class OptimizedServer:
                             print(f" Пул соединений с БД уже закрыт, пропускаем деактивацию станции {box_id}")
                             continue
                             
-                        from models.station import Station
                         station = await Station.get_by_id(self.db_pool, station_id)
                         if station:
                             await station.update_status(self.db_pool, "inactive")
@@ -430,7 +414,7 @@ class OptimizedServer:
                     except Exception as e:
                         print(f" Ошибка деактивации станции {box_id}: {e}")
             else:
-                print(" Активных станций не найдено")
+                print("📡 Активных станций не найдено")
             
             # Дополнительно деактивируем все станции со статусом 'active' в БД
             await self._deactivate_all_active_stations_in_db()
@@ -455,7 +439,7 @@ class OptimizedServer:
                     active_stations = await cur.fetchall()
                     
                     if active_stations:
-                        print(f" Найдено {len(active_stations)} активных станций в БД")
+                        print(f"📡 Найдено {len(active_stations)} активных станций в БД")
                         
                         # Деактивируем все активные станции
                         await cur.execute("UPDATE station SET status = 'inactive' WHERE status = 'active'")
@@ -467,32 +451,10 @@ class OptimizedServer:
                         for station_id, box_id in active_stations:
                             print(f"  - Станция {box_id} (ID: {station_id})")
                     else:
-                        print(" Активных станций в БД не найдено")
+                        print("📡 Активных станций в БД не найдено")
                         
         except Exception as e:
             print(f" Ошибка при деактивации станций в БД: {e}")
-    
-    async def _deactivate_inactive_stations(self):
-        """Деактивирует станции, которые неактивны в БД, но имеют активные соединения"""
-        try:
-            connections = self.connection_manager.get_all_connections()
-            if not connections:
-                return
-            
-            # Получаем все неактивные станции из БД
-            async with self.db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("SELECT station_id FROM station WHERE status != 'active'")
-                    inactive_station_ids = [row[0] for row in await cur.fetchall()]
-            
-            # Закрываем соединения с неактивными станциями
-            for fd, connection in connections.items():
-                if connection.station_id and connection.station_id in inactive_station_ids:
-                    print(f"Закрываем соединение с неактивной станцией {connection.box_id} (ID: {connection.station_id})")
-                    self.connection_manager.close_connection(fd)
-                    
-        except Exception as e:
-            print(f"Ошибка при деактивации неактивных станций: {e}")
 
 
 async def main():

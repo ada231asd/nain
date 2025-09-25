@@ -1,14 +1,13 @@
 """
 Обработчик команды запроса адреса сервера
 """
-import logging
-import os
 from typing import Dict, Any
 from datetime import datetime, timezone
 
 from models.station import Station
 from utils.packet_utils import build_query_server_address_request, parse_query_server_address_response
 from models.connection import StationConnection
+from utils.centralized_logger import get_logger
 
 
 class QueryServerAddressHandler:
@@ -17,20 +16,7 @@ class QueryServerAddressHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        self.logger = self._setup_logger()
-
-    def _setup_logger(self):
-        """Настраивает логгер для записи в файл"""
-        os.makedirs('logs', exist_ok=True)
-        logger = logging.getLogger('query_server_address')
-        logger.setLevel(logging.INFO)
-        logger.handlers.clear()
-        handler = logging.FileHandler('logs/query_server_address.log', encoding='utf-8')
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        return logger
+        self.logger = get_logger('query_server_address')
 
     async def send_query_server_address_request(self, station_id: int) -> Dict[str, Any]:
         """
@@ -88,15 +74,19 @@ class QueryServerAddressHandler:
             print(f" Порт сервера: {response.get('Ports', 'N/A')}")
             print(f" Интервал heartbeat: {response.get('Heartbeat', 'N/A')}")
             
-            # Сохраняем данные адреса сервера в кэш соединения
-            connection.server_address_cache = {
-                'address': response.get('Address', 'N/A'),
-                'ports': response.get('Ports', 'N/A'),
-                'heartbeat': response.get('Heartbeat', 'N/A'),
-                'last_update': datetime.now(timezone.utc).isoformat()
-            }
+            print(f" Адрес сервера станции {connection.box_id} получен")
             
-            print(f" Адрес сервера станции {connection.box_id} сохранен в кэш")
+            # Сохраняем данные адреса сервера в объект соединения для передачи на фронтенд
+            connection.server_address_data = {
+                'address': response.get('Address', 'N/A'),
+                'port': response.get('Ports', 'N/A'),
+                'heartbeat_interval': response.get('Heartbeat', 'N/A'),
+                'last_update': datetime.now(timezone.utc).isoformat(),
+                'packet_hex': response.get('RawPacket', 'N/A'),
+                'vsn': response.get('VSN', 'N/A'),
+                'checksum': response.get('CheckSum', 'N/A'),
+                'token': response.get('Token', 'N/A')
+            }
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос адреса сервера от станции {connection.box_id} (ID: {connection.station_id}) | "
@@ -106,34 +96,3 @@ class QueryServerAddressHandler:
         except Exception as e:
             print(f" Ошибка обработки ответа на запрос адреса сервера: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос адреса сервера от станции {connection.box_id}: {e}")
-
-    async def get_station_server_address(self, station_id: int) -> dict:
-        """
-        Получает адрес сервера станции из кэша соединения
-        """
-        try:
-            # Получаем соединение со станцией
-            connection = self.connection_manager.get_connection_by_station_id(station_id)
-            if not connection:
-                return {
-                    "success": False,
-                    "error": "Станция не подключена"
-                }
-            
-            # Проверяем, есть ли кэш адреса сервера
-            if hasattr(connection, 'server_address_cache') and connection.server_address_cache:
-                return {
-                    "success": True,
-                    "server_address": connection.server_address_cache
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "Адрес сервера не загружен. Отправьте запрос адреса сервера."
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Ошибка получения адреса сервера: {str(e)}"
-            }
