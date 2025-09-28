@@ -117,5 +117,5 @@ class RestartCabinetHandler:
             return None
             
         except Exception as e:
-            print(f"Ошибка обработки ответа на команду перезагрузки: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None

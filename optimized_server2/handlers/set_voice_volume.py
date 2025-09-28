@@ -118,6 +118,6 @@ class SetVoiceVolumeHandler:
                            f"Статус: Успешно")
             
         except Exception as e:
-            print(f"Ошибка обработки ответа на установку уровня громкости: {e}")
+            self.logger.error(f"Ошибка: {e}")
             self.logger.error(f"Ошибка обработки ответа на установку уровня громкости от станции {connection.box_id}: {e}")
 

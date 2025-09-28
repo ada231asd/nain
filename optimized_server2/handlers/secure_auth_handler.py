@@ -275,7 +275,7 @@ class SecureAuthHandler:
                 (user_id,)
             )
         except Exception as e:
-            print(f"Ошибка обновления времени входа: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _update_user_data(self, user_id: int, data: Dict[str, Any]):
         """Обновляет данные пользователя"""
@@ -294,6 +294,6 @@ class SecureAuthHandler:
                 query = f"UPDATE app_user SET {', '.join(update_fields)} WHERE user_id = %s"
                 await self.secure_db.execute_safe_update(query, tuple(params))
         except Exception as e:
-            print(f"Ошибка обновления данных пользователя: {e}")
+            self.logger.error(f"Ошибка: {e}")
             raise
 

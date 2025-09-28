@@ -77,7 +77,7 @@ class BorrowPowerbankHandler:
             return borrow_command
             
         except Exception as e:
-            print(f"Ошибка обработки запроса на выдачу: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def handle_borrow_response(self, data: bytes, connection) -> None:
@@ -130,7 +130,7 @@ class BorrowPowerbankHandler:
                 print(f"Выдача повербанка не удалась для станции {station_id}")
             
         except Exception as e:
-            print(f"Ошибка обработки ответа на выдачу: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def process_successful_borrow(self, station_id: int, slot_number: int) -> None:
         """
@@ -148,7 +148,7 @@ class BorrowPowerbankHandler:
                 print(f"Не удалось удалить повербанк из слота {slot_number}")
                 
         except Exception as e:
-            print(f"Ошибка при удалении повербанка из станции: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _create_borrow_order(self, station_id: int, powerbank_id: int, user_id: int) -> None:
         """
@@ -160,7 +160,7 @@ class BorrowPowerbankHandler:
             )
             print(f"Создан заказ на выдачу повербанка {powerbank_id} пользователю {user_id}")
         except Exception as e:
-            print(f"Ошибка создания заказа: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def get_available_slots(self, station_id: int) -> list:
         """
@@ -170,7 +170,7 @@ class BorrowPowerbankHandler:
             slots = await StationPowerbank.get_station_slots(self.db_pool, station_id)
             return slots
         except Exception as e:
-            print(f"Ошибка получения слотов: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return []
     
     async def _is_powerbank_already_borrowed(self, powerbank_id: int) -> bool:
@@ -193,7 +193,7 @@ class BorrowPowerbankHandler:
                     return result[0] > 0
                     
         except Exception as e:
-            print(f"Ошибка проверки статуса повербанка {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return False
     
     async def _is_powerbank_in_station(self, station_id: int, powerbank_id: int) -> bool:
@@ -213,9 +213,61 @@ class BorrowPowerbankHandler:
                     return result[0] > 0
                     
         except Exception as e:
-            print(f"Ошибка проверки наличия повербанка в станции: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return False
     
+    async def send_borrow_request(self, station_id: int, powerbank_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Отправляет запрос на выдачу повербанка на станцию
+        """
+        try:
+            print(f" BorrowPowerbankHandler: Отправка запроса на выдачу - station_id={station_id}, powerbank_id={powerbank_id}, user_id={user_id}")
+            
+            # Получаем соединение со станцией
+            if not self.connection_manager:
+                return {"success": False, "message": "Connection manager недоступен"}
+            
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                return {"success": False, "message": "Станция не подключена"}
+            
+            # Получаем информацию о повербанке и его слоте
+            station_powerbank = await StationPowerbank.get_by_powerbank_id(self.db_pool, powerbank_id)
+            if not station_powerbank:
+                return {"success": False, "message": "Повербанк не найден в станции"}
+            
+            slot_number = station_powerbank.slot_number
+            
+            # Получаем секретный ключ
+            secret_key = connection.secret_key
+            if not secret_key:
+                return {"success": False, "message": "Нет секретного ключа для команды выдачи"}
+            
+            # Создаем команду на выдачу повербанка
+            borrow_command = build_borrow_power_bank(
+                secret_key=secret_key,
+                slot=slot_number,
+                vsn=1  # Используем VSN=1 по умолчанию
+            )
+            
+            # Отправляем команду через TCP соединение
+            if connection.writer and not connection.writer.is_closing():
+                connection.writer.write(borrow_command)
+                await connection.writer.drain()
+                print(f" Команда на выдачу повербанка отправлена станции {station_id}, слот {slot_number}")
+                
+                return {
+                    "success": True,
+                    "message": f"Команда на выдачу повербанка отправлена на станцию",
+                    "packet_hex": borrow_command.hex().upper()
+                }
+            else:
+                return {"success": False, "message": "TCP соединение со станцией недоступно"}
+                
+        except Exception as e:
+            print(f" Ошибка отправки запроса на выдачу: {e}")
+            return {"success": False, "message": f"Ошибка отправки команды: {str(e)}"}
+
     async def _request_inventory_after_operation(self, station_id: int) -> None:
         """
         Запрашивает инвентарь после операции с повербанком
@@ -231,7 +283,7 @@ class BorrowPowerbankHandler:
                 return
             
             await inventory_manager.request_inventory_after_operation(station_id, connection)
-            print(f"📦 Запрос инвентаря отправлен после операции выдачи")
+            print(f" Запрос инвентаря отправлен после операции выдачи")
             
         except Exception as e:
-            print(f"❌ Ошибка запроса инвентаря после операции: {e}")
+            print(f" Ошибка запроса инвентаря после операции: {e}")

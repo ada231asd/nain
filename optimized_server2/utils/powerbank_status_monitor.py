@@ -38,7 +38,7 @@ class PowerbankStatusMonitor:
                     print(f"Инициализирован мониторинг для станции {station_id}: {len(powerbank_ids)} повербанков")
                     
         except Exception as e:
-            print(f"Ошибка инициализации мониторинга для станции {station_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def check_status_changes(self, station_id: int) -> Dict[int, str]:
         """Проверяет изменения статусов повербанков в станции"""
@@ -70,7 +70,7 @@ class PowerbankStatusMonitor:
                     return status_changes
                     
         except Exception as e:
-            print(f"Ошибка проверки изменений статусов для станции {station_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {}
     
     async def handle_status_change(self, station_id: int, powerbank_id: int, new_status: str) -> None:
@@ -88,7 +88,7 @@ class PowerbankStatusMonitor:
                 print(f"Повербанк {powerbank_id} стал неизвестным - остается в станции {station_id} до активации")
                 
         except Exception as e:
-            print(f"Ошибка обработки изменения статуса повербанка {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _schedule_powerbank_ejection(self, station_id: int, powerbank_id: int) -> None:
         """Планирует извлечение неактивного повербанка"""
@@ -110,7 +110,7 @@ class PowerbankStatusMonitor:
                         # или поставить задачу в очередь
                         
         except Exception as e:
-            print(f"Ошибка планирования извлечения повербанка {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def monitor_station(self, station_id: int, interval_seconds: int = 30) -> None:
         """Запускает мониторинг станции в фоновом режиме"""
@@ -126,7 +126,7 @@ class PowerbankStatusMonitor:
                 await asyncio.sleep(interval_seconds)
                 
             except Exception as e:
-                print(f"Ошибка мониторинга станции {station_id}: {e}")
+                self.logger.error(f"Ошибка: {e}")
                 await asyncio.sleep(interval_seconds)
     
     def get_station_powerbanks(self, station_id: int) -> Set[int]:

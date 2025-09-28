@@ -58,7 +58,7 @@ class StationHandler:
                     if existing_connection.writer and not existing_connection.writer.is_closing():
                         existing_connection.writer.close()
                 except Exception as close_error:
-                    print(f"Ошибка закрытия старого соединения fd={existing_connection.fd}: {close_error}")
+                    self.logger.error(f"Ошибка: {e}")
                 finally:
                     self.connection_manager.remove_connection(existing_connection.fd)
             
@@ -88,6 +88,9 @@ class StationHandler:
             # Инициализируем мониторинг статусов для станции
             await self.status_monitor.initialize_station(station.station_id)
             
+            # Автоматически запрашиваем инвентарь после успешного логина
+            await self._request_inventory_after_login(connection)
+            
             # Автоматически проверяем и извлекаем несовместимые повербанки
             await self._check_and_extract_incompatible_powerbanks(station.station_id)
             
@@ -98,7 +101,7 @@ class StationHandler:
             return response
             
         except Exception as e:
-            print(f"Ошибка обработки логина: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def handle_heartbeat(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
@@ -144,14 +147,28 @@ class StationHandler:
                         
                         print(f"Обновлен heartbeat для станции {connection.box_id} (ID: {connection.station_id})")
                 except Exception as db_error:
-                    print(f"Ошибка обновления данных станции {connection.station_id}: {db_error}")
+                    self.logger.error(f"Ошибка: {e}")
             
             print(f"Heartbeat от станции {connection.box_id}")
             return response
             
         except Exception as e:
-            print(f"Ошибка обработки heartbeat: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
+    
+    async def _request_inventory_after_login(self, connection: StationConnection) -> None:
+        """Запрашивает инвентарь после успешного логина"""
+        try:
+            if not connection.writer or connection.writer.is_closing():
+                print("Соединение недоступно для запроса инвентаря")
+                return
+            
+            from handlers.query_inventory import QueryInventoryHandler
+            inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
+            await inventory_handler.send_inventory_request(connection.station_id)
+            print(f" Запрос инвентаря отправлен на станцию {connection.box_id}")
+        except Exception as e:
+            print(f" Ошибка запроса инвентаря: {e}")
     
     async def _request_iccid_after_login(self, connection: StationConnection) -> None:
         """Автоматически запрашивает ICCID после успешного логина только если его нет в БД"""
@@ -177,7 +194,7 @@ class StationHandler:
             print(f"Запрос ICCID отправлен станции {connection.box_id} (ICCID отсутствует в БД)")
             
         except Exception as e:
-            print(f"Ошибка отправки запроса ICCID: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _sync_powerbanks_to_db(self, station_id: int, slots_data: list) -> None:
         """Синхронизирует данные повербанков с БД (как в старом сервере)"""
@@ -241,7 +258,7 @@ class StationHandler:
             await eject_handler.check_and_extract_incompatible_powerbanks(station_id, connection)
             
         except Exception as e:
-            print(f"Ошибка при проверке совместимости повербанков: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _schedule_incompatible_powerbank_ejection(self, station_id: int, slot_number: int, terminal_id: str) -> None:
         """Планирует извлечение несовместимого повербанка"""
@@ -258,4 +275,4 @@ class StationHandler:
             await eject_handler.extract_incompatible_powerbank(station_id, slot_number, terminal_id, connection)
             
         except Exception as e:
-            print(f"Ошибка планирования извлечения несовместимого повербанка: {e}")
+            self.logger.error(f"Ошибка: {e}")

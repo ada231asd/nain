@@ -135,6 +135,6 @@ class SetServerAddressHandler:
                            f"Статус: Успешно, станция перезагружается")
             
         except Exception as e:
-            print(f"Ошибка обработки ответа на установку адреса сервера: {e}")
+            self.logger.error(f"Ошибка: {e}")
             self.logger.error(f"Ошибка обработки ответа на установку адреса сервера от станции {connection.box_id}: {e}")
 

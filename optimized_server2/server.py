@@ -61,7 +61,7 @@ class OptimizedServer:
             self.db_pool = await aiomysql.create_pool(**DB_CONFIG)
             print("Подключение к базе данных установлено")
         except Exception as e:
-            print(f"Ошибка подключения к базе данных: {e}")
+            self.logger.error(f"Ошибка: {e}")
             sys.exit(1)
     
     async def cleanup_database(self):
@@ -83,7 +83,7 @@ class OptimizedServer:
                 print("TCP соединение со станцией недоступно")
                 return False
         except Exception as e:
-            print(f"Ошибка отправки команды на станцию: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return False
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -110,7 +110,7 @@ class OptimizedServer:
                 
                 # Базовая проверка размера пакета для всех соединений
                 if len(data) > MAX_PACKET_SIZE:
-                    print(f"⚠️ Слишком большой пакет от {connection.addr}: {len(data)} байт (максимум {MAX_PACKET_SIZE})")
+                    print(f" Слишком большой пакет от {connection.addr}: {len(data)} байт (максимум {MAX_PACKET_SIZE})")
                     log_suspicious_packet(data, connection, f"Пакет слишком большой: {len(data)} байт")
                     continue
                 
@@ -126,7 +126,7 @@ class OptimizedServer:
                         
                         # Проверяем, не слишком ли много подозрительных пакетов
                         if connection.is_too_suspicious(MAX_SUSPICIOUS_PACKETS):
-                            print(f"🚨 СТАНЦИЯ ЗАБЛОКИРОВАНА: {connection.box_id} ({connection.addr}) - слишком много подозрительных пакетов ({connection.suspicious_packets})")
+                            print(f" СТАНЦИЯ ЗАБЛОКИРОВАНА: {connection.box_id} ({connection.addr}) - слишком много подозрительных пакетов ({connection.suspicious_packets})")
                             log_suspicious_packet(data, connection, f"СТАНЦИЯ ЗАБЛОКИРОВАНА - {connection.suspicious_packets} подозрительных пакетов")
                             
                             # Принудительно закрываем соединение
@@ -135,11 +135,11 @@ class OptimizedServer:
                                     writer.close()
                                     await writer.wait_closed()
                             except Exception as close_error:
-                                print(f"Ошибка при принудительном закрытии соединения: {close_error}")
+                                self.logger.error(f"Ошибка: {e}")
                             
                             break  # Закрываем соединение
                         
-                        print(f"⚠️ Подозрительный пакет от {connection.box_id}: {error_message}")
+                        print(f" Подозрительный пакет от {connection.box_id}: {error_message}")
                         continue
                     
                     # Сбрасываем счетчик подозрительных пакетов при получении валидного пакета
@@ -187,11 +187,13 @@ class OptimizedServer:
                         continue
                     
                     elif command == 0x66:  # Return Power Bank
-                        # Обрабатываем запрос на возврат повербанка
-                        response = await self.return_handler.handle_return_request(data, connection)
-                        if response:
-                            writer.write(response)
-                            await writer.drain()
+                        if len(data) >= 21:  # Ответ на возврат
+                            await self.return_handler.handle_return_response(data, connection)
+                        else:  # Запрос на возврат
+                            response = await self.return_handler.handle_return_request(data, connection)
+                            if response:
+                                writer.write(response)
+                                await writer.drain()
                         continue
                     
                     elif command == 0x80:  # Force Eject Power Bank
@@ -254,7 +256,7 @@ class OptimizedServer:
                         await writer.drain()
                 
                 except Exception as e:
-                    print(f"Ошибка обработки команды {hex(command)}: {e}")
+                    self.logger.error(f"Ошибка: {e}")
                     continue
         
         except asyncio.CancelledError:
@@ -264,7 +266,7 @@ class OptimizedServer:
             print(f"Соединение {addr} сброшено клиентом: {e}")
             connection_reset = True
         except Exception as e:
-            print(f"Ошибка в обработке клиента {addr}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             connection_reset = False
         
         finally:
@@ -284,11 +286,11 @@ class OptimizedServer:
                             print(f"Таймаут при закрытии соединения {addr}")
                         except Exception as wait_error:
                             if not isinstance(wait_error, (ConnectionResetError, OSError)):
-                                print(f"Ошибка ожидания закрытия соединения {addr}: {wait_error}")
+                                self.logger.error(f"Ошибка: {e}")
             except Exception as close_error:
                 # Игнорируем ошибки закрытия для сброшенных соединений
                 if not isinstance(close_error, (ConnectionResetError, OSError)):
-                    print(f"Ошибка при закрытии соединения {addr}: {close_error}")
+                    self.logger.error(f"Ошибка: {e}")
     
     async def start_servers(self):
         """Запускает TCP и HTTP серверы"""
@@ -343,10 +345,10 @@ class OptimizedServer:
             except asyncio.CancelledError:
                 print("TCP сервер остановлен")
             except Exception as e:
-                print(f"Ошибка TCP сервера: {e}")
+                self.logger.error(f"Ошибка: {e}")
         
         except Exception as e:
-            print(f"Ошибка запуска серверов: {e}")
+            self.logger.error(f"Ошибка: {e}")
         finally:
             # База данных будет закрыта в stop_servers()
             pass
@@ -400,7 +402,7 @@ class OptimizedServer:
                 await asyncio.sleep(30)  # Проверяем каждые 30 секунд
             
             except Exception as e:
-                print(f"Ошибка в мониторинге соединений: {e}")
+                self.logger.error(f"Ошибка: {e}")
                 await asyncio.sleep(30)
     
     async def stop_servers(self):
@@ -411,6 +413,9 @@ class OptimizedServer:
         
         # Деактивируем все станции перед закрытием
         await self._deactivate_all_stations()
+        
+        # Принудительно закрываем все TCP соединения
+        await self._close_all_connections()
         
         if self.tcp_server:
             self.tcp_server.close()
@@ -467,6 +472,40 @@ class OptimizedServer:
                 
         except Exception as e:
             print(f" Ошибка при деактивации станций: {e}")
+    
+    async def _close_all_connections(self):
+        """Принудительно закрывает все TCP соединения"""
+        try:
+            print(" Принудительное закрытие всех TCP соединений...")
+            
+            connections = self.connection_manager.get_all_connections()
+            if not connections:
+                print(" Активных соединений не найдено")
+                return
+            
+            print(f" Найдено {len(connections)} соединений для закрытия")
+            
+            closed_count = 0
+            for fd, conn in connections.items():
+                try:
+                    if conn.writer and not conn.writer.is_closing():
+                        print(f" Закрываем соединение {conn.addr} (станция: {conn.box_id})")
+                        conn.writer.close()
+                        await conn.writer.wait_closed()
+                        closed_count += 1
+                    else:
+                        print(f" Соединение {conn.addr} уже закрыто")
+                except Exception as e:
+                    print(f" Ошибка закрытия соединения {conn.addr}: {e}")
+            
+            print(f" Закрыто {closed_count} соединений")
+            
+            # Очищаем менеджер соединений
+            self.connection_manager.clear_all_connections()
+            print(" Менеджер соединений очищен")
+            
+        except Exception as e:
+            print(f" Ошибка при закрытии соединений: {e}")
     
     async def _deactivate_all_active_stations_in_db(self):
         """Деактивирует все станции со статусом 'active' в базе данных"""
@@ -537,12 +576,12 @@ async def main():
     except asyncio.CancelledError:
         print("Сервер остановлен")
     except Exception as e:
-        print(f"Ошибка сервера: {e}")
+        self.logger.error(f"Ошибка: {e}")
     finally:
         try:
             await server.stop_servers()
         except Exception as e:
-            print(f"Ошибка при остановке сервера: {e}")
+            self.logger.error(f"Ошибка: {e}")
 
 
 if __name__ == "__main__":

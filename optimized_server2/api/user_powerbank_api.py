@@ -11,7 +11,7 @@ from models.powerbank import Powerbank
 from models.station import Station
 from models.order import Order
 from handlers.borrow_powerbank import BorrowPowerbankHandler
-from handlers.return_powerbank import ReturnPowerbankHandler
+from api.simple_return_api import SimpleReturnAPI
 from utils.auth_middleware import jwt_middleware
 
 class UserPowerbankAPI:
@@ -21,7 +21,7 @@ class UserPowerbankAPI:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.borrow_handler = BorrowPowerbankHandler(db_pool, connection_manager)
-        self.return_handler = ReturnPowerbankHandler(db_pool, connection_manager)
+        self.return_api = SimpleReturnAPI(db_pool, connection_manager)
         self.logger = get_logger('userpowerbankapi')
 
     @jwt_middleware
@@ -239,16 +239,16 @@ class UserPowerbankAPI:
                     "error": "Станция неактивна"
                 }, status=400)
 
-            # Отправляем команду возврата на станцию
-            return_result = await self.return_handler.send_return_request(
+            # Выполняем возврат повербанка
+            return_result = await self.return_api.return_powerbank(
                 station_id,
-                order.powerbank_id,
-                user_id
+                user_id,
+                order.powerbank_id
             )
 
             if not return_result["success"]:
                 return web.json_response({
-                    "error": f"Ошибка отправки команды на станцию: {return_result['message']}"
+                    "error": return_result["error"]
                 }, status=500)
 
             self.logger.info(f"Пользователь {user_id} успешно вернул повербанк {order.powerbank_id} на станцию {station_id}")

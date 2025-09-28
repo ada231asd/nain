@@ -84,7 +84,7 @@ class DDoSProtection:
                 await asyncio.sleep(self.cleanup_interval)
                 await self._cleanup_expired_data()
             except Exception as e:
-                print(f"Ошибка в цикле очистки DDoS защиты: {e}")
+                self.logger.error(f"Ошибка: {e}")
     
     async def _cleanup_expired_data(self):
         """Очищает устаревшие данные"""

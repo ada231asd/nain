@@ -114,15 +114,20 @@ class BorrowEndpoints:
                 station_id = int(request.match_info['station_id'])
                 data = await request.json()
                 
+                print(f"🔍 BorrowEndpoints: Запрос оптимальной выдачи - station_id={station_id}, data={data}")
+                
                 if not data:
+                    print("❌ BorrowEndpoints: Отсутствуют данные запроса")
                     return web.json_response(
                         {"error": "Отсутствуют данные запроса", "success": False}, 
                         status=400
                     )
                 
                 user_id = data.get('user_id')
+                print(f"🔍 BorrowEndpoints: user_id из запроса: {user_id}, тип: {type(user_id)}")
                 
                 if user_id is None:
+                    print("❌ BorrowEndpoints: Отсутствует поле user_id")
                     return web.json_response({
                         "error": "Отсутствует обязательное поле: user_id", 
                         "success": False

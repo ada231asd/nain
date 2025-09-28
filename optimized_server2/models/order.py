@@ -11,13 +11,16 @@ class Order:
     
     def __init__(self, order_id: int, station_id: int, user_id: int, 
                  powerbank_id: Optional[int] = None, status: str = 'borrow',
-                 timestamp: Optional[datetime] = None):
+                 timestamp: Optional[datetime] = None, borrow_time: Optional[datetime] = None,
+                 return_time: Optional[datetime] = None):
         self.order_id = order_id
         self.station_id = station_id
         self.user_id = user_id
         self.powerbank_id = powerbank_id
         self.status = status
         self.timestamp = timestamp or datetime.now()
+        self.borrow_time = borrow_time
+        self.return_time = return_time
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует заказ в словарь"""
@@ -27,7 +30,9 @@ class Order:
             'user_id': self.user_id,
             'powerbank_id': self.powerbank_id,
             'status': self.status,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'borrow_time': self.borrow_time.isoformat() if self.borrow_time else None,
+            'return_time': self.return_time.isoformat() if self.return_time else None
         }
     
     @classmethod
@@ -159,7 +164,7 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, borrow_time, return_time
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
                     FROM orders 
                     WHERE user_id = %s 
                     ORDER BY timestamp DESC
@@ -175,9 +180,7 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5],
-                        borrow_time=result[6],
-                        return_time=result[7]
+                        timestamp=result[5]
                     ))
                 
                 return orders
@@ -188,7 +191,7 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, borrow_time, return_time
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
                     FROM orders 
                     WHERE user_id = %s AND status = 'active'
                     ORDER BY timestamp DESC
@@ -204,9 +207,7 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5],
-                        borrow_time=result[6],
-                        return_time=result[7]
+                        timestamp=result[5]
                     ))
                 
                 return orders
@@ -217,7 +218,7 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, borrow_time, return_time
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
                     FROM orders 
                     WHERE powerbank_id = %s AND status = 'active'
                     LIMIT 1
@@ -232,11 +233,36 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5],
-                        borrow_time=result[6],
-                        return_time=result[7]
+                        timestamp=result[5]
                     )
                 return None
+
+    @classmethod
+    async def get_active_by_station_id(cls, db_pool, station_id: int) -> List['Order']:
+        """Получает активные заказы для станции"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
+                    FROM orders 
+                    WHERE station_id = %s AND status = 'active'
+                    ORDER BY timestamp DESC
+                """, (station_id,))
+                
+                results = await cursor.fetchall()
+                
+                orders = []
+                for result in results:
+                    orders.append(cls(
+                        order_id=result[0],
+                        station_id=result[1],
+                        user_id=result[2],
+                        powerbank_id=result[3],
+                        status=result[4],
+                        timestamp=result[5]
+                    ))
+                
+                return orders
 
     @classmethod
     async def get_count_by_user_id(cls, db_pool, user_id: int) -> int:
@@ -260,3 +286,14 @@ class Order:
                 """, (order_id,))
                 
                 return cursor.rowcount > 0
+    
+    async def update_status(self, db_pool, new_status: str) -> bool:
+        """Обновляет статус заказа"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "UPDATE orders SET status = %s WHERE id = %s",
+                    (new_status, self.order_id)
+                )
+                self.status = new_status
+                return True

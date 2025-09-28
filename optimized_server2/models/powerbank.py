@@ -70,6 +70,11 @@ class Powerbank:
                 return None
     
     @classmethod
+    async def get_by_serial_number(cls, db_pool, serial_number: str) -> Optional['Powerbank']:
+        """Получает повербанк по серийному номеру (алиас для get_by_serial)"""
+        return await cls.get_by_serial(db_pool, serial_number)
+    
+    @classmethod
     async def create_unknown(cls, db_pool, serial_number: str, org_unit_id: int = None) -> 'Powerbank':
         """Создает повербанк со статусом unknown"""
         async with db_pool.acquire() as conn:
@@ -136,7 +141,7 @@ class Powerbank:
                         created_at=datetime.now()
                     )
         except Exception as e:
-            print(f"Ошибка создания повербанка {serial_number}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def update_status(self, db_pool, new_status: str) -> bool:
@@ -148,6 +153,17 @@ class Powerbank:
                     (new_status, self.powerbank_id)
                 )
                 self.status = new_status
+                return True
+    
+    async def update_write_off_reason(self, db_pool, new_reason: str) -> bool:
+        """Обновляет причину списания повербанка"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "UPDATE powerbank SET write_off_reason = %s WHERE id = %s",
+                    (new_reason, self.powerbank_id)
+                )
+                self.write_off_reason = new_reason
                 return True
     
     async def update_soh(self, db_pool, soh: int) -> bool:

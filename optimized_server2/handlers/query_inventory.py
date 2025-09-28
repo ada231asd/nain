@@ -66,10 +66,10 @@ class QueryInventoryHandler:
             response = parse_query_inventory_response(data)
             
             if not response.get("CheckSumValid", False):
-                print(f"❌ Получен некорректный ответ на запрос инвентаря от станции {connection.box_id}")
+                print(f" Получен некорректный ответ на запрос инвентаря от станции {connection.box_id}")
                 return
             
-            print(f"📦 Получен ответ на запрос инвентаря от станции {connection.box_id}")
+            print(f" Получен ответ на запрос инвентаря от станции {connection.box_id}")
             print(f"   Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}")
             print(f"   Повербанков в ответе: {len(response.get('Slots', []))}")
             
@@ -104,16 +104,16 @@ class QueryInventoryHandler:
                     # Конвертируем SOH в int, чтобы избежать MySQL warnings
                     soh_int = int(soh) if soh is not None else 0
                     await powerbank.update_status_and_soh(self.db_pool, 'active', soh_int)
-                    print(f"📱 Обновлен повербанк {terminal_id}: статус 'active', SOH {soh_int}")
+                    print(f" Обновлен повербанк {terminal_id}: статус 'active', SOH {soh_int}")
                 else:
                     # Повербанк не существует, создаем его
                     # Конвертируем SOH в int, чтобы избежать MySQL warnings
                     soh_int = int(soh) if soh is not None else 0
                     new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh_int, 'active')
                     if new_powerbank:
-                        print(f"📱 Создан новый повербанк {terminal_id} с SOH {soh}")
+                        print(f" Создан новый повербанк {terminal_id} с SOH {soh}")
                     else:
-                        print(f"❌ Не удалось создать повербанк для TerminalID {terminal_id}")
+                        print(f" Не удалось создать повербанк для TerminalID {terminal_id}")
 
                 # Добавляем данные слота в инвентарь
                 inventory_data.append({
@@ -135,7 +135,7 @@ class QueryInventoryHandler:
                 'last_update': get_moscow_time().isoformat()
             }
             
-            print(f"✅ Инвентарь станции {connection.box_id} сохранен в кэш: {len(inventory_data)} слотов")
+            print(f" Инвентарь станции {connection.box_id} сохранен в кэш: {len(inventory_data)} слотов")
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос инвентаря от станции {connection.box_id} (ID: {connection.station_id}) | "
@@ -143,7 +143,7 @@ class QueryInventoryHandler:
                            f"Повербанков: {len(response.get('Slots', []))}")
             
         except Exception as e:
-            print(f"❌ Ошибка обработки ответа на запрос инвентаря: {e}")
+            print(f" Ошибка обработки ответа на запрос инвентаря: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос инвентаря от станции {connection.box_id}: {e}")
 
     async def get_station_inventory(self, station_id: int) -> dict:

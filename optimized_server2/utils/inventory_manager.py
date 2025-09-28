@@ -41,7 +41,7 @@ class InventoryManager:
                 print(f"TCP соединение со станцией {station_id} недоступно")
                 
         except Exception as e:
-            print(f"Ошибка запроса инвентаря для станции {station_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def process_inventory_response(self, data: bytes, station_id: int) -> None:
         """
@@ -52,7 +52,7 @@ class InventoryManager:
             inventory_data = parse_query_inventory_response(data)
             
             if inventory_data.get("Error"):
-                print(f"Ошибка парсинга инвентаря станции {station_id}: {inventory_data['Error']}")
+                self.logger.error(f"Ошибка: {e}")
                 return
             
             if not inventory_data.get("CheckSumValid", False):
@@ -70,7 +70,7 @@ class InventoryManager:
             await self._sync_inventory_with_database(station_id, slots)
             
         except Exception as e:
-            print(f"Ошибка обработки инвентаря станции {station_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _sync_inventory_with_database(self, station_id: int, slots: list) -> None:
         """
@@ -111,7 +111,7 @@ class InventoryManager:
             print(f"Синхронизация завершена. Добавлено повербанков: {added_count}")
             
         except Exception as e:
-            print(f"Ошибка синхронизации инвентаря станции {station_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _update_existing_powerbank(self, station_id: int, slot_number: int, 
                                        terminal_id: str, level: int, voltage: int, 
@@ -132,7 +132,7 @@ class InventoryManager:
             print(f"Обновлен повербанк {terminal_id} в слоте {slot_number} станции {station_id}")
             
         except Exception as e:
-            print(f"Ошибка обновления повербанка в слоте {slot_number}: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _add_new_powerbank(self, station_id: int, slot_number: int, 
                                terminal_id: str, level: int, voltage: int, 
@@ -155,7 +155,7 @@ class InventoryManager:
             return True
             
         except Exception as e:
-            print(f"Ошибка добавления повербанка в слот {slot_number}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return False
     
     async def _get_powerbank_id_by_terminal_id(self, terminal_id: str) -> Optional[int]:
@@ -169,5 +169,5 @@ class InventoryManager:
                     result = await cur.fetchone()
                     return result[0] if result else None
         except Exception as e:
-            print(f"Ошибка поиска повербанка {terminal_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None

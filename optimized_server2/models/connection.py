@@ -132,7 +132,7 @@ class ConnectionManager:
                 except Exception as e:
                     # Игнорируем ошибки закрытия для сброшенных соединений
                     if not isinstance(e, (ConnectionResetError, OSError, socket.error)):
-                        print(f"Ошибка закрытия соединения fd={fd}: {e}")
+                        self.logger.error(f"Ошибка: {e}")
             self.remove_connection(fd)
     
     def close_station_connections(self, station_id: int):
@@ -146,3 +146,8 @@ class ConnectionManager:
             self.close_connection(fd)
         
         return len(connections_to_close)
+    
+    def clear_all_connections(self):
+        """Очищает все соединения из менеджера"""
+        self.connections.clear()
+        print(f"Очищено {len(self.connections)} соединений из менеджера")

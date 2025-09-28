@@ -53,7 +53,7 @@ class StationResolver:
                     "is_connected": connection is not None
                 }
         except Exception as e:
-            print(f"Ошибка определения станции по повербанку {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
         
         return None
     

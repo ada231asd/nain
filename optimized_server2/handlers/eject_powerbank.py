@@ -49,7 +49,7 @@ class EjectPowerbankHandler:
             return eject_command
             
         except Exception as e:
-            print(f"Ошибка обработки запроса на извлечение: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def handle_force_eject_response(self, data: bytes, connection) -> None:
@@ -89,7 +89,7 @@ class EjectPowerbankHandler:
                     print(f"Не найдены повербанки в станции {station_id} для извлечения")
             
         except Exception as e:
-            print(f"Ошибка обработки ответа на извлечение: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def process_successful_eject(self, station_id: int, slot_number: int, 
                                      terminal_id: str = None) -> None:
@@ -116,7 +116,7 @@ class EjectPowerbankHandler:
                 print(f"Не удалось удалить повербанк из слота {slot_number}")
                 
         except Exception as e:
-            print(f"Ошибка при удалении повербанка из станции: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def extract_incompatible_powerbank(self, station_id: int, slot_number: int, 
                                            terminal_id: str, connection) -> None:
@@ -136,7 +136,7 @@ class EjectPowerbankHandler:
                 print(f"Не удалось создать команду на извлечение повербанка {terminal_id}")
                 
         except Exception as e:
-            print(f"Ошибка при извлечении несовместимого повербанка: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def check_and_extract_incompatible_powerbanks(self, station_id: int, 
                                                       connection) -> None:
@@ -171,7 +171,7 @@ class EjectPowerbankHandler:
                     )
                     
         except Exception as e:
-            print(f"Ошибка при проверке совместимости повербанков: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _get_station_info(self, station_id: int) -> Optional[dict]:
         """Получает информацию о станции"""
@@ -190,7 +190,7 @@ class EjectPowerbankHandler:
                         }
                     return None
         except Exception as e:
-            print(f"Ошибка получения информации о станции: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def _request_inventory_after_operation(self, station_id: int) -> None:

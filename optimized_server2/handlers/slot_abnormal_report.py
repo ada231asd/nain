@@ -47,7 +47,7 @@ class SlotAbnormalReportHandler:
             return response
             
         except Exception as e:
-            print(f"Ошибка обработки отчета об аномалии слота: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def _save_abnormal_report_to_database(self, station_id: int, abnormal_report: Dict[str, Any]) -> None:
@@ -77,7 +77,7 @@ class SlotAbnormalReportHandler:
             print(f"Отчет об аномалии слота сохранен для станции {station_id}, слот {abnormal_report['SlotNo']}")
             
         except Exception as e:
-            print(f"Ошибка сохранения отчета об аномалии в БД: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _save_to_parsed_packets(self, abnormal_report: Dict[str, Any]) -> None:
         """Сохраняет разобранные данные в parsed_packets.json"""
@@ -111,7 +111,7 @@ class SlotAbnormalReportHandler:
             print(f"Данные команды 0x83 сохранены в {filename}")
             
         except Exception as e:
-            print(f"Ошибка сохранения в parsed_packets.json: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def get_station_abnormal_reports(self, station_id: int, limit: int = 50) -> Dict[str, Any]:
         """

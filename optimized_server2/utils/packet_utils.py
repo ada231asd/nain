@@ -36,7 +36,7 @@ def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", com
         )
             
     except Exception as e:
-        print(f"Ошибка логирования пакета: {e}")
+        self.logger.error(f"Ошибка: {e}")
 
 def log_packet_with_station(data: bytes, direction: str, station_box_id: str, command_name: str):
     """Логирование пакета с информацией о станции"""
@@ -110,7 +110,7 @@ def log_suspicious_packet(data: bytes, connection, reason: str) -> None:
         log_packet(data, "SUSPICIOUS", station_id, f"SUSPICIOUS_{reason}")
         
     except Exception as e:
-        print(f"Ошибка логирования подозрительного пакета: {e}")
+        self.logger.error(f"Ошибка: {e}")
 
 
 def compute_checksum(payload_bytes: bytes) -> int:
@@ -285,6 +285,22 @@ def build_borrow_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
     
     return packet
 
+def build_return_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
+    """Создает команду на возврат повербанка (команда 0x66)"""
+    command = 0x66
+    packet_len = 8
+    payload = struct.pack(">B", slot)
+    checksum = compute_checksum(payload)
+    md5 = hashlib.md5(payload + secret_key).digest()
+    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
+    packet = header + payload
+    
+    # Логируем пакет
+    log_packet(packet, "OUTGOING", "unknown", "ReturnPowerBank")
+    
+    return packet
+
 def build_return_power_bank_response(slot: int, result: int, terminal_id: bytes, level: int, voltage: int, current: int, temperature: int, status: int, soh: int, vsn: int, token: int):
     command = 0x66
     payload = struct.pack(">BB8sBHHBBB", slot, result, terminal_id, level, voltage, current, temperature, status, soh)
@@ -394,6 +410,69 @@ def parse_borrow_response(data: bytes) -> Dict[str, Any]:
         }
 
 
+
+def parse_return_response(data: bytes) -> Dict[str, Any]:
+    """Парсит ответ на возврат повербанка (команда 0x66)"""
+    try:
+        if len(data) < 21:  # 9 байт заголовка + минимум 12 байт payload
+            raise ValueError("Слишком короткий пакет для ответа ReturnResponse")
+
+        # Заголовок
+        packet_format = ">H B B B I"
+        packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
+
+        if command != 0x66:
+            raise ValueError(f"Неверная команда: {hex(command)}")
+
+        payload = data[9:]
+        if len(payload) < 12:
+            raise ValueError("Недостаточно данных для ReturnResponse payload")
+
+        # Разбор payload
+        slot = payload[0]
+        result_code = payload[1]
+        terminal_id_bytes = payload[2:10]
+        terminal_id = parse_terminal_id(terminal_id_bytes)
+        current_slot_lock_status = payload[10]
+        adjacent_slot_lock_status = payload[11]
+
+        # Проверка checksum
+        if compute_checksum(payload) != checksum:
+            checksum_valid = False
+            checksum_error = "Неверный checksum"
+        else:
+            checksum_valid = True
+            checksum_error = None
+
+        result = {
+            "Type": "ReturnResponse",
+            "PacketLen": packet_len,
+            "Command": hex(command),
+            "VSN": vsn,
+            "CheckSum": hex(checksum),
+            "CheckSumValid": checksum_valid,
+            "Token": f"0x{token:08X}",
+            "Slot": slot,
+            "ResultCode": result_code,
+            "TerminalID": terminal_id,
+            "CurrentSlotLockStatus": current_slot_lock_status,
+            "AdjacentSlotLockStatus": adjacent_slot_lock_status,
+            "Success": result_code == 1,
+            "ReceivedAt": get_moscow_time().isoformat(),
+            "RawPacket": data.hex()
+        }
+        if not checksum_valid:
+            result["CheckSumError"] = checksum_error
+
+        return result
+
+    except Exception as e:
+        return {
+            "Type": "ReturnResponse",
+            "Error": str(e),
+            "RawPacket": data.hex(),
+            "Size": len(data)
+        }
 
 def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
     """Парсит запрос на возврат повербанка (команда 0x66)"""
@@ -634,7 +713,10 @@ def parse_packet(data: bytes) -> Dict[str, Any]:
             else:
                 return parse_borrow_request(data)
         elif command == 0x66:  # Return Power Bank
-            return parse_return_power_bank_request(data)
+            if len(data) >= 21:
+                return parse_return_response(data)
+            else:
+                return parse_return_power_bank_request(data)
         elif command == 0x69:  # Query ICCID
             return parse_query_iccid_response(data)
         elif command == 0x80:  # Force Eject

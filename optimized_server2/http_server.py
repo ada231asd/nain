@@ -23,6 +23,8 @@ from api.set_voice_volume_api import SetVoiceVolumeAPI
 from api.set_server_address_api import SetServerAddressAPI
 from api.query_server_address_api import QueryServerAddressAPI
 from api.user_powerbank_api import UserPowerbankAPI
+from api.powerbank_error_endpoints import PowerbankErrorEndpoints
+from api.simple_return_endpoints import SimpleReturnEndpoints
 
 
 
@@ -48,6 +50,8 @@ class HTTPServer:
         self.set_server_address_api: SetServerAddressAPI = None
         self.query_server_address_api: QueryServerAddressAPI = None
         self.user_powerbank_api: UserPowerbankAPI = None
+        self.powerbank_error_endpoints: PowerbankErrorEndpoints = None
+        self.simple_return_endpoints: SimpleReturnEndpoints = None
         
     
     async def initialize_database(self):
@@ -79,8 +83,15 @@ class HTTPServer:
             else:
                 response = await handler(request)
             
-            # Добавляем CORS заголовки
-            response.headers['Access-Control-Allow-Origin'] = '*'
+            # Безопасная CORS конфигурация
+            origin = request.headers.get('Origin', '')
+            allowed_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
+            
+            if origin in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = origin
+            else:
+                response.headers['Access-Control-Allow-Origin'] = 'null'
+            
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -105,6 +116,8 @@ class HTTPServer:
         self.set_server_address_api = SetServerAddressAPI(self.db_pool, connection_manager)
         self.query_server_address_api = QueryServerAddressAPI(self.db_pool, connection_manager)
         self.user_powerbank_api = UserPowerbankAPI(self.db_pool, connection_manager)
+        self.powerbank_error_endpoints = PowerbankErrorEndpoints(self.db_pool)
+        self.simple_return_endpoints = SimpleReturnEndpoints(self.db_pool, connection_manager)
         
         # Регистрируем маршруты
         self._setup_routes(app)
@@ -168,6 +181,10 @@ class HTTPServer:
         app.router.add_post('/api/user/powerbanks/return', self.user_powerbank_api.return_powerbank)
         app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
         app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)
+        
+        # Новые API для возврата повербанков
+        self.powerbank_error_endpoints.setup_routes(app)
+        self.simple_return_endpoints.setup_routes(app)
         
         
     
@@ -277,7 +294,7 @@ class HTTPServer:
             await asyncio.Future()  # Бесконечное ожидание
             
         except Exception as e:
-            print(f"Ошибка запуска HTTP сервера: {e}")
+            self.logger.error(f"Ошибка: {e}")
         finally:
             await self.cleanup_database()
     

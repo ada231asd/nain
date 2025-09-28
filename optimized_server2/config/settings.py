@@ -24,7 +24,7 @@ LOG_LEVEL = "INFO"
 TCP_PACKETS_LOG = "logs/tcp_packets.log"  
 
 # Настройки JWT
-JWT_SECRET_KEY = "your-secret-key-here"
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 

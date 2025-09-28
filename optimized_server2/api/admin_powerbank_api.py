@@ -36,7 +36,7 @@ class AdminPowerbankAPI:
                     return [dict(row) for row in powerbanks]
                     
         except Exception as e:
-            print(f"Ошибка получения повербанков unknown: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return []
     
     async def activate_powerbank(self, powerbank_id: int, admin_user_id: int, target_org_unit_id: int = None) -> Dict[str, Any]:
@@ -84,7 +84,7 @@ class AdminPowerbankAPI:
                     }
                     
         except Exception as e:
-            print(f"Ошибка активации повербанка {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {
                 "success": False,
                 "message": f"Ошибка активации: {str(e)}"
@@ -128,7 +128,7 @@ class AdminPowerbankAPI:
                     }
                     
         except Exception as e:
-            print(f"Ошибка деактивации повербанка {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {
                 "success": False,
                 "message": f"Ошибка деактивации: {str(e)}"
@@ -157,7 +157,7 @@ class AdminPowerbankAPI:
                         return {"error": "Повербанк не найден"}
                         
         except Exception as e:
-            print(f"Ошибка получения статуса повербанка {powerbank_id}: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {"error": str(e)}
     
     async def bulk_activate_powerbanks(self, powerbank_ids: List[int], admin_user_id: int, target_org_unit_id: int = None) -> Dict[str, Any]:
@@ -185,7 +185,7 @@ class AdminPowerbankAPI:
             }
             
         except Exception as e:
-            print(f"Ошибка массовой активации: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {
                 "success": False,
                 "message": f"Ошибка массовой активации: {str(e)}"
@@ -231,7 +231,7 @@ class AdminPowerbankAPI:
                         print(f"Повербанк {serial_number} активирован и готов к использованию в группе {org_unit_id}")
                         
         except Exception as e:
-            print(f"Ошибка синхронизации активированного повербанка: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def _remove_powerbank_from_all_stations(self, powerbank_id: int) -> None:
         """Удаляет повербанк из всех станций"""
@@ -258,7 +258,7 @@ class AdminPowerbankAPI:
                     print(f"Повербанк {powerbank_id} удален из всех станций")
                     
         except Exception as e:
-            print(f"Ошибка удаления повербанка из станций: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def get_powerbank_statistics(self) -> Dict[str, Any]:
         """Получает статистику по повербанкам"""
@@ -302,7 +302,7 @@ class AdminPowerbankAPI:
                     }
                     
         except Exception as e:
-            print(f"Ошибка получения статистики: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {"error": str(e)}
     
     async def force_eject_powerbank(self, station_id: int, slot_number: int, admin_user_id: int) -> Dict[str, Any]:
@@ -399,7 +399,7 @@ class AdminPowerbankAPI:
                             else:
                                 print(f"TCP соединение со станцией {station_id} недоступно")
                         except Exception as e:
-                            print(f"Ошибка отправки команды принудительного извлечения: {e}")
+                            self.logger.error(f"Ошибка: {e}")
                     
                     return {
                         "success": True,
@@ -418,7 +418,7 @@ class AdminPowerbankAPI:
                     }
                     
         except Exception as e:
-            print(f"Ошибка принудительного извлечения повербанка: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {
                 "success": False,
                 "message": f"Ошибка извлечения: {str(e)}"

@@ -133,7 +133,7 @@ class BorrowPowerbankAPI:
                     return {"error": "TCP соединение со станцией недоступно", "success": False}
                     
             except Exception as e:
-                print(f"Ошибка отправки команды станции: {e}")
+                self.logger.error(f"Ошибка: {e}")
                 return {"error": f"Ошибка отправки команды станции: {str(e)}", "success": False}
             
             return {
@@ -253,11 +253,19 @@ class BorrowPowerbankAPI:
         4. Если все нормальные - случайный выбор
         """
         try:
+            print(f" Выбор оптимального повербанка для станции {station_id}")
+            
             # Получаем все активные повербанки в станции
             powerbanks = await StationPowerbank.get_station_powerbanks(self.db_pool, station_id)
+            print(f" Найдено повербанков в станции: {len(powerbanks)}")
             
             if not powerbanks:
                 return {"error": "В станции нет повербанков", "success": False}
+            
+            # Проверяем статус станции
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if station and station.status != 'active':
+                return {"error": f"Станция неактивна (статус: {station.status})", "success": False}
             
             # Фильтруем только активные повербанки
             active_powerbanks = []
@@ -341,6 +349,9 @@ class BorrowPowerbankAPI:
         Запрашивает выдачу оптимального повербанка (автоматический выбор)
         """
         try:
+            print(f"🔍 BorrowPowerbankAPI: Запрос оптимального повербанка: station_id={station_id}, user_id={user_id}")
+            print(f"🔍 BorrowPowerbankAPI: Тип user_id: {type(user_id)}")
+            
             # Выбираем оптимальный повербанк
             selection_result = await self.select_optimal_powerbank(station_id)
             
@@ -350,14 +361,45 @@ class BorrowPowerbankAPI:
             selected = selection_result['selected_powerbank']
             slot_number = selected['slot_number']
             
+            # Проверяем, что пользователь существует
+            from models.user import User
+            user = await User.get_by_id(self.db_pool, int(user_id))
+            if not user:
+                return {
+                    "success": False,
+                    "error": f"Пользователь с ID {user_id} не найден"
+                }
+            
             # Создаем заказ на выдачу
-            await Order.create_borrow_order(
-                self.db_pool, station_id, user_id, selected['powerbank_id']
+            order = await Order.create_borrow_order(
+                self.db_pool, station_id, int(user_id), selected['powerbank_id']
             )
+            
+            if not order:
+                return {
+                    "success": False,
+                    "error": "Не удалось создать заказ"
+                }
+            
+            # Отправляем команду выдачи на станцию
+            borrow_result = await self.borrow_handler.send_borrow_request(
+                station_id, 
+                selected['powerbank_id'], 
+                int(user_id)
+            )
+            
+            if not borrow_result["success"]:
+                # Если команда не отправилась, отменяем заказ
+                await Order.cancel(self.db_pool, order.order_id)
+                return {
+                    "success": False,
+                    "error": f"Ошибка отправки команды на станцию: {borrow_result['message']}"
+                }
             
             return {
                 "success": True,
-                "message": f"Запрос на выдачу оптимального повербанка {selected['serial_number']} из слота {slot_number} отправлен",
+                "message": f"Запрос на выдачу оптимального повербанка {selected['serial_number']} из слота {slot_number} отправлен на станцию",
+                "order_id": order.order_id,
                 "station_id": station_id,
                 "slot_number": slot_number,
                 "powerbank_id": selected['powerbank_id'],

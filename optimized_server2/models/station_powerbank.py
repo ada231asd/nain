@@ -110,6 +110,30 @@ class StationPowerbank:
                         last_update=result['last_update']
                     )
                 return None
+
+    @classmethod
+    async def get_by_powerbank_id(cls, db_pool, powerbank_id: int) -> Optional['StationPowerbank']:
+        """Получает повербанк по его ID в любой станции"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("""
+                    SELECT * FROM station_powerbank 
+                    WHERE powerbank_id = %s
+                """, (powerbank_id,))
+                result = await cur.fetchone()
+                
+                if result:
+                    return cls(
+                        id=int(result['id']),
+                        station_id=int(result['station_id']),
+                        powerbank_id=int(result['powerbank_id']),
+                        slot_number=int(result['slot_number']),
+                        level=int(result['level']) if result['level'] else None,
+                        voltage=int(result['voltage']) if result['voltage'] else None,
+                        temperature=int(result['temperature']) if result['temperature'] else None,
+                        last_update=result['last_update']
+                    )
+                return None
     
     @classmethod
     async def add_powerbank(cls, db_pool, station_id: int, powerbank_id: int, 
@@ -174,7 +198,7 @@ class StationPowerbank:
                     """, (station_id,))
                     return result
         except Exception as e:
-            print(f"Ошибка очистки повербанков станции: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return 0
     
     @classmethod

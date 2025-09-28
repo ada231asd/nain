@@ -55,7 +55,7 @@ class User:
     def validate_password(password: str) -> tuple[bool, str]:
         """
         Валидирует пароль для защиты от атак по стороннему каналу
-        Возвращает (is_valid, error_message)
+        Возвращает
         """
         if not password:
             return False, "Пароль не может быть пустым"
@@ -137,6 +137,40 @@ class User:
                 return user, password
     
     @classmethod
+    async def get_by_id(cls, pool, user_id: int) -> Optional['User']:
+        """Получает пользователя по ID"""
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    "SELECT * FROM app_user WHERE user_id = %s",
+                    (user_id,)
+                )
+                user_data = await cur.fetchone()
+                
+                if not user_data:
+                    return None
+                
+                # Получаем роль пользователя
+                await cur.execute(
+                    "SELECT role FROM user_role ur JOIN app_user au ON ur.user_id = au.user_id WHERE au.user_id = %s",
+                    (user_data['user_id'],)
+                )
+                role_data = await cur.fetchone()
+                role = role_data['role'] if role_data else 'user'
+                
+                return cls(
+                    user_id=user_data['user_id'],
+                    phone_e164=user_data['phone_e164'],
+                    email=user_data['email'],
+                    password_hash=user_data['password_hash'],
+                    fio=user_data['fio'],
+                    status=user_data['status'],
+                    role=role,
+                    created_at=user_data['created_at'],
+                    last_login_at=user_data['last_login_at']
+                )
+    
+    @classmethod
     async def get_by_phone(cls, pool, phone_e164: str) -> Optional['User']:
         """Получает пользователя по номеру телефона"""
         async with pool.acquire() as conn:
@@ -176,7 +210,7 @@ class User:
         # Проверяем длину пароля перед любыми операциями
         if len(password) > PASSWORD_MAX_LENGTH:
             # Логируем подозрительную попытку
-            print(f"🚨 ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
+            print(f" ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
             return None
         
         user = await cls.get_by_phone(pool, phone_e164)
@@ -232,7 +266,7 @@ class EmailService:
             return True
             
         except Exception as e:
-            print(f"Ошибка отправки email: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return False
     
     async def send_verification_code(self, user_email: str, code: str) -> bool:
@@ -258,7 +292,7 @@ class EmailService:
             return True
             
         except Exception as e:
-            print(f"Ошибка отправки кода подтверждения: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return False
 
 

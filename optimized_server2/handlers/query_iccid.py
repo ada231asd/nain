@@ -40,7 +40,7 @@ class QueryICCIDHandler:
             return iccid_command
             
         except Exception as e:
-            print(f"Ошибка создания команды ICCID: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return None
     
     async def handle_query_iccid_response(self, data: bytes, connection) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ class QueryICCIDHandler:
             }
             
         except Exception as e:
-            print(f"Ошибка обработки ответа ICCID: {e}")
+            self.logger.error(f"Ошибка: {e}")
             return {
                 "success": False,
                 "message": f"Ошибка обработки ICCID: {str(e)}"
@@ -97,7 +97,7 @@ class QueryICCIDHandler:
             print(f"ICCID {iccid} сохранен для станции {station_id}")
             
         except Exception as e:
-            print(f"Ошибка сохранения ICCID в БД: {e}")
+            self.logger.error(f"Ошибка: {e}")
     
     async def send_query_iccid_command(self, station_id: int) -> Dict[str, Any]:
         """
