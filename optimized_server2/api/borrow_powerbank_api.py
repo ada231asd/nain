@@ -40,6 +40,11 @@ class BorrowPowerbankAPI:
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
                 if powerbank and powerbank.status == 'active':
+                    # Проверяем, что повербанк не находится в активном заказе
+                    existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                    if existing_order:
+                        continue  # Пропускаем повербанки в активных заказах
+                    
                     # Проверяем наличие ошибок в статусе
                     has_errors = self._check_powerbank_errors(sp)
                     
@@ -91,6 +96,11 @@ class BorrowPowerbankAPI:
             powerbank = await Powerbank.get_by_id(self.db_pool, station_powerbank.powerbank_id)
             if not powerbank or powerbank.status != 'active':
                 return {"error": f"Повербанк в слоте {slot_number} неактивен", "success": False}
+            
+            # Проверяем, что повербанк не находится в активном заказе
+            existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+            if existing_order:
+                return {"error": f"Повербанк {powerbank.serial_number} уже находится в активном заказе", "success": False}
             
             # Проверяем, что станция подключена
             if not self.connection_manager:
@@ -253,11 +263,8 @@ class BorrowPowerbankAPI:
         4. Если все нормальные - случайный выбор
         """
         try:
-            print(f" Выбор оптимального повербанка для станции {station_id}")
-            
             # Получаем все активные повербанки в станции
             powerbanks = await StationPowerbank.get_station_powerbanks(self.db_pool, station_id)
-            print(f" Найдено повербанков в станции: {len(powerbanks)}")
             
             if not powerbanks:
                 return {"error": "В станции нет повербанков", "success": False}
@@ -267,11 +274,17 @@ class BorrowPowerbankAPI:
             if station and station.status != 'active':
                 return {"error": f"Станция неактивна (статус: {station.status})", "success": False}
             
-            # Фильтруем только активные повербанки
+            # Фильтруем только активные повербанки, не находящиеся в заказах
             active_powerbanks = []
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
                 if powerbank and powerbank.status == 'active':
+                    # Проверяем, что повербанк не находится в активном заказе
+                    existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                    if existing_order:
+                        print(f" Повербанк {powerbank.serial_number} уже в заказе, пропускаем")
+                        continue
+                    
                     has_errors = self._check_powerbank_errors(sp)
                     active_powerbanks.append({
                         'station_powerbank': sp,
@@ -349,8 +362,6 @@ class BorrowPowerbankAPI:
         Запрашивает выдачу оптимального повербанка (автоматический выбор)
         """
         try:
-            print(f"🔍 BorrowPowerbankAPI: Запрос оптимального повербанка: station_id={station_id}, user_id={user_id}")
-            print(f"🔍 BorrowPowerbankAPI: Тип user_id: {type(user_id)}")
             
             # Выбираем оптимальный повербанк
             selection_result = await self.select_optimal_powerbank(station_id)
@@ -360,6 +371,15 @@ class BorrowPowerbankAPI:
             
             selected = selection_result['selected_powerbank']
             slot_number = selected['slot_number']
+            powerbank_id = selected['powerbank_id']
+            
+            # Проверяем, что повербанк не находится в активном заказе
+            existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+            if existing_order:
+                return {
+                    "success": False,
+                    "error": f"Повербанк {selected['serial_number']} уже находится в активном заказе"
+                }
             
             # Проверяем, что пользователь существует
             from models.user import User

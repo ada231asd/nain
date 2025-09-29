@@ -4,6 +4,7 @@ API для административных операций с повербан
 import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 import aiomysql
 
 from models.powerbank import Powerbank
@@ -80,7 +81,7 @@ class AdminPowerbankAPI:
                         "message": f"Повербанк {powerbank_data[1]} активирован",
                         "powerbank_id": powerbank_id,
                         "admin_user_id": admin_user_id,
-                        "activated_at": datetime.now().isoformat()
+                        "activated_at": get_moscow_time().isoformat()
                     }
                     
         except Exception as e:
@@ -123,7 +124,7 @@ class AdminPowerbankAPI:
                         "message": f"Повербанк {powerbank_data[1]} деактивирован",
                         "powerbank_id": powerbank_id,
                         "admin_user_id": admin_user_id,
-                        "deactivated_at": datetime.now().isoformat(),
+                        "deactivated_at": get_moscow_time().isoformat(),
                         "reason": reason
                     }
                     
@@ -409,7 +410,7 @@ class AdminPowerbankAPI:
                         "powerbank_id": powerbank_id,
                         "serial_number": serial_number,
                         "admin_user_id": admin_user_id,
-                        "ejected_at": datetime.now().isoformat(),
+                        "ejected_at": get_moscow_time().isoformat(),
                         "powerbank_data": {
                             "level": level,
                             "voltage": voltage,

@@ -3,8 +3,10 @@
 """
 from typing import Optional, Dict, Any
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 from utils.packet_utils import parse_slot_abnormal_report_request, build_slot_abnormal_report_response
+from utils.centralized_logger import get_logger
 
 
 class SlotAbnormalReportHandler:
@@ -13,11 +15,12 @@ class SlotAbnormalReportHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
+        self.logger = get_logger('slot_abnormal_report')
     
     async def handle_slot_abnormal_report_request(self, data: bytes, connection) -> Optional[bytes]:
         """
         Обрабатывает запрос отчета об аномалии слота
-        Возвращает ответ для отправки на станцию или None
+       
         """
         try:
             # Парсим запрос от станции
@@ -96,7 +99,7 @@ class SlotAbnormalReportHandler:
             
             # Добавляем новый пакет
             packet_data = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": get_moscow_time().isoformat(),
                 "command": "0x83",
                 "type": "Slot Status Abnormal Report",
                 "data": abnormal_report

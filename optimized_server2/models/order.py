@@ -4,6 +4,7 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import aiomysql
+from utils.packet_utils import get_moscow_time
 
 
 class Order:
@@ -12,15 +13,17 @@ class Order:
     def __init__(self, order_id: int, station_id: int, user_id: int, 
                  powerbank_id: Optional[int] = None, status: str = 'borrow',
                  timestamp: Optional[datetime] = None, borrow_time: Optional[datetime] = None,
-                 return_time: Optional[datetime] = None):
+                 return_time: Optional[datetime] = None, order_type: str = 'borrow', notes: str = None):
         self.order_id = order_id
         self.station_id = station_id
         self.user_id = user_id
         self.powerbank_id = powerbank_id
         self.status = status
-        self.timestamp = timestamp or datetime.now()
+        self.timestamp = timestamp or get_moscow_time()
         self.borrow_time = borrow_time
         self.return_time = return_time
+        self.order_type = order_type
+        self.notes = notes
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует заказ в словарь"""
@@ -36,6 +39,31 @@ class Order:
         }
     
     @classmethod
+    async def create(cls, db_pool, station_id: int, user_id: int, 
+                    powerbank_id: int = None, order_type: str = 'borrow', 
+                    status: str = 'borrow', notes: str = None) -> 'Order':
+        """Создает заказ с указанными параметрами"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    INSERT INTO orders (station_id, user_id, powerbank_id, order_type, status, notes, timestamp)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, order_type, status, notes, get_moscow_time()))
+                
+                order_id = cursor.lastrowid
+                
+                return cls(
+                    order_id=order_id,
+                    station_id=station_id,
+                    user_id=user_id,
+                    powerbank_id=powerbank_id,
+                    order_type=order_type,
+                    status=status,
+                    notes=notes,
+                    timestamp=get_moscow_time()
+                )
+    
+    @classmethod
     async def create_borrow_order(cls, db_pool, station_id: int, user_id: int, 
                                  powerbank_id: int) -> 'Order':
         """Создает заказ на выдачу повербанка"""
@@ -44,7 +72,7 @@ class Order:
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'borrow', datetime.now()))
+                """, (station_id, user_id, powerbank_id, 'borrow', get_moscow_time()))
                 
                 order_id = cursor.lastrowid
                 
@@ -54,7 +82,7 @@ class Order:
                     user_id=user_id,
                     powerbank_id=powerbank_id,
                     status='borrow',
-                    timestamp=datetime.now()
+                    timestamp=get_moscow_time()
                 )
     
     @classmethod
@@ -66,7 +94,7 @@ class Order:
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'return', datetime.now()))
+                """, (station_id, user_id, powerbank_id, 'return', get_moscow_time()))
                 
                 order_id = cursor.lastrowid
                 
@@ -76,7 +104,7 @@ class Order:
                     user_id=user_id,
                     powerbank_id=powerbank_id,
                     status='return',
-                    timestamp=datetime.now()
+                    timestamp=get_moscow_time()
                 )
     
     @classmethod
@@ -297,3 +325,57 @@ class Order:
                 )
                 self.status = new_status
                 return True
+    
+    @classmethod
+    async def get_active_borrow_order(cls, db_pool, powerbank_id: int) -> Optional['Order']:
+        """Получает активный заказ на выдачу для повербанка"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
+                    FROM orders 
+                    WHERE powerbank_id = %s AND status = 'borrow'
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                """, (powerbank_id,))
+                
+                result = await cursor.fetchone()
+                
+                if result:
+                    return cls(
+                        order_id=result[0],
+                        station_id=result[1],
+                        user_id=result[2],
+                        powerbank_id=result[3],
+                        status=result[4],
+                        timestamp=result[5]
+                    )
+                return None
+    
+    @classmethod
+    async def complete_order(cls, db_pool, order_id: int) -> bool:
+        """Завершает заказ (меняет статус на 'completed')"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    UPDATE orders SET status = 'completed' WHERE id = %s
+                """, (order_id,))
+                
+                return cursor.rowcount > 0
+    
+    @classmethod
+    async def update_order_status(cls, db_pool, order_id: int, new_status: str) -> bool:
+        """Обновляет статус заказа"""
+        # Проверяем, что статус соответствует допустимым значениям
+        allowed_statuses = ['borrow', 'return', 'force_eject']
+        if new_status not in allowed_statuses:
+            print(f"Недопустимый статус заказа: {new_status}. Допустимые: {allowed_statuses}")
+            return False
+            
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    UPDATE orders SET status = %s WHERE id = %s
+                """, (new_status, order_id))
+                
+                return cursor.rowcount > 0

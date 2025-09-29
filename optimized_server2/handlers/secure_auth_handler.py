@@ -10,7 +10,9 @@ import aiomysql
 import bcrypt
 import re
 
-from models.user import User, EmailService, VerificationCode
+from models.user import User, VerificationCode
+from utils.notification_service import notification_service
+from utils.centralized_logger import get_logger
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS
 from middleware.input_validator import create_input_validator
 
@@ -20,8 +22,8 @@ class SecureAuthHandler:
     
     def __init__(self, secure_db):
         self.secure_db = secure_db
-        self.email_service = EmailService()
         self.input_validator = create_input_validator()
+        self.logger = get_logger('secure_auth')
         
         # Паттерны для дополнительной валидации
         self.phone_pattern = re.compile(r'^\+[1-9]\d{1,14}$')
@@ -86,7 +88,7 @@ class SecureAuthHandler:
             )
             
             # Отправляем пароль на email
-            email_sent = await self.email_service.send_password_email(
+            email_sent = await notification_service.send_password_email(
                 email, password, fio
             )
             

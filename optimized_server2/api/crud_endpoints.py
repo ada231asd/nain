@@ -372,7 +372,6 @@ class CRUDEndpoints:
         """DELETE /api/users/{user_id} - Удалить пользователя"""
         try:
             user_id = int(request.match_info['user_id'])
-            print(f"🗑️ CRUDEndpoints: Удаляем пользователя {user_id}")
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -380,32 +379,25 @@ class CRUDEndpoints:
                     await cur.execute("SELECT user_id FROM app_user WHERE user_id = %s", (user_id,))
                     user = await cur.fetchone()
                     if not user:
-                        print(f"❌ CRUDEndpoints: Пользователь {user_id} не найден")
                         return web.json_response({
                             "success": False,
                             "error": "Пользователь не найден"
                         }, status=404)
                     
-                    print(f"✅ CRUDEndpoints: Пользователь {user_id} найден, начинаем удаление")
                     
                     # Проверяем связанные записи
                     await cur.execute("SELECT COUNT(*) as count FROM orders WHERE user_id = %s", (user_id,))
                     orders_count = (await cur.fetchone())['count']
-                    print(f"📊 CRUDEndpoints: Связанных заказов: {orders_count}")
                     
                     await cur.execute("SELECT COUNT(*) as count FROM user_favorites WHERE user_id = %s", (user_id,))
                     favorites_count = (await cur.fetchone())['count']
-                    print(f"📊 CRUDEndpoints: Связанных избранных: {favorites_count}")
                     
                     await cur.execute("SELECT COUNT(*) as count FROM user_role WHERE user_id = %s", (user_id,))
                     roles_count = (await cur.fetchone())['count']
-                    print(f"📊 CRUDEndpoints: Связанных ролей: {roles_count}")
                     
                     # Удаляем
-                    print(f"🗑️ CRUDEndpoints: Выполняем DELETE FROM app_user WHERE user_id = {user_id}")
                     await cur.execute("DELETE FROM app_user WHERE user_id = %s", (user_id,))
                     
-                    print(f"✅ CRUDEndpoints: Пользователь {user_id} успешно удален")
                     return web.json_response({
                         "success": True,
                         "message": "Пользователь удален"

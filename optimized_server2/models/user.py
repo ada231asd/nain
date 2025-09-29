@@ -1,17 +1,16 @@
 """
 Модель пользователя
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import aiomysql
 import bcrypt
+from utils.packet_utils import get_moscow_time
 import secrets
 import string
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import json
 from config.settings import PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_HASH_ROUNDS
+from utils.centralized_logger import get_logger
 
 
 class User:
@@ -29,7 +28,7 @@ class User:
         self.fio = fio
         self.status = status
         self.role = role
-        self.created_at = created_at or datetime.now()
+        self.created_at = created_at or get_moscow_time()
         self.last_login_at = last_login_at
     
     def to_dict(self) -> Dict[str, Any]:
@@ -131,7 +130,7 @@ class User:
                     password_hash=password_hash,
                     fio=fio,
                     status='pending',
-                    created_at=datetime.now()
+                    created_at=get_moscow_time()
                 )
                 
                 return user, password
@@ -207,10 +206,11 @@ class User:
     @classmethod
     async def authenticate(cls, pool, phone_e164: str, password: str) -> Optional['User']:
         """Аутентифицирует пользователя с защитой от атак по стороннему каналу"""
-        # Проверяем длину пароля перед любыми операциями
+       
         if len(password) > PASSWORD_MAX_LENGTH:
             # Логируем подозрительную попытку
-            print(f" ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
+            logger = get_logger('user_auth')
+            logger.warning(f"Подозрительная попытка: пароль длиной {len(password)} символов для телефона {phone_e164}")
             return None
         
         user = await cls.get_by_phone(pool, phone_e164)
@@ -228,72 +228,6 @@ class User:
         return user
 
 
-class EmailService:
-    """Сервис для отправки email"""
-    
-    def __init__(self):
-        self.smtp_server = "smtp.mail.ru"
-        self.smtp_port = 587
-        self.email = "v.bazarov142@mail.ru"
-        self.password = "aj3wqoCmWQbJFtRQdp8V"
-        self.app_name = "APP_SMS"
-    
-    async def send_password_email(self, user_email: str, password: str, full_name: str = None) -> bool:
-        """Отправляет пароль на email"""
-        try:
-            # Создаем сообщение
-            msg = MIMEMultipart()
-            msg['From'] = self.email
-            msg['To'] = user_email
-            msg['Subject'] = f"Пароль от аккаунта {self.app_name}"
-            
-            # Формируем текст сообщения
-            if full_name:
-                body = f"Ваш пароль от аккаунта {full_name}: {password}"
-            else:
-                body = f"Ваш пароль от аккаунта: {password}"
-            
-            msg.attach(MIMEText(body, 'plain', 'utf-8'))
-            
-            # Отправляем email
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            server.login(self.email, self.password)
-            text = msg.as_string()
-            server.sendmail(self.email, user_email, text)
-            server.quit()
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
-            return False
-    
-    async def send_verification_code(self, user_email: str, code: str) -> bool:
-        """Отправляет код подтверждения на email"""
-        try:
-            # Создаем сообщение
-            msg = MIMEMultipart()
-            msg['From'] = self.email
-            msg['To'] = user_email
-            msg['Subject'] = f"Код подтверждения {self.app_name}"
-            
-            body = f"Ваш код подтверждения: {code}"
-            msg.attach(MIMEText(body, 'plain', 'utf-8'))
-            
-            # Отправляем email
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            server.login(self.email, self.password)
-            text = msg.as_string()
-            server.sendmail(self.email, user_email, text)
-            server.quit()
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
-            return False
 
 
 class VerificationCode:
@@ -317,7 +251,7 @@ class VerificationCode:
                          expiration_minutes: int = 10) -> 'VerificationCode':
         """Создает новый код подтверждения"""
         code = cls.generate_code()
-        expires_at = datetime.now() + timedelta(minutes=expiration_minutes)
+        expires_at = get_moscow_time() + timedelta(minutes=expiration_minutes)
         
         verification_code = cls(
             code=code,
@@ -326,8 +260,7 @@ class VerificationCode:
             expires_at=expires_at
         )
         
-        # Сохраняем код в базу данных (можно использовать Redis или временную таблицу)
-        # Для простоты используем JSON файл
+       
         await cls._save_code_to_storage(verification_code)
         
         return verification_code
@@ -346,7 +279,7 @@ class VerificationCode:
         if stored_code['is_used']:
             return False
         
-        if datetime.now() > datetime.fromisoformat(stored_code['expires_at']):
+        if get_moscow_time() > datetime.fromisoformat(stored_code['expires_at']):
             return False
         
         # Помечаем код как использованный
@@ -417,3 +350,33 @@ class VerificationCode:
             
             with open(storage_file, 'w', encoding='utf-8') as f:
                 json.dump(codes, f, ensure_ascii=False, indent=2)
+    
+    @classmethod
+    async def get_all_active_users(cls, pool, limit: int = 10) -> List['User']:
+        """Получает всех активных пользователей"""
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    SELECT user_id, fio, password_hash, email, phone_e164, status, created_at, last_login_at
+                    FROM app_user 
+                    WHERE status = 'active'
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                """, (limit,))
+                
+                results = await cursor.fetchall()
+                
+                users = []
+                for result in results:
+                    users.append(cls(
+                        user_id=result[0],
+                        fio=result[1],
+                        password_hash=result[2],
+                        email=result[3],
+                        phone_e164=result[4],
+                        status=result[5],
+                        created_at=result[6],
+                        last_login_at=result[7]
+                    ))
+                
+                return users

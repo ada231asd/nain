@@ -8,7 +8,7 @@ from typing import Dict, Any
 from datetime import datetime, timezone, timedelta
 import os
 
-# Секретный ключ для JWT (в продакшене должен быть в переменных окружения)
+
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-here')
 JWT_ALGORITHM = 'HS256'
 
@@ -33,7 +33,7 @@ def jwt_middleware(handler):
                 }, status=401)
             
             # Извлекаем токен
-            token = auth_header[7:]  # Убираем "Bearer "
+            token = auth_header[7:]  
             
             if not token:
                 return web.json_response({
@@ -79,16 +79,7 @@ def jwt_middleware(handler):
     return wrapper
 
 def create_jwt_token(user_data: Dict[str, Any], expires_hours: int = 24) -> str:
-    """
-    Создает JWT токен для пользователя
-    
-    Args:
-        user_data: Данные пользователя (user_id, username, role)
-        expires_hours: Время жизни токена в часах
-    
-    Returns:
-        JWT токен в виде строки
-    """
+#  создание токена для пользователя
     # Добавляем время истечения
     moscow_tz = timezone(timedelta(hours=3))  # UTC+3
     now = datetime.now(moscow_tz)
@@ -107,31 +98,11 @@ def create_jwt_token(user_data: Dict[str, Any], expires_hours: int = 24) -> str:
     return token
 
 def verify_jwt_token(token: str) -> Dict[str, Any]:
-    """
-    Проверяет и декодирует JWT токен
-    
-    Args:
-        token: JWT токен
-    
-    Returns:
-        Декодированные данные токена
-    
-    Raises:
-        jwt.ExpiredSignatureError: Если токен истек
-        jwt.InvalidTokenError: Если токен неверный
-    """
+    # проверка токена
     return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
 def get_user_from_token(token: str) -> Dict[str, Any]:
-    """
-    Извлекает информацию о пользователе из токена
-    
-    Args:
-        token: JWT токен
-    
-    Returns:
-        Словарь с данными пользователя
-    """
+  # извлечение информации о пользователе из токена
     try:
         payload = verify_jwt_token(token)
         return {
@@ -144,15 +115,7 @@ def get_user_from_token(token: str) -> Dict[str, Any]:
         return None
 
 def is_token_expired(token: str) -> bool:
-    """
-    Проверяет, истек ли токен
-    
-    Args:
-        token: JWT токен
-    
-    Returns:
-        True если токен истек, False если действителен
-    """
+    # проверка истечения токена
     try:
         payload = verify_jwt_token(token)
         exp_time = payload.get('exp', 0)
@@ -163,20 +126,6 @@ def is_token_expired(token: str) -> bool:
         return True
 
 def refresh_jwt_token(token: str, expires_hours: int = 24) -> str:
-    """
-    Обновляет JWT токен
-    
-    Args:
-        token: Старый JWT токен
-        expires_hours: Время жизни нового токена в часах
-    
-    Returns:
-        Новый JWT токен
-    
-    Raises:
-        jwt.ExpiredSignatureError: Если старый токен истек
-        jwt.InvalidTokenError: Если старый токен неверный
-    """
     # Декодируем старый токен
     payload = verify_jwt_token(token)
     
@@ -191,9 +140,7 @@ def refresh_jwt_token(token: str, expires_hours: int = 24) -> str:
 
 @web.middleware
 async def jwt_aiohttp_middleware(request, handler):
-    """
-    Aiohttp middleware для проверки JWT токена
-    """
+
     try:
         # Получаем токен из заголовка Authorization
         auth_header = request.headers.get('Authorization')

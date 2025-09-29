@@ -3,6 +3,7 @@ API для запроса ICCID SIM карт станций
 """
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 from models.station import Station
 
@@ -60,7 +61,7 @@ class QueryICCIDAPI:
                     "message": f"Команда запроса ICCID отправлена на станцию {station.box_id}",
                     "station_id": station_id,
                     "box_id": station.box_id,
-                    "sent_at": datetime.now().isoformat()
+                    "sent_at": get_moscow_time().isoformat()
                 }
             else:
                 return result

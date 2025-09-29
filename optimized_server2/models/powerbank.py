@@ -4,6 +4,7 @@
 import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 
 class Powerbank:
@@ -82,7 +83,7 @@ class Powerbank:
                 await cursor.execute(
                     "INSERT INTO powerbank (org_unit_id, serial_number, soh, status, write_off_reason, created_at) "
                     "VALUES (%s, %s, %s, %s, %s, %s)",
-                    (org_unit_id, serial_number, 0, 'unknown', 'none', datetime.now())
+                    (org_unit_id, serial_number, 0, 'unknown', 'none', get_moscow_time())
                 )
                 powerbank_id = cursor.lastrowid
                 
@@ -93,7 +94,7 @@ class Powerbank:
                     soh=0,
                     status='unknown',
                     write_off_reason='none',
-                    created_at=datetime.now()
+                    created_at=get_moscow_time()
                 )
     
     @classmethod
@@ -104,7 +105,7 @@ class Powerbank:
                 await cursor.execute(
                     "INSERT INTO powerbank (org_unit_id, serial_number, soh, status, write_off_reason, created_at) "
                     "VALUES (%s, %s, %s, %s, %s, %s)",
-                    (org_unit_id, serial_number, soh, 'active', 'none', datetime.now())
+                        (org_unit_id, serial_number, soh, 'active', 'none', get_moscow_time())
                 )
                 powerbank_id = cursor.lastrowid
                 
@@ -115,7 +116,7 @@ class Powerbank:
                     soh=soh,
                     status='active',
                     write_off_reason='none',
-                    created_at=datetime.now()
+                    created_at=get_moscow_time()
                 )
     
     @classmethod
@@ -127,7 +128,7 @@ class Powerbank:
                     await cursor.execute(
                         "INSERT INTO powerbank (org_unit_id, serial_number, soh, status, write_off_reason, created_at) "
                         "VALUES (%s, %s, %s, %s, %s, %s)",
-                        (org_unit_id, serial_number, soh, status, 'none', datetime.now())
+                        (org_unit_id, serial_number, soh, status, 'none', get_moscow_time())
                     )
                     powerbank_id = cursor.lastrowid
                     
@@ -138,7 +139,7 @@ class Powerbank:
                         soh=soh,
                         status=status,
                         write_off_reason='none',
-                        created_at=datetime.now()
+                        created_at=get_moscow_time()
                     )
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

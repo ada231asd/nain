@@ -4,6 +4,7 @@ API для отчетов об ошибках повербанков
 from aiohttp import web
 from typing import Dict, Any
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 from models.powerbank import Powerbank
 from models.order import Order
@@ -65,7 +66,7 @@ class PowerbankErrorReportAPI:
                 "error_type": error_type,
                 "new_status": new_status,
                 "write_off_reason": write_off_reason,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": get_moscow_time().isoformat()
             }
             
         except Exception as e:

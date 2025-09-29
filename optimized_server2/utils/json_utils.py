@@ -35,9 +35,7 @@ def serialize_for_json(data: Any) -> Any:
 
 
 def safe_json_response(data: Dict[str, Any], status: int = 200) -> Dict[str, Any]:
-    """
-    Безопасно сериализует данные для JSON ответа
-    """
+    #сериализация данных для JSON ответа
     try:
         serialized_data = serialize_for_json(data)
         return {

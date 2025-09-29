@@ -3,6 +3,7 @@
 """
 from typing import Optional, Dict, Any
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 from utils.packet_utils import build_query_iccid_request, parse_query_iccid_response
 
@@ -125,7 +126,7 @@ class QueryICCIDHandler:
                     "success": True,
                     "message": f"Команда запроса ICCID отправлена на станцию {station_id}",
                     "station_id": station_id,
-                    "sent_at": datetime.now().isoformat()
+                    "sent_at": get_moscow_time().isoformat()
                 }
             else:
                 return {

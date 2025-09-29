@@ -5,6 +5,7 @@ import asyncio
 from typing import Optional, Dict, Any
 from models.station_powerbank import StationPowerbank
 from utils.packet_utils import build_query_inventory_request, parse_query_inventory_response
+from utils.centralized_logger import get_logger
 
 
 class InventoryManager:
@@ -19,7 +20,7 @@ class InventoryManager:
         """
         try:
             if not connection or not connection.secret_key:
-                print(f"Нет соединения или ключа для станции {station_id}")
+                logger = get_logger('inventory_manager'); logger.warning(f"Нет соединения или ключа для станции {station_id}")
                 return
             
             # Создаем запрос инвентаря
@@ -33,15 +34,16 @@ class InventoryManager:
             if connection.writer and not connection.writer.is_closing():
                 connection.writer.write(inventory_request)
                 await connection.writer.drain()
-                print(f"Запрос инвентаря отправлен станции {station_id}")
+                logger = get_logger('inventory_manager'); logger.info(f"Запрос инвентаря отправлен станции {station_id}")
                 
                 # Ждем ответ (с таймаутом)
                 await asyncio.sleep(0.5)  # Даем время на ответ
             else:
-                print(f"TCP соединение со станцией {station_id} недоступно")
+                logger = get_logger('inventory_manager'); logger.warning(f"TCP соединение со станцией {station_id} недоступно")
                 
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
     
     async def process_inventory_response(self, data: bytes, station_id: int) -> None:
         """
@@ -52,40 +54,39 @@ class InventoryManager:
             inventory_data = parse_query_inventory_response(data)
             
             if inventory_data.get("Error"):
-                self.logger.error(f"Ошибка: {e}")
+                logger = get_logger('inventory_manager')
+                logger.error(f"Ошибка: {e}")
                 return
             
             if not inventory_data.get("CheckSumValid", False):
-                print(f"Неверный checksum в ответе инвентаря станции {station_id}")
+                logger = get_logger('inventory_manager'); logger.warning(f"Неверный checksum в ответе инвентаря станции {station_id}")
                 return
             
             slots = inventory_data.get("Slots", [])
             if not slots:
-                print(f"Нет данных о слотах в ответе инвентаря станции {station_id}")
+                logger = get_logger('inventory_manager'); logger.warning(f"Нет данных о слотах в ответе инвентаря станции {station_id}")
                 return
             
-            print(f"Обрабатываем инвентарь станции {station_id}: {len(slots)} слотов")
+            logger = get_logger('inventory_manager'); logger.info(f"Обрабатываем инвентарь станции {station_id}: {len(slots)} слотов")
             
             # Синхронизируем данные с базой
             await self._sync_inventory_with_database(station_id, slots)
             
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
     
     async def _sync_inventory_with_database(self, station_id: int, slots: list) -> None:
         """
         Синхронизирует данные инвентаря с таблицей station_powerbank
         """
         try:
-            print(f"Начинаем синхронизацию station_powerbank для станции {station_id}")
             
             # Получаем текущие повербанки в станции
             current_powerbanks = await StationPowerbank.get_by_station(self.db_pool, station_id)
-            print(f"Получено слотов: {len(current_powerbanks)}")
             
             # Очищаем все старые данные station_powerbank для этой станции
             await StationPowerbank.clear_station_powerbanks(self.db_pool, station_id)
-            print(f"Очищены старые данные station_powerbank для станции {station_id}")
             
             # Обрабатываем каждый слот из инвентаря
             added_count = 0
@@ -97,7 +98,11 @@ class InventoryManager:
                 temperature = slot_data.get('Temperature')
                 status = slot_data.get('Status', {})
                 
-                # Проверяем, есть ли повербанк в слоте (по статусу InsertionSwitch)
+                # Отладочная информация
+                logger = get_logger('inventory_manager')
+                logger.info(f"InventoryManager: Слот {slot_number}, TerminalID='{terminal_id}', Level={level}, Voltage={voltage}")
+                
+                
                 has_powerbank = status.get('InsertionSwitch', 0) == 1
                 
                 if has_powerbank and terminal_id and terminal_id != '0000000000000000':
@@ -108,10 +113,10 @@ class InventoryManager:
                     if success:
                         added_count += 1
             
-            print(f"Синхронизация завершена. Добавлено повербанков: {added_count}")
             
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
     
     async def _update_existing_powerbank(self, station_id: int, slot_number: int, 
                                        terminal_id: str, level: int, voltage: int, 
@@ -121,7 +126,7 @@ class InventoryManager:
             # Получаем powerbank_id по terminal_id
             powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
             if not powerbank_id:
-                print(f"Повербанк {terminal_id} не найден в базе")
+                logger = get_logger('inventory_manager'); logger.info(f"Повербанк {terminal_id} не найден в базе")
                 return
             
             # Обновляем данные
@@ -129,10 +134,11 @@ class InventoryManager:
                 self.db_pool, station_id, slot_number, level, voltage, temperature
             )
             
-            print(f"Обновлен повербанк {terminal_id} в слоте {slot_number} станции {station_id}")
+            logger = get_logger('inventory_manager'); logger.info(f"Обновлен повербанк {terminal_id} в слоте {slot_number} станции {station_id}")
             
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
     
     async def _add_new_powerbank(self, station_id: int, slot_number: int, 
                                terminal_id: str, level: int, voltage: int, 
@@ -142,7 +148,7 @@ class InventoryManager:
             # Получаем powerbank_id по terminal_id
             powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
             if not powerbank_id:
-                print(f"Повербанк {terminal_id} не найден в базе")
+                logger = get_logger('inventory_manager'); logger.info(f"Повербанк {terminal_id} не найден в базе")
                 return False
             
             # Добавляем повербанк
@@ -151,11 +157,11 @@ class InventoryManager:
                 level, voltage, temperature
             )
             
-            print(f"Добавлен повербанк {terminal_id} в слот {slot_number} станции {station_id}")
             return True
             
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
             return False
     
     async def _get_powerbank_id_by_terminal_id(self, terminal_id: str) -> Optional[int]:
@@ -169,5 +175,6 @@ class InventoryManager:
                     result = await cur.fetchone()
                     return result[0] if result else None
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
             return None

@@ -96,24 +96,65 @@ class QueryInventoryHandler:
                 soh = slot_data['SOH']
                 status = slot_data['Status']
                 
+                # Отладочная информация
+                print(f"  Обрабатываем слот {slot_number}: TerminalID='{terminal_id}', Level={level}, Voltage={voltage}, SOH={soh}")
+                
                 # Проверяем, существует ли повербанк в таблице powerbank
                 powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
 
                 if powerbank:
-                    # Повербанк существует, обновляем его статус и SOH
+                    # Повербанк существует, проверяем активные заказы
+                    from models.order import Order
+                    active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.powerbank_id)
+                    
+                    if active_order:
+                        # Есть активный заказ - меняем статус на 'return' (закрываем)
+                        print(f" Найден активный заказ {active_order.order_id} для повербанка {powerbank.powerbank_id}")
+                        success = await Order.update_order_status(self.db_pool, active_order.order_id, 'return')
+                        if success:
+                            print(f" Заказ {active_order.order_id} изменен на статус 'return' - повербанк {powerbank.powerbank_id} возвращен")
+                        else:
+                            print(f" Ошибка изменения статуса заказа {active_order.order_id} на 'return'")
+                    
+                    # Обновляем только SOH, статус не меняем
                     # Конвертируем SOH в int, чтобы избежать MySQL warnings
                     soh_int = int(soh) if soh is not None else 0
-                    await powerbank.update_status_and_soh(self.db_pool, 'active', soh_int)
-                    print(f" Обновлен повербанк {terminal_id}: статус 'active', SOH {soh_int}")
+                    await powerbank.update_soh(self.db_pool, soh_int)
+                    print(f" Обновлен повербанк {terminal_id}: SOH {soh_int}")
                 else:
-                    # Повербанк не существует, создаем его
+                    # Повербанк не существует, создаем его со статусом unknown
                     # Конвертируем SOH в int, чтобы избежать MySQL warnings
                     soh_int = int(soh) if soh is not None else 0
-                    new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh_int, 'active')
+                    new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh_int, 'unknown')
                     if new_powerbank:
-                        print(f" Создан новый повербанк {terminal_id} с SOH {soh}")
+                        print(f" Создан новый повербанк {terminal_id} со статусом unknown, SOH {soh}")
                     else:
                         print(f" Не удалось создать повербанк для TerminalID {terminal_id}")
+
+                # Обновляем или добавляем повербанк в station_powerbank
+                from models.station_powerbank import StationPowerbank
+                if powerbank:
+                    # Повербанк найден - обновляем или добавляем в станцию
+                    await StationPowerbank.update_or_add_powerbank(
+                        self.db_pool, 
+                        connection.station_id, 
+                        powerbank.powerbank_id, 
+                        slot_number, 
+                        level=level, 
+                        voltage=voltage, 
+                        temperature=temperature
+                    )
+                elif new_powerbank:
+                    # Новый повербанк - добавляем в станцию
+                    await StationPowerbank.update_or_add_powerbank(
+                        self.db_pool, 
+                        connection.station_id, 
+                        new_powerbank.powerbank_id, 
+                        slot_number, 
+                        level=level, 
+                        voltage=voltage, 
+                        temperature=temperature
+                    )
 
                 # Добавляем данные слота в инвентарь
                 inventory_data.append({
@@ -142,9 +183,29 @@ class QueryInventoryHandler:
                            f"Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}, "
                            f"Повербанков: {len(response.get('Slots', []))}")
             
+            # Проверяем и извлекаем несовместимые повербанки после обработки инвентаря
+            await self._check_and_extract_incompatible_powerbanks(connection.station_id)
+            
         except Exception as e:
             print(f" Ошибка обработки ответа на запрос инвентаря: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос инвентаря от станции {connection.box_id}: {e}")
+
+    async def _check_and_extract_incompatible_powerbanks(self, station_id: int) -> None:
+        """Проверяет и извлекает несовместимые повербанки после обработки инвентаря"""
+        try:
+            # Получаем соединение для станции
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                self.logger.warning(f"Соединение для станции {station_id} не найдено")
+                return
+            
+            # Используем обработчик извлечения для проверки совместимости
+            from handlers.eject_powerbank import EjectPowerbankHandler
+            eject_handler = EjectPowerbankHandler(self.db_pool, self.connection_manager)
+            await eject_handler.check_and_extract_incompatible_powerbanks(station_id, connection)
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка проверки совместимости повербанков: {e}")
 
     async def get_station_inventory(self, station_id: int) -> dict:
         """

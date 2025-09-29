@@ -12,8 +12,12 @@ def get_moscow_time() -> datetime:
     moscow_tz = timezone(timedelta(hours=3))  # UTC+3
     return datetime.now(moscow_tz)
 
+def get_moscow_now() -> datetime:
+    """Возвращает текущее время по Москве (алиас для get_moscow_time)"""
+    return get_moscow_time()
+
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
-    """Логирование TCP пакета через специализированный логгер"""
+    """Логирование TCP пакета через логгер"""
     try:
         from utils.tcp_packet_logger import log_tcp_packet
         
@@ -36,7 +40,7 @@ def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", com
         )
             
     except Exception as e:
-        self.logger.error(f"Ошибка: {e}")
+        print(f"Ошибка логирования пакета: {e}")
 
 def log_packet_with_station(data: bytes, direction: str, station_box_id: str, command_name: str):
     """Логирование пакета с информацией о станции"""
@@ -60,31 +64,31 @@ def validate_packet(data: bytes, connection) -> Tuple[bool, str]:
         if command < min_cmd or command > max_cmd:
             return False, f"Недопустимая команда: 0x{command:02X} (вне диапазона 0x{min_cmd:02X}-0x{max_cmd:02X})"
         
-        # Проверка длины пакета - станция не всегда корректно указывает длину
+        
         packet_len = struct.unpack('>H', data[:2])[0]
-        # Допускаем расхождение, но не критичное (станция может ошибаться в длине)
-        if abs(packet_len - len(data)) > 10:  # Допускаем расхождение до 10 байт
+       
+        if abs(packet_len - len(data)) > 10:  
             return False, f"Критичное несоответствие длины: заявлено {packet_len}, фактически {len(data)}"
         
-        # Проверка структуры пакета согласно протоколу
+  
         if len(data) >= 9:
             vsn = data[3]
             checksum = data[4]
             token = struct.unpack('>I', data[5:9])[0]
-            payload = data[9:]  # Payload начинается после токена
+            payload = data[9:] 
             
             
             if vsn < 1 or vsn > 10:
                 return False, f"Подозрительный VSN: {vsn}"
             
-            # Проверяем checksum для payload (если есть)
+            # Проверяем checksum для payload
             if payload and len(payload) > 0:
                 computed_checksum = compute_checksum(payload)
                 if computed_checksum != checksum:
                     return False, f"Неверный checksum: ожидался 0x{computed_checksum:02X}, получен 0x{checksum:02X}"
             
-            # Проверяем токен (должен быть ненулевым для большинства команд)
-            if token == 0 and command not in [0x60]:  # Login может иметь нулевой токен
+            # Проверяем токен (для Login команды токен может быть нулевым)
+            if token == 0 and command != 0x60:  # 0x60 = Login
                 return False, f"Нулевой токен: 0x{token:08X}"
         
         return True, ""
@@ -106,11 +110,11 @@ def log_suspicious_packet(data: bytes, connection, reason: str) -> None:
             packet_data=hex_data
         )
         
-        # Также логируем через обычный логгер
+        
         log_packet(data, "SUSPICIOUS", station_id, f"SUSPICIOUS_{reason}")
         
     except Exception as e:
-        self.logger.error(f"Ошибка: {e}")
+        print(f"Ошибка логирования подозрительного пакета: {e}")
 
 
 def compute_checksum(payload_bytes: bytes) -> int:
@@ -121,23 +125,15 @@ def compute_checksum(payload_bytes: bytes) -> int:
     return checksum
 
 def generate_token(payload: bytes, secret_key: str) -> bytes:
-    """
-    Генерирует токен по протоколу:
-    md5_hash = MD5(payload + SecretKey)
-    token = bytes(md5_hash[15:16] + md5_hash[11:12] + md5_hash[7:8] + md5_hash[3:4])
-    """
-    import hashlib
-    
-    # Создаем MD5 хеш от payload + secret_key
+  
+    import hashlib  
     combined = payload + secret_key.encode('utf-8')
     md5_hash = hashlib.md5(combined).digest()
-    
-    # Извлекаем байты по позициям 16, 12, 8, 4 (индексы 15, 11, 7, 3)
     token = bytes([
-        md5_hash[15],  # Позиция 16
-        md5_hash[11],  # Позиция 12  
-        md5_hash[7],   # Позиция 8
-        md5_hash[3]    # Позиция 4
+        md5_hash[15],  
+        md5_hash[11],  
+        md5_hash[7],   
+        md5_hash[3]    
     ])
     
     return token
@@ -319,14 +315,12 @@ def parse_borrow_request(data: bytes) -> Dict[str, Any]:
     if len(data) < 9:
         raise ValueError("Слишком короткий пакет для запроса выдачи")
     
-    # Парсим заголовок (PacketLen не входит в заголовок)
     packet_format = ">H B B B I"
     packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
     
     if command != 0x65:
         raise ValueError(f"Неверная команда: {hex(command)}")
     
-    # Парсим слот (1 байт)
     slot = data[8] if len(data) > 8 else 0
     
     # Проверяем checksum
@@ -349,10 +343,9 @@ def parse_borrow_request(data: bytes) -> Dict[str, Any]:
 def parse_borrow_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на выдачу повербанка (команда 0x65)"""
     try:
-        if len(data) < 21:  # 9 байт заголовка + минимум 12 байт payload
+        if len(data) < 21:  
             raise ValueError("Слишком короткий пакет для ответа BorrowResponse")
 
-        # Заголовок
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
 
@@ -363,7 +356,6 @@ def parse_borrow_response(data: bytes) -> Dict[str, Any]:
         if len(payload) < 12:
             raise ValueError("Недостаточно данных для BorrowResponse payload")
 
-        # Разбор payload
         slot = payload[0]
         result_code = payload[1]
         terminal_id_bytes = payload[2:10]
@@ -414,10 +406,9 @@ def parse_borrow_response(data: bytes) -> Dict[str, Any]:
 def parse_return_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на возврат повербанка (команда 0x66)"""
     try:
-        if len(data) < 21:  # 9 байт заголовка + минимум 12 байт payload
+        if len(data) < 21:  
             raise ValueError("Слишком короткий пакет для ответа ReturnResponse")
 
-        # Заголовок
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
 
@@ -474,54 +465,40 @@ def parse_return_response(data: bytes) -> Dict[str, Any]:
             "Size": len(data)
         }
 
+
 def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
-    """Парсит запрос на возврат повербанка (команда 0x66)"""
-    if len(data) < 26:
-        raise ValueError("Пакет слишком короткий для Return Power Bank Request")
-    
-    packet_len, command, vsn, checksum = struct.unpack(">HBBB", data[:5])
-    token = struct.unpack(">I", data[5:9])[0]
-    slot = data[9]
-    terminal_id_bytes = data[10:18]
-    terminal_id = parse_terminal_id(terminal_id_bytes)
-    level = data[18]
-    voltage, current = struct.unpack(">HH", data[19:23])
-    temperature = data[23]
-    status = data[24]
-    soh = data[25]
-    
-    # Парсим статус биты
-    status_bits = {
-        "LockStatus": (status >> 7) & 1,
-        "MicroUSBError": (status >> 2) & 1,
-        "TypeCError": (status >> 1) & 1,
-        "LightningError": status & 1
-    }
-    
-    # Проверяем checksum
-    payload = data[9:26]  # slot + terminal_id + level + voltage + current + temperature + status + soh
-    if compute_checksum(payload) != checksum:
-        raise ValueError("Неверный checksum")
-    
-    return {
-        "Type": "ReturnPowerBankRequest",
-        "PacketLen": packet_len,
-        "Command": hex(command),
-        "VSN": vsn,
-        "CheckSum": hex(checksum),
-        "Token": f"0x{token:08X}",
-        "Slot": slot,
-        "TerminalID": terminal_id,
-        "Level": level,
-        "Voltage": voltage,
-        "Current": current,
-        "Temperature": temperature,
-        "Status": status_bits,
-        "SOH": soh,
-        "RawPacket": data.hex(),
-        "ReceivedAt": get_moscow_time().isoformat(),
-        "CheckSumValid": True
-    }
+    """Парсит запрос на возврат повербанка от станции"""
+    try:
+        if len(data) < 15:
+            return {"error": "Недостаточно данных для парсинга запроса на возврат"}
+        
+        packet_len = struct.unpack('<H', data[0:2])[0]
+        command = data[2]
+        vsn = struct.unpack('<I', data[3:7])[0]
+        checksum = data[7]
+        token = struct.unpack('<I', data[8:12])[0]
+        slot = data[12]
+        
+       
+        calculated_checksum = compute_checksum(data[0:7] + data[8:])
+        checksum_valid = calculated_checksum == checksum
+        
+        return {
+            "Type": "ReturnRequest",
+            "PacketLen": packet_len,
+            "Command": f"0x{command:02X}",
+            "VSN": vsn,
+            "CheckSum": f"0x{checksum:02X}",
+            "CheckSumValid": checksum_valid,
+            "Token": f"0x{token:08X}",
+            "Slot": slot,
+            "ReceivedAt": get_moscow_time().isoformat(),
+            "RawPacket": data.hex().upper()
+        }
+        
+    except Exception as e:
+        return {"error": f"Ошибка парсинга запроса на возврат: {str(e)}"}
+
 
 
 def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
@@ -534,7 +511,7 @@ def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
+   
     log_packet(packet, "OUTGOING", "unknown", "ForceEject")
     
     return packet
@@ -547,8 +524,8 @@ def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
 def build_query_iccid_request(secret_key: bytes, vsn: int = 1) -> bytes:
     """Создает запрос на получение ICCID SIM карты (команда 0x69)"""
     command = 0x69
-    packet_len = 7  # Только заголовок, payload пустой
-    payload = b''  # Пустой payload для запроса ICCID
+    packet_len = 7  
+    payload = b''  
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
@@ -564,18 +541,16 @@ def build_query_iccid_request(secret_key: bytes, vsn: int = 1) -> bytes:
 def parse_query_iccid_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на запрос ICCID SIM карты (команда 0x69)"""
     try:
-        if len(data) < 11:  # Минимум 9 байт заголовка + 2 байта ICCIDLen
+        if len(data) < 11:  
             raise ValueError("Слишком короткий пакет для ответа ICCID")
         
-        # Парсим заголовок согласно протоколу:
-        # PacketLen (2) + Command (1) + VSN (1) + CheckSum (1) + Token (4) + ICCIDLen (2) = 11 байт
         packet_format = ">H B B B I H"
         packet_len, command, vsn, checksum, token, iccid_len = struct.unpack(packet_format, data[:11])
         
         if command != 0x69:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Проверяем, что пакет содержит достаточно данных
+        
         if len(data) < 11 + iccid_len:
             raise ValueError(f"Недостаточно данных для ICCID. Ожидается {11 + iccid_len}, получено {len(data)}")
         
@@ -616,26 +591,20 @@ def parse_query_iccid_response(data: bytes) -> Dict[str, Any]:
 
 def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
     """Парсит запрос отчета об аномалии слота (команда 0x83)"""
-    if len(data) < 18:  # Минимум 8 байт заголовка + 1 байт Event + 1 байт SlotNo + 8 байт TerminalID
+    if len(data) < 18:  
         raise ValueError("Слишком короткий пакет для отчета об аномалии слота")
-    
-    # Парсим заголовок (9 байт: 2+1+1+1+4)
+
     packet_format = ">H B B B I"
     packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
     
     if command != 0x83:
         raise ValueError(f"Неверная команда: {hex(command)}")
-    
-    # Парсим Event
     event = data[9]
     
-    # Парсим SlotNo
     slot_no = data[10]
     
-    # Парсим TerminalID (8 байт)
     terminal_id = data[11:19]
     
-    # Проверяем checksum
     payload = struct.pack("BB8s", event, slot_no, terminal_id)
     if compute_checksum(payload) != checksum:
         raise ValueError("Неверный checksum")
@@ -670,8 +639,8 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
 def build_slot_abnormal_report_response(secret_key: bytes, vsn: int = 1) -> bytes:
     """Создает ответ на отчет об аномалии слота (команда 0x83)"""
     command = 0x83
-    packet_len = 7  # Только заголовок, payload пустой
-    payload = b''  # Пустой payload для ответа
+    packet_len = 7 
+    payload = b''  
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
@@ -759,9 +728,9 @@ def parse_heartbeat_packet(data: bytes) -> Dict[str, Any]:
             raise ValueError("Пакет слишком короткий для heartbeat")
         
         packet_format = ">H B B B I"
-        packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])  # 2+1+1+1+4=9
+        packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])  
         
-        # Проверяем checksum (payload пустой для heartbeat)
+        
         payload = b''
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
@@ -791,14 +760,14 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
         if len(data) < 9:
             raise ValueError("Пакет слишком короткий для ответа принудительного извлечения")
         
-        # Парсим заголовок
+        
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])#2+1+1+1+4=9
         
         if command != 0x80:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Если есть дополнительные данные, парсим их
+        
         result = {
             "Type": "ForceEjectResponse",
             "PacketLen": packet_len,
@@ -811,10 +780,10 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
             "ReceivedAt": get_moscow_time().isoformat()
         }
         
-        # Если есть дополнительные данные (слот и terminal_id)
+        
         if len(data) > 9:
             try:
-                # Парсим слот и terminal_id
+                
                 slot = data[9]
                 result_code = data[10]
                 terminal_id_bytes = data[11:19]
@@ -825,11 +794,11 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
                     "TerminalID": terminal_id
                 })
                 
-                # Проверяем checksum с учетом дополнительных данных
+                
                 payload = struct.pack("BB8s", slot, result_code, terminal_id_bytes)
                 if compute_checksum(payload) != checksum:
                     result["CheckSumValid"] = False
-                    result["CheckSumError"] = "Неверный checksum с дополнительными данными"
+                   
             except Exception as parse_error:
                 result["ParseWarning"] = f"Ошибка парсинга дополнительных данных: {parse_error}"
         else:
@@ -853,8 +822,8 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
 def build_restart_cabinet_request(secret_key: bytes, vsn: int = 1) -> bytes:
     """Создает запрос на перезагрузку кабинета (команда 0x67)"""
     command = 0x67
-    packet_len = 7  # Только заголовок, payload пустой
-    payload = b''  # Пустой payload для запроса перезагрузки
+    packet_len = 7 
+    payload = b''  
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
@@ -873,15 +842,14 @@ def parse_restart_cabinet_response(data: bytes) -> Dict[str, Any]:
         if len(data) < 9:
             raise ValueError("Слишком короткий пакет для ответа перезагрузки")
         
-        # Парсим заголовок согласно протоколу:
-        # PacketLen (2) + Command (1) + VSN (1) + CheckSum (1) + Token (4) = 9 байт
+       
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
         
         if command != 0x67:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Проверяем checksum (payload пустой для ответа)
+        
         payload = b''
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
@@ -911,8 +879,8 @@ def parse_restart_cabinet_response(data: bytes) -> Dict[str, Any]:
 def build_query_inventory_request(secret_key: bytes, vsn: int = 1, station_box_id: str = "unknown") -> bytes:
     """Создает запрос на получение инвентаря кабинета (команда 0x64)"""
     command = 0x64
-    packet_len = 7  # Command + VSN + CheckSum + Token (payload отсутствует)
-    payload = b''  # Пустой payload для запроса инвентаря
+    packet_len = 7 
+    payload = b''  
     checksum = compute_checksum(payload)
     md5_hash = hashlib.md5(payload + secret_key).digest()
     token_bytes = md5_hash[15:16] + md5_hash[11:12] + md5_hash[7:8] + md5_hash[3:4]
@@ -931,22 +899,22 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
         if len(data) < 10:  
             raise ValueError("Слишком короткий пакет для ответа инвентаря")
         
-        # Парсим заголовок (9 байт: 2+1+1+1+4)
+       
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
         
         if command != 0x64:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Парсим SlotsNum и RemainNum
+       
         slots_num = data[9]
         remain_num = data[10]
         
-        # Парсим слоты (если есть)
+       
         slots = []
         offset = 11
         
-        # Формат слота: Slot (1) + TerminalID (8) + Level (1) + Voltage (2) + Current (2) + Temperature (1) + Status (1) + SOH (1) = 17 байт
+        
         slot_format = ">B 8s B H H b B B"
         slot_size = struct.calcsize(slot_format)
         
@@ -958,7 +926,7 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
             
             terminal_id = parse_terminal_id(terminal_id_bytes)
             
-            # Парсим статус биты
+            
             status_bits = {
                 "InsertionSwitch": (status >> 7) & 1,
                 "LockStatus": (status >> 6) & 1,
@@ -983,8 +951,8 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
             
             offset += slot_size
         
-        # Проверяем checksum
-        payload = data[9:offset]  # SlotsNum + RemainNum + все слоты (начинаем с 9-го байта, после заголовка)
+       
+        payload = data[9:offset]  
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
         
@@ -1015,8 +983,8 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
 def build_query_voice_volume_request(secret_key: bytes, vsn: int = 1) -> bytes:
     """Создает запрос на получение уровня громкости голосового вещания (команда 0x77)"""
     command = 0x77
-    packet_len = 7  # Только заголовок, payload пустой
-    payload = b''  # Пустой payload для запроса громкости
+    packet_len = 7 
+    payload = b''  
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
@@ -1032,10 +1000,10 @@ def build_query_voice_volume_request(secret_key: bytes, vsn: int = 1) -> bytes:
 def parse_query_voice_volume_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на запрос уровня громкости голосового вещания (команда 0x77)"""
     try:
-        if len(data) < 9:  # Минимум 8 байт заголовка + 1 байт Lvl
+        if len(data) < 9:  
             raise ValueError("Слишком короткий пакет для ответа громкости")
         
-        # Парсим заголовок (9 байт: 2+1+1+1+4)
+        
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
         
@@ -1045,8 +1013,8 @@ def parse_query_voice_volume_response(data: bytes) -> Dict[str, Any]:
         # Парсим уровень громкости
         volume_level = data[9]
         
-        # Проверяем checksum
-        payload = data[9:10]  # Только Lvl
+       
+        payload = data[9:10]  
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
         
@@ -1075,8 +1043,8 @@ def parse_query_voice_volume_response(data: bytes) -> Dict[str, Any]:
 def build_set_voice_volume_request(secret_key: bytes, volume_level: int, vsn: int = 1) -> bytes:
     """Создает запрос на установку уровня громкости голосового вещания (команда 0x70)"""
     command = 0x70
-    packet_len = 8  # Заголовок + Lvl
-    payload = struct.pack(">B", volume_level)  # Lvl (1 байт)
+    packet_len = 8 
+    payload = struct.pack(">B", volume_level)  
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
@@ -1092,17 +1060,17 @@ def build_set_voice_volume_request(secret_key: bytes, volume_level: int, vsn: in
 def parse_set_voice_volume_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на установку уровня громкости голосового вещания (команда 0x70)"""
     try:
-        if len(data) < 9:  # Минимум 9 байт заголовка
+        if len(data) < 9:  
             raise ValueError("Слишком короткий пакет для ответа установки громкости")
         
-        # Парсим заголовок (9 байт: 2+1+1+1+4)
+       
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
         
         if command != 0x70:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Проверяем checksum (payload пустой для ответа)
+       
         payload = b''
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
@@ -1133,11 +1101,11 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     """Создает запрос на установку адреса сервера (команда 0x63)"""
     command = 0x63
     
-    # Кодируем строки в UTF-8
+    
     address_bytes = server_address.encode('utf-8') + b'\x00'
-    port_bytes = server_port.encode('utf-8') + b'\x00'  # Добавляем null-terminator
+    port_bytes = server_port.encode('utf-8') + b'\x00'  
 
-    # AddressLen (2) + Address (AddressLen) + PortLen (2) + Port (PortLen) + Heartbeat (1)
+    
     payload = struct.pack(">H", len(address_bytes))  # AddressLen 
     payload += address_bytes  
     payload += struct.pack(">H", len(port_bytes))  # PortLen 
@@ -1145,14 +1113,14 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     payload += struct.pack(">B", heartbeat_interval)  # Heartbeat
     
  
-    packet_len = 8 + len(payload)  # 8 байт заголовка + payload
+    packet_len = 8 + len(payload)  
     
     # Вычисляем checksum и token
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
     
-    # Создаем заголовок (8 байт: 2+1+1+1+4)
+   
     header = struct.pack(">HBBBI", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
@@ -1165,17 +1133,17 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
 def parse_set_server_address_response(data: bytes) -> Dict[str, Any]:
     """Парсит ответ на установку адреса сервера (команда 0x63)"""
     try:
-        if len(data) < 9:  # Минимум 9 байт заголовка
+        if len(data) < 9:  
             raise ValueError("Слишком короткий пакет для ответа установки адреса сервера")
         
-        # Парсим заголовок (9 байт: 2+1+1+1+4)
+        
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
         
         if command != 0x63:
             raise ValueError(f"Неверная команда: {hex(command)}")
         
-        # Проверяем checksum (payload пустой для ответа)
+       
         payload = b''
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
@@ -1206,7 +1174,7 @@ def build_query_server_address_request(secret_key: bytes, vsn: int = 1) -> bytes
     """Создает запрос на получение адреса сервера (команда 0x6A)"""
     command = 0x6A
     packet_len = 7 
-    payload = b''  # Пустой payload для запроса адреса сервера
+    payload = b''  
     checksum = compute_checksum(payload)
     md5 = hashlib.md5(payload + secret_key).digest()
     token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
@@ -1227,7 +1195,7 @@ def parse_query_server_address_response(data: bytes) -> Dict[str, Any]:
         if len(data) < 9:
             raise ValueError("Пакет слишком короткий для ответа QueryServerAddress")
 
-        # Заголовок: 2 + 1 + 1 + 1 + 4 = 9 байт
+        
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
 
@@ -1236,11 +1204,11 @@ def parse_query_server_address_response(data: bytes) -> Dict[str, Any]:
 
         payload = data[9:]
 
-        # Проверка контрольной суммы
+       
         if compute_checksum(payload) != checksum:
             raise ValueError("Неверный checksum")
 
-        # Разбор AddressLen + Address
+       
         if len(payload) < 2:
             raise ValueError("Нет данных для AddressLen")
         address_len = struct.unpack(">H", payload[:2])[0]
@@ -1250,7 +1218,7 @@ def parse_query_server_address_response(data: bytes) -> Dict[str, Any]:
         address_bytes = payload[2:2 + address_len]
         address = address_bytes.decode("ascii", errors="ignore")
 
-        # Разбор PortLen + Ports
+       
         port_offset = 2 + address_len
         if len(payload) < port_offset + 2:
             raise ValueError("Нет данных для PortLen")
@@ -1261,7 +1229,7 @@ def parse_query_server_address_response(data: bytes) -> Dict[str, Any]:
         ports_bytes = payload[port_offset + 2:port_offset + 2 + port_len]
         ports = ports_bytes.decode("ascii", errors="ignore")
 
-        # Разбор Heartbeat
+       
         heartbeat_offset = port_offset + 2 + port_len
         if len(payload) < heartbeat_offset + 1:
             raise ValueError("Нет данных для Heartbeat")

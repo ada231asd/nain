@@ -38,7 +38,7 @@ class StationResolver:
     def resolve_station_by_powerbank_id(self, powerbank_id: int, db_pool) -> Optional[Dict[str, Any]]:
         """Определяет станцию по ID повербанка"""
         try:
-            # Импортируем здесь чтобы избежать циклических импортов
+            
             from models.station_powerbank import StationPowerbank
             
             # Получаем информацию о повербанке в станции

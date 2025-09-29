@@ -32,7 +32,7 @@ from utils.tcp_packet_logger import close_tcp_logger, get_tcp_logger_stats
 
 
 class OptimizedServer:
-    """Оптимизированный сервер с TCP и HTTP"""
+   
     
     def __init__(self):
         self.db_pool: Optional[aiomysql.Pool] = None
@@ -72,7 +72,7 @@ class OptimizedServer:
             print("Подключение к базе данных закрыто")
     
     async def send_command_to_station(self, command_bytes: bytes, connection, station_info: dict) -> bool:
-        """Отправляет команду на станцию через TCP соединение"""
+      
         try:
             if connection.writer and not connection.writer.is_closing():
                 
@@ -114,7 +114,7 @@ class OptimizedServer:
                     log_suspicious_packet(data, connection, f"Пакет слишком большой: {len(data)} байт")
                     continue
                 
-                # Проверяем пакет на подозрительность (только для авторизованных станций)
+                # Проверяем пакет на подозрительность
                 if connection.station_status == "active":
                     is_valid, error_message = validate_packet(data, connection)
                     if not is_valid:
@@ -173,7 +173,7 @@ class OptimizedServer:
                     elif command == 0x65:  # Borrow Power Bank
                         # Проверяем, это запрос или ответ
                         if len(data) >= 8:
-                            # Это может быть запрос на выдачу (8 байт) или ответ (12+ байт)
+                            
                             if len(data) >= 12:
                                 # Это ответ от станции на выдачу
                                 await self.borrow_handler.handle_borrow_response(data, connection)
@@ -278,7 +278,7 @@ class OptimizedServer:
             try:
                 if not writer.is_closing():
                     writer.close()
-                    # Не ждем wait_closed() для сброшенных соединений
+                    
                     if not connection_reset:
                         try:
                             await asyncio.wait_for(writer.wait_closed(), timeout=1.0)
@@ -288,7 +288,7 @@ class OptimizedServer:
                             if not isinstance(wait_error, (ConnectionResetError, OSError)):
                                 self.logger.error(f"Ошибка: {e}")
             except Exception as close_error:
-                # Игнорируем ошибки закрытия для сброшенных соединений
+            
                 if not isinstance(close_error, (ConnectionResetError, OSError)):
                     self.logger.error(f"Ошибка: {e}")
     
@@ -350,7 +350,7 @@ class OptimizedServer:
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
         finally:
-            # База данных будет закрыта в stop_servers()
+ 
             pass
     
     async def _connection_monitor(self):
@@ -365,12 +365,6 @@ class OptimizedServer:
                 # Выводим статистику соединений
                 connections = self.connection_manager.get_all_connections()
                 if connections:
-                    print(f"Активных соединений: {len(connections)}")
-                    
-                    # Статистика логгеров (скрыта)
-                    # logger_stats = get_logger_stats()
-                    # tcp_logger_stats = get_tcp_logger_stats()
-                    
                     # Группируем по станциям для выявления дублирования
                     stations = {}
                     for fd, conn in connections.items():
@@ -378,16 +372,6 @@ class OptimizedServer:
                             if conn.station_id not in stations:
                                 stations[conn.station_id] = []
                             stations[conn.station_id].append((fd, conn))
-                    
-                    # Выводим информацию о станциях
-                    for station_id, station_connections in stations.items():
-                        if len(station_connections) > 1:
-                            print(f"    Станция {station_id} имеет {len(station_connections)} соединений:")
-                            for fd, conn in station_connections:
-                                print(f"    fd={fd} | BoxID={conn.box_id} | Status={conn.station_status}")
-                        else:
-                            fd, conn = station_connections[0]
-                            print(f"  fd={fd} | BoxID={conn.box_id} | Status={conn.station_status}")
                     
                     # Очищаем дублирующиеся соединения
                     for station_id, station_connections in stations.items():
@@ -451,7 +435,7 @@ class OptimizedServer:
                     try:
                         # Проверяем, что пул соединений еще доступен
                         if not self.db_pool or self.db_pool._closed:
-                            print(f" Пул соединений с БД уже закрыт, пропускаем деактивацию станции {box_id}")
+                            print(f" Пул соединений с БД уже закрыт")
                             continue
                             
                         station = await Station.get_by_id(self.db_pool, station_id)
@@ -480,7 +464,6 @@ class OptimizedServer:
             
             connections = self.connection_manager.get_all_connections()
             if not connections:
-                print(" Активных соединений не найдено")
                 return
             
             print(f" Найдено {len(connections)} соединений для закрытия")
@@ -514,7 +497,7 @@ class OptimizedServer:
             
             # Проверяем, что пул соединений еще доступен
             if not self.db_pool or self.db_pool._closed:
-                print(" Пул соединений с БД уже закрыт, пропускаем деактивацию станций в БД")
+                print(" Пул соединений с БД уже закрыт")
                 return
             
             async with self.db_pool.acquire() as conn:
@@ -539,7 +522,6 @@ class OptimizedServer:
                         print(" Активных станций в БД не найдено")
                         
         except Exception as e:
-            # Игнорируем ошибки с закрытым пулом соединений
             if "Cannot acquire connection after closing pool" in str(e):
                 print(" Пул соединений закрыт, пропускаем деактивацию станций в БД")
             else:
@@ -562,7 +544,6 @@ async def main():
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, signal_handler)
     else:
-        # На Windows используем другой подход
         def windows_signal_handler(signum, frame):
             signal_handler()
         
@@ -576,12 +557,12 @@ async def main():
     except asyncio.CancelledError:
         print("Сервер остановлен")
     except Exception as e:
-        self.logger.error(f"Ошибка: {e}")
+        print(f"Ошибка сервера: {e}")
     finally:
         try:
             await server.stop_servers()
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            print(f"Ошибка при остановке сервера: {e}")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 Обработчик команды запроса уровня громкости голосового вещания
 """
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 from models.station import Station
 from utils.packet_utils import build_query_voice_volume_request, parse_query_voice_volume_response
@@ -124,7 +125,7 @@ class QueryVoiceVolumeHandler:
             connection.voice_volume_data = {
                 'volume_level': volume_level,
                 'volume_percentage': int(volume_level) * 10 if volume_level != 'N/A' else 0,
-                'last_update': datetime.now().isoformat(),
+                'last_update': get_moscow_time().isoformat(),
                 'packet_hex': raw_packet,
                 'vsn': vsn,
                 'checksum': checksum,

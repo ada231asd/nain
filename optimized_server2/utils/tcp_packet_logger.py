@@ -2,6 +2,7 @@
 TCP пакет логгер - использует основной логгер для минимизации файловых дескрипторов
 """
 from utils.centralized_logger import get_logger
+from datetime import datetime, timezone, timedelta
 
 def get_tcp_logger():
     """Возвращает основной логгер для TCP пакетов"""
@@ -26,7 +27,8 @@ def log_tcp_packet(direction: str, packet_type: str, station_id: str,
     
     # Добавляем микросекунды к сообщению
     from datetime import datetime
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
+    timestamp = datetime.now(moscow_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     
     # Формируем сообщение
     message_parts = [
@@ -47,19 +49,13 @@ def log_tcp_packet(direction: str, packet_type: str, station_id: str,
     logger.info(message)
 
 def log_tcp_error(station_id: str, error_message: str, packet_data: str = "") -> None:
-    """
-    Логирует ошибку TCP пакета
-    
-    Args:
-        station_id: ID станции
-        error_message: Сообщение об ошибке
-        packet_data: Hex данные пакета (опционально)
-    """
+   
     logger = get_tcp_logger()
     
     # Добавляем микросекунды к сообщению
     from datetime import datetime
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
+    timestamp = datetime.now(moscow_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     
     message_parts = [
         f"[ERROR]",
@@ -74,8 +70,8 @@ def log_tcp_error(station_id: str, error_message: str, packet_data: str = "") ->
     logger.error(message)
 
 def close_tcp_logger() -> None:
-    """Закрывает TCP логгер (теперь не нужно - используется основной)"""
-    pass  # TCP логгер теперь использует основной логгер
+    """Закрывает TCP логгер"""
+    pass 
 
 def get_tcp_logger_stats() -> dict:
     """Возвращает статистику TCP логгера"""
@@ -84,5 +80,5 @@ def get_tcp_logger_stats() -> dict:
     return {
         "handlers": stats["handlers"],
         "file_descriptors": stats["file_descriptors"],
-        "log_file": "logs/server.log"  # Теперь все в одном файле
+        "log_file": "logs/server.log"  
     }

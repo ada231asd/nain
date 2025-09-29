@@ -11,6 +11,7 @@ from models.station_powerbank import StationPowerbank
 from models.connection import StationConnection
 from utils.packet_utils import parse_login_packet, build_login_response, build_heartbeat_response, log_packet
 from utils.powerbank_status_monitor import PowerbankStatusMonitor
+from utils.centralized_logger import get_logger
 
 
 class StationHandler:
@@ -32,7 +33,7 @@ class StationHandler:
             
             # Парсим пакет логина
             packet = parse_login_packet(data)
-            print(f"Обработан Login пакет: BoxID={packet['BoxID']}")
+            logger = get_logger('station_handler'); logger.info(f"Обработан Login пакет: BoxID={packet['BoxID']}")
             
             # Получаем или создаем станцию
             station, secret_key = await Station.get_or_create(
@@ -43,7 +44,7 @@ class StationHandler:
             
             # Проверяем статус станции и наличие ключа
             if station.status == "pending" or secret_key is None:
-                print(f"Станция {station.box_id} в статусе pending или нет ключа — соединение закрыто")
+                logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} в статусе pending или нет ключа — соединение закрыто")
                 return None
             
             # Создаем ответ на логин
@@ -52,7 +53,7 @@ class StationHandler:
             # Проверяем, не подключена ли уже эта станция
             existing_connection = self.connection_manager.get_connection_by_station_id(station.station_id)
             if existing_connection and existing_connection.fd != connection.fd:
-                print(f"Станция {station.box_id} уже подключена через fd={existing_connection.fd}, закрываем старое соединение")
+                logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} уже подключена через fd={existing_connection.fd}, закрываем старое соединение")
                 # Безопасно закрываем старое соединение
                 try:
                     if existing_connection.writer and not existing_connection.writer.is_closing():
@@ -89,15 +90,13 @@ class StationHandler:
             await self.status_monitor.initialize_station(station.station_id)
             
             # Автоматически запрашиваем инвентарь после успешного логина
+            # (проверка совместимости повербанков выполнится автоматически после получения ответа)
             await self._request_inventory_after_login(connection)
-            
-            # Автоматически проверяем и извлекаем несовместимые повербанки
-            await self._check_and_extract_incompatible_powerbanks(station.station_id)
             
             # Автоматически запрашиваем ICCID после успешного логина
             await self._request_iccid_after_login(connection)
             
-            print(f"Станция {station.box_id} успешно авторизована и обновлена в БД")
+            logger = get_logger('station_handler'); logger.info(f"Станция {station.box_id} успешно авторизована и обновлена в БД")
             return response
             
         except Exception as e:
@@ -111,7 +110,7 @@ class StationHandler:
         """
         try:
             if not connection.secret_key:
-                print("Нет секретного ключа для heartbeat")
+                logger = get_logger('station_handler'); logger.warning("Нет секретного ключа для heartbeat")
                 return None
             
             # Логируем входящий пакет с информацией о станции
@@ -143,13 +142,13 @@ class StationHandler:
                         actual_remain_num = station.slots_declared - len(current_powerbanks)
                         if actual_remain_num != station.remain_num:
                             await station.update_remain_num(self.db_pool, actual_remain_num)
-                            print(f"Обновлен remain_num для станции {connection.box_id}: {station.remain_num} -> {actual_remain_num}")
+                            logger = get_logger('station_handler'); logger.info(f"Обновлен remain_num для станции {connection.box_id}: {station.remain_num} -> {actual_remain_num}")
                         
-                        print(f"Обновлен heartbeat для станции {connection.box_id} (ID: {connection.station_id})")
+                        logger = get_logger('station_handler'); logger.info(f"Обновлен heartbeat для станции {connection.box_id} (ID: {connection.station_id})")
                 except Exception as db_error:
                     self.logger.error(f"Ошибка: {e}")
             
-            print(f"Heartbeat от станции {connection.box_id}")
+            logger = get_logger('station_handler'); logger.info(f"Heartbeat от станции {connection.box_id}")
             return response
             
         except Exception as e:
@@ -160,27 +159,27 @@ class StationHandler:
         """Запрашивает инвентарь после успешного логина"""
         try:
             if not connection.writer or connection.writer.is_closing():
-                print("Соединение недоступно для запроса инвентаря")
+                logger = get_logger('station_handler'); logger.warning("Соединение недоступно для запроса инвентаря")
                 return
             
             from handlers.query_inventory import QueryInventoryHandler
             inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
             await inventory_handler.send_inventory_request(connection.station_id)
-            print(f" Запрос инвентаря отправлен на станцию {connection.box_id}")
+            logger = get_logger('station_handler'); logger.info(f" Запрос инвентаря отправлен на станцию {connection.box_id}")
         except Exception as e:
-            print(f" Ошибка запроса инвентаря: {e}")
+            logger = get_logger('station_handler'); logger.error(f"Ошибка запроса инвентаря: {e}")
     
     async def _request_iccid_after_login(self, connection: StationConnection) -> None:
         """Автоматически запрашивает ICCID после успешного логина только если его нет в БД"""
         try:
             if not connection.writer or connection.writer.is_closing():
-                print("Соединение недоступно для запроса ICCID")
+                logger = get_logger('station_handler'); logger.warning("Соединение недоступно для запроса ICCID")
                 return
             
             # Проверяем, есть ли уже ICCID у станции
             station = await Station.get_by_id(self.db_pool, connection.station_id)
             if station and station.iccid:
-                print(f"ICCID уже есть у станции {connection.box_id}: {station.iccid}")
+                logger = get_logger('station_handler'); logger.info(f"ICCID уже есть у станции {connection.box_id}: {station.iccid}")
                 return
             
             # Создаем запрос ICCID
@@ -191,19 +190,18 @@ class StationHandler:
             connection.writer.write(iccid_request)
             await connection.writer.drain()
             
-            print(f"Запрос ICCID отправлен станции {connection.box_id} (ICCID отсутствует в БД)")
+            logger = get_logger('station_handler'); logger.info(f"Запрос ICCID отправлен станции {connection.box_id} (ICCID отсутствует в БД)")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
     
     async def _sync_powerbanks_to_db(self, station_id: int, slots_data: list) -> None:
         """Синхронизирует данные повербанков с БД (как в старом сервере)"""
-        print(f"Синхронизация повербанков для станции {station_id}")
         
         # Получаем org_unit_id станции
         station = await Station.get_by_id(self.db_pool, station_id)
         if not station:
-            print(f"Станция {station_id} не найдена")
+            logger = get_logger('station_handler'); logger.info(f"Станция {station_id} не найдена")
             return
         
         for slot in slots_data:
@@ -217,7 +215,7 @@ class StationHandler:
             if existing_powerbank:
                 # Проверяем совместимость групп - выплевываем повербанки других групп
                 if existing_powerbank.org_unit_id != station.org_unit_id:
-                    print(f"Повербанк {terminal_id} из группы {existing_powerbank.org_unit_id} не принадлежит группе станции {station.org_unit_id} - выплевываем")
+                    logger = get_logger('station_handler'); logger.info(f"Повербанк {terminal_id} из группы {existing_powerbank.org_unit_id} не принадлежит группе станции {station.org_unit_id} - выплевываем")
                     
                     # Планируем извлечение несовместимого повербанка
                     await self._schedule_incompatible_powerbank_ejection(station_id, slot['Slot'], terminal_id)
@@ -235,7 +233,7 @@ class StationHandler:
                     terminal_id, 
                     1  # Группа 1 - глобальная сервисная группа
                 )
-                print(f"Создан новый повербанк {terminal_id} со статусом unknown в группе 1 (ID: {new_powerbank.powerbank_id})")
+                logger = get_logger('station_handler'); logger.info(f"Создан новый повербанк {terminal_id} со статусом unknown в группе 1 (ID: {new_powerbank.powerbank_id})")
                 
                 # Обновляем SOH если есть данные
                 if slot.get('SOH') is not None:
@@ -249,7 +247,7 @@ class StationHandler:
             # Получаем соединение для станции
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                print(f"Соединение для станции {station_id} не найдено")
+                logger = get_logger('station_handler'); logger.warning(f"Соединение для станции {station_id} не найдено")
                 return
             
             # Используем обработчик извлечения для проверки совместимости
@@ -266,7 +264,7 @@ class StationHandler:
             # Получаем соединение для станции
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                print(f"Соединение для станции {station_id} не найдено для извлечения повербанка")
+                logger = get_logger('station_handler'); logger.info(f"Соединение для станции {station_id} не найдено для извлечения повербанка")
                 return
             
             # Используем обработчик извлечения

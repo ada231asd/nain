@@ -8,7 +8,8 @@ from typing import Optional, Dict, Any
 from aiohttp import web
 import aiomysql
 
-from models.user import User, EmailService, VerificationCode
+from models.user import User
+from utils.notification_service import notification_service
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, PASSWORD_MAX_LENGTH
 from utils.centralized_logger import get_logger
 
@@ -18,7 +19,7 @@ class AuthHandler:
     
     def __init__(self, db_pool):
         self.db_pool = db_pool
-        self.email_service = EmailService()
+ 
         self.logger = get_logger('auth_handler')
     
     def create_jwt_token(self, user_id: int, phone_e164: str) -> str:
@@ -64,7 +65,7 @@ class AuthHandler:
             )
             
             # Отправляем пароль на email
-            email_sent = await self.email_service.send_password_email(
+            email_sent = await notification_service.send_password_email(
                 email, password, fio
             )
             
@@ -106,7 +107,7 @@ class AuthHandler:
             
             # Защита от атак по стороннему каналу - проверяем длину пароля
             if len(password) > PASSWORD_MAX_LENGTH:
-                self.logger.warning(f"🚨 ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
+                self.logger.warning(f" ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
                 return web.json_response({
                     'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
                 }, status=401)
@@ -114,7 +115,7 @@ class AuthHandler:
             # Валидация пароля
             is_valid, error = User.validate_password(password)
             if not is_valid:
-                self.logger.warning(f"🚨 НЕКОРРЕКТНЫЙ ПАРОЛЬ: {error} для телефона {phone_e164}")
+                self.logger.warning(f" НЕКОРРЕКТНЫЙ ПАРОЛЬ: {error} для телефона {phone_e164}")
                 return web.json_response({
                     'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
                 }, status=401)
@@ -147,94 +148,6 @@ class AuthHandler:
         except Exception as e:
             return web.json_response({
                 'error': f'Ошибка авторизации: {str(e)}'
-            }, status=500)
-    
-    async def send_verification_code(self, request):
-        """Отправка кода подтверждения"""
-        try:
-            data = await request.json()
-            
-            # Валидация данных
-            required_fields = ['phone_e164', 'email']
-            for field in required_fields:
-                if field not in data:
-                    return web.json_response({
-                        'error': f'Поле {field} обязательно'
-                    }, status=400)
-            
-            phone_e164 = data['phone_e164']
-            email = data['email']
-            
-            # Создаем код подтверждения
-            verification_code = await VerificationCode.create_code(
-                self.db_pool, phone_e164, email
-            )
-            
-            # Отправляем код на email
-            email_sent = await self.email_service.send_verification_code(
-                email, verification_code.code
-            )
-            
-            if not email_sent:
-                return web.json_response({
-                    'error': 'Ошибка отправки кода подтверждения'
-                }, status=500)
-            
-            return web.json_response({
-                'message': 'Код подтверждения отправлен на email'
-            })
-            
-        except Exception as e:
-            return web.json_response({
-                'error': f'Ошибка отправки кода: {str(e)}'
-            }, status=500)
-    
-    async def verify_code_and_login(self, request):
-        """Проверка кода и авторизация"""
-        try:
-            data = await request.json()
-            
-            # Валидация данных
-            required_fields = ['phone_e164', 'code']
-            for field in required_fields:
-                if field not in data:
-                    return web.json_response({
-                        'error': f'Поле {field} обязательно'
-                    }, status=400)
-            
-            phone_e164 = data['phone_e164']
-            code = data['code']
-            
-            # Проверяем код
-            is_valid = await VerificationCode.verify_code(
-                self.db_pool, phone_e164, code
-            )
-            
-            if not is_valid:
-                return web.json_response({
-                    'error': 'Неверный или истекший код подтверждения'
-                }, status=400)
-            
-            # Получаем пользователя
-            user = await User.get_by_phone(self.db_pool, phone_e164)
-            
-            if not user:
-                return web.json_response({
-                    'error': 'Пользователь не найден'
-                }, status=404)
-            
-            # Создаем JWT токен
-            token = self.create_jwt_token(user.user_id, user.phone_e164)
-            
-            return web.json_response({
-                'message': 'Успешная авторизация',
-                'token': token,
-                'user': user.to_dict()
-            })
-            
-        except Exception as e:
-            return web.json_response({
-                'error': f'Ошибка проверки кода: {str(e)}'
             }, status=500)
     
     async def get_user_profile(self, request):

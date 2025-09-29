@@ -4,6 +4,7 @@
 from aiohttp import web
 from typing import Dict, Any
 from datetime import datetime
+from utils.packet_utils import get_moscow_time
 
 from models.powerbank import Powerbank
 from models.order import Order
@@ -64,31 +65,27 @@ class SimpleReturnAPI:
                 vsn=1
             )
             
-            # Отправляем команду через TCP соединение
-            if connection.writer and not connection.writer.is_closing():
-                connection.writer.write(return_command)
-                await connection.writer.drain()
-                print(f" Команда на возврат повербанка отправлена станции {station_id}")
-                
-                # Создаем заказ на возврат
-                await Order.create_return_order(
-                    self.db_pool, station_id, user_id, powerbank_id
-                )
-                
-                # Обновляем статус заказа на возврат
-                await active_order.update_status(self.db_pool, 'return')
-                
+            # Используем правильный обработчик возврата
+            from handlers.return_powerbank import ReturnPowerbankHandler
+            return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+            
+            # Запускаем процесс возврата
+            result = await return_handler.start_return_process(station_id, powerbank_id, user_id)
+            
+            if result.get('success'):
                 return {
                     "success": True,
-                    "message": "Повербанк возвращен успешно",
+                    "message": "Процесс возврата запущен. Вставьте повербанк в станцию в течение 10 секунд.",
                     "powerbank_id": powerbank_id,
                     "serial_number": powerbank.serial_number,
                     "station_id": station_id,
-                    "packet_hex": return_command.hex().upper(),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": get_moscow_time().isoformat()
                 }
             else:
-                return {"error": "TCP соединение со станцией недоступно", "success": False}
+                return {
+                    "success": False,
+                    "error": result.get('message', 'Ошибка запуска процесса возврата')
+                }
                 
         except Exception as e:
             print(f" Ошибка возврата повербанка: {e}")

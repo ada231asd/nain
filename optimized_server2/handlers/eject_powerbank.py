@@ -7,6 +7,7 @@ from datetime import datetime
 from models.station_powerbank import StationPowerbank
 from models.powerbank import Powerbank
 from utils.packet_utils import build_force_eject_request
+from utils.centralized_logger import get_logger
 
 
 class EjectPowerbankHandler:
@@ -15,6 +16,7 @@ class EjectPowerbankHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
+        self.logger = get_logger('eject_powerbank')
     
     async def handle_force_eject_request(self, station_id: int, slot_number: int, 
                                        connection) -> Optional[bytes]:
@@ -130,8 +132,13 @@ class EjectPowerbankHandler:
             )
             
             if eject_command:
-                
-                print(f"Отправлена команда на извлечение несовместимого повербанка {terminal_id}")
+                # Отправляем команду на станцию
+                if connection.writer and not connection.writer.is_closing():
+                    connection.writer.write(eject_command)
+                    await connection.writer.drain()
+                    print(f"Отправлена команда на извлечение несовместимого повербанка {terminal_id}")
+                else:
+                    print(f"Соединение со станцией недоступно для извлечения повербанка {terminal_id}")
             else:
                 print(f"Не удалось создать команду на извлечение повербанка {terminal_id}")
                 

@@ -1,98 +1,73 @@
 """
-Централизованный логгер для минимизации файловых дескрипторов
-Использует только один файловый дескриптор для всего сервера
+Централизованная система логирования
 """
 import logging
-import logging.handlers
 import os
-import sys
-from typing import Optional
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any
+from config.settings import LOG_LEVEL
 
-# Глобальный логгер
-_main_logger: Optional[logging.Logger] = None
 
-def get_logger(name: str) -> logging.Logger:
-    """
-    Получает логгер с указанным именем.
-    ВСЕ логгеры используют ОДИН файловый дескриптор.
-    """
-    global _main_logger
-    
-    # Создаем основной логгер только один раз
-    if _main_logger is None:
-        _setup_main_logger()
-    
-    # ВОЗВРАЩАЕМ ОДИН И ТОТ ЖЕ ЛОГГЕР ДЛЯ ВСЕХ
-    # Это минимизирует файловые дескрипторы
-    return _main_logger
-
-def _setup_main_logger():
-    """Настраивает основной логгер с ротацией и оптимизацией"""
-    global _main_logger
-    
-    # Создаем папку для логов, если её нет
+def setup_logging():
+    """Настраивает систему логирования"""
+    # Создаем директорию для логов если её нет
     os.makedirs('logs', exist_ok=True)
     
-    # Создаем основной логгер
-    _main_logger = logging.getLogger('tcp_server')
-    _main_logger.setLevel(logging.INFO)
+    # Настраиваем формат логов
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    date_format = '%Y-%m-%d %H:%M:%S'
     
-    # Очищаем существующие обработчики
-    _main_logger.handlers.clear()
-    
-    # Создаем ротирующий обработчик для записи в файл
-    # Максимум 10MB на файл, сохраняем 5 файлов
-    file_handler = logging.handlers.RotatingFileHandler(
-        'logs/server.log', 
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
+    # Настраиваем корневой логгер
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL.upper()),
+        format=log_format,
+        datefmt=date_format,
+        handlers=[
+            logging.FileHandler('logs/app.log', encoding='utf-8'),
+            logging.StreamHandler()
+        ]
     )
-    file_handler.setLevel(logging.INFO)
     
-    # Создаем форматтер с более компактным форматом
-    formatter = logging.Formatter(
-        '%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    file_handler.setFormatter(formatter)
+    # Настраиваем логгер для TCP пакетов
+    tcp_logger = logging.getLogger('tcp_packets')
+    tcp_handler = logging.FileHandler('logs/tcp_packets.log', encoding='utf-8')
+    tcp_handler.setFormatter(logging.Formatter(log_format, date_format))
+    tcp_logger.addHandler(tcp_handler)
+    tcp_logger.setLevel(logging.INFO)
     
-    # Добавляем обработчик к основному логгеру
-    _main_logger.addHandler(file_handler)
+    # Отключаем дублирование в корневой логгер
+    tcp_logger.propagate = False
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Получает логгер с указанным именем"""
+    return logging.getLogger(name)
+
+
+def log_tcp_packet(packet_type: str, data: bytes, station_id: str = None):
+    """Логирует TCP пакет"""
+    tcp_logger = get_logger('tcp_packets')
+    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
+    timestamp = datetime.now(moscow_tz).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     
-    # Добавляем вывод в консоль только в режиме отладки
-    if os.getenv('DEBUG', 'false').lower() == 'true':
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.DEBUG)
-        console_handler.setFormatter(formatter)
-        _main_logger.addHandler(console_handler)
-    
-    # Предотвращаем дублирование сообщений
-    _main_logger.propagate = False
+    if station_id:
+        tcp_logger.info(f"[{timestamp}] Station {station_id} - {packet_type}: {data.hex().upper()}")
+    else:
+        tcp_logger.info(f"[{timestamp}] {packet_type}: {data.hex().upper()}")
+
 
 def close_logger():
-    """Закрывает все обработчики логгера"""
-    global _main_logger
-    if _main_logger:
-        for handler in _main_logger.handlers:
-            handler.close()
-        _main_logger.handlers.clear()
-        _main_logger = None
+    """Закрывает все логгеры"""
+    logging.shutdown()
 
-def get_logger_stats() -> dict:
-    """Возвращает статистику использования логгера"""
-    global _main_logger
-    if not _main_logger:
-        return {"handlers": 0, "file_descriptors": 0}
-    
-    # Считаем только файловые дескрипторы
-    file_handlers = 0
-    for handler in _main_logger.handlers:
-        if hasattr(handler, 'stream') and hasattr(handler.stream, 'fileno'):
-            file_handlers += 1
-    
+
+def get_logger_stats() -> Dict[str, Any]:
+    """Возвращает статистику логгеров"""
     return {
-        "handlers": len(_main_logger.handlers),
-        "file_descriptors": file_handlers,
-        "level": _main_logger.level
+        "active_loggers": len(logging.Logger.manager.loggerDict),
+        "log_level": LOG_LEVEL
     }
+
+
+# Инициализируем логирование при импорте модуля
+setup_logging()

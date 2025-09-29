@@ -4,6 +4,7 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import aiomysql
+from utils.packet_utils import get_moscow_time
 
 
 class StationPowerbank:
@@ -19,7 +20,7 @@ class StationPowerbank:
         self.level = level
         self.voltage = voltage
         self.temperature = temperature
-        self.last_update = last_update or datetime.now()
+        self.last_update = last_update or get_moscow_time()
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует в словарь"""
@@ -161,7 +162,7 @@ class StationPowerbank:
                     level=level,
                     voltage=voltage,
                     temperature=temperature,
-                    last_update=datetime.now()
+                    last_update=get_moscow_time()
                 )
     
     @classmethod
@@ -253,24 +254,19 @@ class StationPowerbank:
         Синхронизирует повербанки в станции с данными из пакета логина
         Удаляет старые записи и добавляет ВСЕ повербанки (независимо от статуса)
         """
-        print(f"Начинаем синхронизацию station_powerbank для станции {station_id}")
-        print(f"Получено слотов: {len(slots_data)}")
         
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 # Очищаем старые данные
                 await cur.execute("DELETE FROM station_powerbank WHERE station_id = %s", (station_id,))
-                print(f"Очищены старые данные station_powerbank для станции {station_id}")
                 
                 added_count = 0
                 
                 # Добавляем ВСЕ повербанки (независимо от статуса)
                 for slot in slots_data:
                     terminal_id = slot.get('TerminalID')
-                    print(f"Обрабатываем слот {slot.get('Slot')}: TerminalID={terminal_id}")
                     
                     if not terminal_id or terminal_id == '0000000000000000':
-                        print(f"Пропускаем пустой слот {slot.get('Slot')}")
                         continue  # Пропускаем пустые слоты
                     
                     # Получаем powerbank_id по serial_number
@@ -302,11 +298,7 @@ class StationPowerbank:
                         ))
                         
                         added_count += 1
-                        print(f"Добавлен повербанк {terminal_id} в слот {slot['Slot']} станции {station_id}")
-                    else:
-                        print(f"Повербанк {terminal_id} не найден в таблице powerbank")
-                
-                print(f"Синхронизация завершена. Добавлено повербанков: {added_count}")
+                    # else: повербанк не найден - пропускаем
     
     async def update_data(self, db_pool, level: int = None, voltage: int = None, 
                          temperature: int = None) -> bool:
@@ -314,3 +306,63 @@ class StationPowerbank:
         return await StationPowerbank.update_powerbank_data(
             db_pool, self.station_id, self.slot_number, level, voltage, temperature
         )
+    
+    @classmethod
+    async def get_by_station_and_slot(cls, db_pool, station_id: int, slot_number: int) -> Optional['StationPowerbank']:
+        """Получает повербанк по станции и слоту"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    SELECT id, station_id, powerbank_id, slot_number, level, voltage, temperature, last_update
+                    FROM station_powerbank 
+                    WHERE station_id = %s AND slot_number = %s
+                """, (station_id, slot_number))
+                
+                result = await cursor.fetchone()
+                
+                if result:
+                    return cls(
+                        id=result[0],
+                        station_id=result[1],
+                        powerbank_id=result[2],
+                        slot_number=result[3],
+                        level=result[4],
+                        voltage=result[5],
+                        temperature=result[6],
+                        last_update=result[7]
+                    )
+                return None
+    
+    @classmethod
+    async def update_or_add_powerbank(cls, db_pool, station_id: int, powerbank_id: int, 
+                                    slot_number: int, level: int = None, voltage: int = None, 
+                                    temperature: int = None) -> bool:
+        """Обновляет существующий повербанк в слоте или добавляет новый"""
+        try:
+            # Проверяем, есть ли уже повербанк в этом слоте
+            existing = await cls.get_by_station_and_slot(db_pool, station_id, slot_number)
+            
+            if existing:
+                # Обновляем существующий повербанк
+                return await cls.update_powerbank_data(
+                    db_pool, 
+                    station_id, 
+                    slot_number, 
+                    level=level, 
+                    voltage=voltage, 
+                    temperature=temperature
+                )
+            else:
+                # Добавляем новый повербанк в станцию
+                return await cls.add_powerbank(
+                    db_pool, 
+                    station_id, 
+                    powerbank_id, 
+                    slot_number, 
+                    level=level, 
+                    voltage=voltage, 
+                    temperature=temperature
+                )
+        except Exception as e:
+            print(f"Ошибка update_or_add_powerbank: {e}")
+            return False

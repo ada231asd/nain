@@ -4,6 +4,7 @@
 from typing import Optional, Dict, Any
 from datetime import datetime
 import aiomysql
+from utils.packet_utils import get_moscow_time
 
 
 class Station:
@@ -23,8 +24,8 @@ class Station:
         self.iccid = iccid
         self.address_id = address_id
         self.last_seen = last_seen
-        self.created_at = created_at or datetime.now()
-        self.updated_at = updated_at or datetime.now()
+        self.created_at = created_at or get_moscow_time()
+        self.updated_at = updated_at or get_moscow_time()
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует станцию в словарь"""
@@ -70,7 +71,6 @@ class Station:
     async def get_or_create(cls, pool, box_id: str, slots_declared: int) -> tuple['Station', Optional[bytes]]:
         """
         Получает или создает станцию
-        Возвращает кортеж (станция, секретный_ключ)
         """
         async with pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -129,7 +129,7 @@ class Station:
                     (new_status, self.station_id)
                 )
                 self.status = new_status
-                self.updated_at = datetime.now()
+                self.updated_at = get_moscow_time()
     
     async def update_last_seen(self, pool) -> None:
         """Обновляет время последнего контакта"""
@@ -139,8 +139,8 @@ class Station:
                     "UPDATE station SET last_seen = NOW(), updated_at = NOW() WHERE station_id = %s",
                     (self.station_id,)
                 )
-                self.last_seen = datetime.now()
-                self.updated_at = datetime.now()
+                self.last_seen = get_moscow_time()
+                self.updated_at = get_moscow_time()
     
     async def update_remain_num(self, pool, remain_num: int) -> None:
         """Обновляет количество свободных слотов"""
@@ -151,7 +151,7 @@ class Station:
                     (remain_num, self.station_id)
                 )
                 self.remain_num = remain_num
-                self.updated_at = datetime.now()
+                self.updated_at = get_moscow_time()
     
     async def update_iccid(self, pool, iccid: str) -> None:
         """Обновляет ICCID станции"""
@@ -162,7 +162,7 @@ class Station:
                     (iccid, self.station_id)
                 )
                 self.iccid = iccid
-                self.updated_at = datetime.now()
+                self.updated_at = get_moscow_time()
 
     @classmethod
     async def get_all_active(cls, db_pool) -> list:

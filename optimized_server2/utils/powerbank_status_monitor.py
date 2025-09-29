@@ -35,7 +35,6 @@ class PowerbankStatusMonitor:
                         powerbank_ids.add(powerbank_id)
                     
                     self.station_powerbanks[station_id] = powerbank_ids
-                    print(f"Инициализирован мониторинг для станции {station_id}: {len(powerbank_ids)} повербанков")
                     
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -104,17 +103,16 @@ class PowerbankStatusMonitor:
                     result = await cur.fetchone()
                     if result:
                         slot_number = result[0]
-                        print(f"Запланировано извлечение повербанка {powerbank_id} из слота {slot_number} станции {station_id}")
                         
-                        # Здесь можно добавить логику отправки команды на извлечение
-                        # или поставить задачу в очередь
+                        
+                  
                         
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
     
     async def monitor_station(self, station_id: int, interval_seconds: int = 30) -> None:
         """Запускает мониторинг станции в фоновом режиме"""
-        print(f"Запуск мониторинга станции {station_id} с интервалом {interval_seconds} секунд")
+        
         
         while True:
             try:

@@ -4,6 +4,7 @@
 from typing import Optional, Dict, Any
 from datetime import datetime
 import asyncio
+from utils.packet_utils import get_moscow_time
 import socket
 
 
@@ -17,8 +18,8 @@ class StationConnection:
         self.box_id = box_id
         self.station_id = station_id
         self.writer = writer
-        self.last_seen = datetime.now()
-        self.last_heartbeat = datetime.now()
+        self.last_seen = get_moscow_time()
+        self.last_heartbeat = get_moscow_time()
         self.token: Optional[int] = None
         self.secret_key: Optional[bytes] = None
         self.station_status = "pending"
@@ -41,8 +42,8 @@ class StationConnection:
     
     def update_heartbeat(self):
         """Обновляет время последнего heartbeat"""
-        self.last_heartbeat = datetime.now()
-        self.last_seen = datetime.now()
+        self.last_heartbeat = get_moscow_time()
+        self.last_seen = get_moscow_time()
     
     def update_login(self, box_id: str, station_id: int, token: int, secret_key: bytes):
         """Обновляет данные после логина"""
@@ -110,7 +111,7 @@ class ConnectionManager:
     
     def cleanup_inactive_connections(self, timeout_seconds: int = 300):
         """Очищает неактивные соединения"""
-        current_time = datetime.now()
+        current_time = get_moscow_time()
         inactive_fds = []
         
         for fd, connection in self.connections.items():

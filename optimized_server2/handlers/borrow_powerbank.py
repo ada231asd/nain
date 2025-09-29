@@ -8,6 +8,7 @@ from models.station_powerbank import StationPowerbank
 from models.powerbank import Powerbank
 from models.order import Order
 from utils.packet_utils import build_borrow_power_bank, parse_borrow_request, parse_borrow_response
+from utils.centralized_logger import get_logger
 
 
 class BorrowPowerbankHandler:
@@ -16,6 +17,7 @@ class BorrowPowerbankHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
+        self.logger = get_logger('borrow_powerbank')
     
     async def handle_borrow_request(self, data: bytes, connection) -> Optional[bytes]:
         """
@@ -104,13 +106,6 @@ class BorrowPowerbankHandler:
                 )
                 
                 if station_powerbank:
-                    # Создаем заказ на выдачу повербанка
-                    await self._create_borrow_order(
-                        station_id, 
-                        station_powerbank.powerbank_id, 
-                        user_id=1  # Временный user_id, в реальной системе должен быть из сессии
-                    )
-                    
                     # Удаляем повербанк из станции
                     await self.process_successful_borrow(station_id, slot_number)
                 
@@ -119,15 +114,29 @@ class BorrowPowerbankHandler:
                 station = await Station.get_by_id(self.db_pool, station_id)
                 if station:
                     await station.update_last_seen(self.db_pool)
-                    # Обновляем remain_num станции (увеличиваем на 1 при выдаче)
-                    await station.update_remain_num(self.db_pool, int(station.remain_num) + 1)
+                    # Обновляем remain_num станции (уменьшаем на 1 при выдаче)
+                    await station.update_remain_num(self.db_pool, int(station.remain_num) - 1)
                 
                 print(f"Выдача повербанка успешна для станции {station_id}")
                 
                 # Автоматически запрашиваем инвентарь после успешной выдачи
                 await self._request_inventory_after_operation(station_id)
             else:
-                print(f"Выдача повербанка не удалась для станции {station_id}")
+                # Обрабатываем различные коды ошибок
+                result_code = borrow_response.get('ResultCode', 0)
+                error_messages = {
+                    0: "Неизвестная ошибка",
+                    1: "Слот заблокирован",
+                    2: "Повербанк уже выдан",
+                    3: "Ошибка связи со станцией",
+                    4: "Неверный слот",
+                    5: "Повербанк поврежден",
+                    6: "Слот пуст",
+                    7: "Ошибка механизма",
+                    8: "Превышено время ожидания"
+                }
+                error_msg = error_messages.get(result_code, f"Неизвестная ошибка (код: {result_code})")
+                print(f"Выдача повербанка не удалась для станции {station_id}: {error_msg}")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -221,7 +230,6 @@ class BorrowPowerbankHandler:
         Отправляет запрос на выдачу повербанка на станцию
         """
         try:
-            print(f" BorrowPowerbankHandler: Отправка запроса на выдачу - station_id={station_id}, powerbank_id={powerbank_id}, user_id={user_id}")
             
             # Получаем соединение со станцией
             if not self.connection_manager:

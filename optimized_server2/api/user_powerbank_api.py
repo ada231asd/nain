@@ -335,3 +335,60 @@ class UserPowerbankAPI:
         except Exception as e:
             self.logger.error(f"Ошибка получения профиля пользователя {user_id}: {e}", exc_info=True)
             return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+    
+    @jwt_middleware
+    async def return_damage_powerbank(self, request: web.Request):
+        """
+        Возврат повербанка с поломкой
+        POST /api/return-damage
+        """
+        user_id = request['user']['user_id']
+        self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой")
+
+        try:
+            data = await request.json()
+            station_id = data.get('station_id')
+            description = data.get('description', '')
+
+            if not station_id:
+                return web.json_response({
+                    "success": False,
+                    "error": "Не указан ID станции"
+                }, status=400)
+
+            if not description:
+                return web.json_response({
+                    "success": False,
+                    "error": "Не указано описание проблемы"
+                }, status=400)
+
+            # Проверяем, что станция существует
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return web.json_response({
+                    "success": False,
+                    "error": "Станция не найдена"
+                }, status=404)
+
+            # Используем обработчик возврата с поломкой
+            from handlers.return_powerbank import ReturnPowerbankHandler
+            return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+            
+            result = await return_handler.start_damage_return_process(station_id, user_id, description)
+            
+            if result.get('success'):
+                return web.json_response({
+                    "success": True,
+                    "message": result.get('message'),
+                    "station_id": station_id,
+                    "user_id": user_id
+                })
+            else:
+                return web.json_response({
+                    "success": False,
+                    "error": result.get('message', 'Ошибка возврата с поломкой')
+                }, status=400)
+
+        except Exception as e:
+            self.logger.error(f"Ошибка возврата повербанка с поломкой для пользователя {user_id}: {e}", exc_info=True)
+            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
