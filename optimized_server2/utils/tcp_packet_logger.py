@@ -13,15 +13,6 @@ def log_tcp_packet(direction: str, packet_type: str, station_id: str,
                   additional_info: str = "") -> None:
     """
     Логирует TCP пакет
-    
-    Args:
-        direction: "INCOMING" или "OUTGOING"
-        packet_type: Тип пакета (Login, Heartbeat, etc.)
-        station_id: ID станции
-        packet_size: Размер пакета в байтах
-        command: Команда (0x64, 0x80, etc.)
-        packet_data: Hex данные пакета
-        additional_info: Дополнительная информация
     """
     logger = get_tcp_logger()
     

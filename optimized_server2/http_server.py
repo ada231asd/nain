@@ -123,8 +123,8 @@ class HTTPServer:
         
         # Создаем обработчики
         self.auth_handler = AuthHandler(self.db_pool)
-        self.admin_endpoints = AdminEndpoints(self.db_pool, connection_manager)  # Передаем connection_manager
-        self.borrow_endpoints = BorrowEndpoints(self.db_pool, connection_manager)  # Передаем connection_manager
+        self.admin_endpoints = AdminEndpoints(self.db_pool, connection_manager)  
+        self.borrow_endpoints = BorrowEndpoints(self.db_pool, connection_manager)  
         self.crud_endpoints = CRUDEndpoints(self.db_pool)
         self.powerbank_crud = PowerbankCRUD(self.db_pool)
         self.orders_crud = OrdersCRUD(self.db_pool)
