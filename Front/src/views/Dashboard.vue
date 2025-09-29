@@ -440,13 +440,11 @@ const getStatusText = (status) => {
 }
 
 const getAvailablePorts = (station) => {
-  if (!station.ports) return 0
-  return station.ports.filter(port => port.status === 'free').length
+  return station.freePorts || 0
 }
 
 const getTotalPorts = (station) => {
-  if (!station.ports) return 0
-  return station.ports.length
+  return station.totalPorts || 0
 }
 
 const formatTime = (timestamp) => {

@@ -106,34 +106,26 @@ export const useStationsStore = defineStore('stations', {
               // Обновляем данные станции актуальной информацией о портах
               if (powerbanksData && Array.isArray(powerbanksData)) {
                 stationDetails.ports = powerbanksData;
+                // Вычисляем числовые свойства на основе данных с сервера
+                stationDetails.freePorts = powerbanksData.filter(port => port.status === 'free').length;
+                stationDetails.totalPorts = powerbanksData.length;
+                stationDetails.occupiedPorts = powerbanksData.filter(port => port.status === 'occupied').length;
                 console.log('Порты станции избранного обновлены актуальными данными:', stationDetails.ports);
               } else {
-                // Если нет данных о powerbank'ах, создаем порты на основе remain_num
+                // Если нет данных о powerbank'ах, создаем числовые свойства на основе remain_num
                 const totalSlots = stationDetails.slots_declared || 20;
                 const freeSlots = stationDetails.remain_num || 0;
                 const occupiedSlots = totalSlots - freeSlots;
                 
-                stationDetails.ports = [];
+                stationDetails.freePorts = freeSlots;
+                stationDetails.totalPorts = totalSlots;
+                stationDetails.occupiedPorts = occupiedSlots;
                 
-                // Создаем свободные порты
-                for (let i = 0; i < freeSlots; i++) {
-                  stationDetails.ports.push({
-                    slot_number: i + 1,
-                    status: 'free',
-                    powerbank_id: null
-                  });
-                }
-                
-                // Создаем занятые порты
-                for (let i = freeSlots; i < totalSlots; i++) {
-                  stationDetails.ports.push({
-                    slot_number: i + 1,
-                    status: 'occupied',
-                    powerbank_id: `powerbank_${i + 1}`
-                  });
-                }
-                
-                console.log('Созданы порты для избранного на основе remain_num:', stationDetails.ports);
+                console.log('Созданы числовые свойства портов для избранного:', {
+                  freePorts: stationDetails.freePorts,
+                  totalPorts: stationDetails.totalPorts,
+                  occupiedPorts: stationDetails.occupiedPorts
+                });
               }
               
               return {
@@ -147,6 +139,9 @@ export const useStationsStore = defineStore('stations', {
                 ports: stationDetails?.ports || [], // Используем актуальные данные о портах
                 remain_num: stationDetails?.remain_num || 0,
                 slots_declared: stationDetails?.slots_declared || 0,
+                freePorts: stationDetails?.freePorts || stationDetails?.remain_num || 0,
+                totalPorts: stationDetails?.totalPorts || stationDetails?.slots_declared || 0,
+                occupiedPorts: stationDetails?.occupiedPorts || ((stationDetails?.slots_declared || 0) - (stationDetails?.remain_num || 0)),
                 lastSeen: fav.created_at,
                 // Сохраняем оригинальные данные избранного
                 favorite_id: fav.id,
@@ -166,6 +161,9 @@ export const useStationsStore = defineStore('stations', {
                 ports: [],
                 remain_num: 0,
                 slots_declared: 0,
+                freePorts: 0,
+                totalPorts: 0,
+                occupiedPorts: 0,
                 lastSeen: fav.created_at,
                 favorite_id: fav.id,
                 favorite_created_at: fav.created_at
@@ -213,30 +211,19 @@ export const useStationsStore = defineStore('stations', {
                 // Обновляем данные станции актуальной информацией о портах
                 if (powerbanksData && Array.isArray(powerbanksData)) {
                   stationDetails.ports = powerbanksData;
+                  // Вычисляем числовые свойства на основе данных с сервера
+                  stationDetails.freePorts = powerbanksData.filter(port => port.status === 'free').length;
+                  stationDetails.totalPorts = powerbanksData.length;
+                  stationDetails.occupiedPorts = powerbanksData.filter(port => port.status === 'occupied').length;
                 } else {
-                  // Если нет данных о powerbank'ах, создаем порты на основе remain_num
+                  // Если нет данных о powerbank'ах, создаем числовые свойства на основе remain_num
                   const totalSlots = stationDetails.slots_declared || 20;
                   const freeSlots = stationDetails.remain_num || 0;
+                  const occupiedSlots = totalSlots - freeSlots;
                   
-                  stationDetails.ports = [];
-                  
-                  // Создаем свободные порты
-                  for (let i = 0; i < freeSlots; i++) {
-                    stationDetails.ports.push({
-                      slot_number: i + 1,
-                      status: 'free',
-                      powerbank_id: null
-                    });
-                  }
-                  
-                  // Создаем занятые порты
-                  for (let i = freeSlots; i < totalSlots; i++) {
-                    stationDetails.ports.push({
-                      slot_number: i + 1,
-                      status: 'occupied',
-                      powerbank_id: `powerbank_${i + 1}`
-                    });
-                  }
+                  stationDetails.freePorts = freeSlots;
+                  stationDetails.totalPorts = totalSlots;
+                  stationDetails.occupiedPorts = occupiedSlots;
                 }
                 
                 favoriteStations.push(stationDetails);
@@ -355,6 +342,9 @@ export const useStationsStore = defineStore('stations', {
           ports: [],
           remain_num: 0,
           slots_declared: 0,
+          freePorts: 0,
+          totalPorts: 0,
+          occupiedPorts: 0,
           lastSeen: fav.created_at,
           favorite_id: fav.id,
           favorite_created_at: fav.created_at
@@ -404,34 +394,26 @@ export const useStationsStore = defineStore('stations', {
         // Обновляем данные станции актуальной информацией о портах
         if (powerbanksData && Array.isArray(powerbanksData)) {
           stationDetails.ports = powerbanksData;
+          // Вычисляем числовые свойства на основе данных с сервера
+          stationDetails.freePorts = powerbanksData.filter(port => port.status === 'free').length;
+          stationDetails.totalPorts = powerbanksData.length;
+          stationDetails.occupiedPorts = powerbanksData.filter(port => port.status === 'occupied').length;
           console.log('Порты станции обновлены актуальными данными:', stationDetails.ports);
         } else {
-          // Если нет данных о powerbank'ах, создаем порты на основе remain_num
+          // Если нет данных о powerbank'ах, создаем числовые свойства на основе remain_num
           const totalSlots = stationDetails.slots_declared || 20;
           const freeSlots = stationDetails.remain_num || 0;
           const occupiedSlots = totalSlots - freeSlots;
           
-          stationDetails.ports = [];
+          stationDetails.freePorts = freeSlots;
+          stationDetails.totalPorts = totalSlots;
+          stationDetails.occupiedPorts = occupiedSlots;
           
-          // Создаем свободные порты
-          for (let i = 0; i < freeSlots; i++) {
-            stationDetails.ports.push({
-              slot_number: i + 1,
-              status: 'free',
-              powerbank_id: null
-            });
-          }
-          
-          // Создаем занятые порты
-          for (let i = freeSlots; i < totalSlots; i++) {
-            stationDetails.ports.push({
-              slot_number: i + 1,
-              status: 'occupied',
-              powerbank_id: `powerbank_${i + 1}`
-            });
-          }
-          
-          console.log('Созданы порты на основе remain_num:', stationDetails.ports);
+          console.log('Созданы числовые свойства портов:', {
+            freePorts: stationDetails.freePorts,
+            totalPorts: stationDetails.totalPorts,
+            occupiedPorts: stationDetails.occupiedPorts
+          });
         }
         
         return stationDetails;

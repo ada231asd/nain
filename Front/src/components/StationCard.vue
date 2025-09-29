@@ -43,7 +43,7 @@
     
     <div class="station-card__actions">
       <BaseButton
-        v-if="showTakeBatteryButton && (availablePorts > 0 || (station.status === 'active' && !station.ports))"
+        v-if="showTakeBatteryButton && (availablePorts > 0 || station.status === 'active')"
         variant="success"
         size="small"
         @click="$emit('takeBattery', station)"
@@ -107,18 +107,15 @@ const props = defineProps({
 const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery'])
 
 const availablePorts = computed(() => {
-  if (!props.station.ports) return 0
-  return props.station.ports.filter(port => port.status === 'free').length
+  return props.station.freePorts || 0
 })
 
 const totalPorts = computed(() => {
-  if (!props.station.ports) return 0
-  return props.station.ports.length
+  return props.station.totalPorts || 0
 })
 
 const returnablePorts = computed(() => {
-  if (!props.station.ports) return 0
-  return props.station.ports.filter(port => port.status === 'occupied').length
+  return props.station.occupiedPorts || 0
 })
 
 const getStatusText = (status) => {
