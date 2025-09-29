@@ -365,6 +365,20 @@ class AdminPowerbankAPI:
                         WHERE station_id = %s
                     """, (station_id, station_id))
                     
+                    # Проверяем существование пользователя или создаем системного пользователя
+                    await cur.execute("""
+                        SELECT user_id FROM app_user WHERE user_id = %s
+                    """, (admin_user_id,))
+                    user_exists = await cur.fetchone()
+                    
+                    if not user_exists:
+                        # Создаем системного пользователя для административных операций
+                        await cur.execute("""
+                            INSERT INTO app_user (user_id, username, email, phone, status, created_at)
+                            VALUES (%s, %s, %s, %s, %s, NOW())
+                            ON DUPLICATE KEY UPDATE username = VALUES(username)
+                        """, (admin_user_id, f'admin_user_{admin_user_id}', f'admin_{admin_user_id}@system.local', '0000000000', 'active'))
+                    
                     # Создаем запись о принудительном извлечении
                     await cur.execute("""
                         INSERT INTO `orders` (station_id, user_id, powerbank_id, status, timestamp)

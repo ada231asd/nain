@@ -15,7 +15,13 @@ class SlotAbnormalReportHandler:
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        self.logger = get_logger('slot_abnormal_report')
+        try:
+            self.logger = get_logger('slot_abnormal_report')
+        except Exception as e:
+            print(f"Ошибка инициализации логгера: {e}")
+            # Создаем fallback логгер
+            import logging
+            self.logger = logging.getLogger('slot_abnormal_report')
     
     async def handle_slot_abnormal_report_request(self, data: bytes, connection) -> Optional[bytes]:
         """

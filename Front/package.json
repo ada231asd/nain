@@ -1,0 +1,29 @@
+{
+  "name": "zarayd-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vueuse/core": "^10.7.0",
+    "axios": "^1.6.0",
+    "pinia": "^2.2.0",
+    "qrcode": "^1.5.3",
+    "qrcode-reader": "^1.0.4",
+    "vue": "^3.5.18",
+    "vue-qrcode-reader": "^5.7.3",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "eslint": "^9.35.0",
+    "eslint-plugin-vue": "^10.4.0",
+    "globals": "^16.3.0",
+    "vite": "^7.1.2"
+  }
+}

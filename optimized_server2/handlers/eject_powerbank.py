@@ -62,7 +62,6 @@ class EjectPowerbankHandler:
             # Парсим ответ от станции
             from utils.packet_utils import parse_force_eject_response
             eject_response = parse_force_eject_response(data)
-            print(f"Обработан ответ на принудительное извлечение: {eject_response}")
             
             station_id = connection.station_id
             if not station_id:

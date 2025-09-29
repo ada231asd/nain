@@ -148,14 +148,29 @@ class StationPowerbank:
                 voltage_int = int(voltage) if voltage is not None else None
                 temperature_int = int(temperature) if temperature is not None else None
                 
+                # Используем INSERT ... ON DUPLICATE KEY UPDATE для избежания дубликатов
                 await cur.execute("""
                     INSERT INTO station_powerbank 
                     (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
                     VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    ON DUPLICATE KEY UPDATE
+                    powerbank_id = VALUES(powerbank_id),
+                    level = VALUES(level),
+                    voltage = VALUES(voltage),
+                    temperature = VALUES(temperature),
+                    last_update = NOW()
                 """, (station_id, powerbank_id, slot_number, level_int, voltage_int, temperature_int))
                 
+                # Получаем ID записи (новой или обновленной)
+                await cur.execute("""
+                    SELECT id FROM station_powerbank 
+                    WHERE station_id = %s AND slot_number = %s
+                """, (station_id, slot_number))
+                result = await cur.fetchone()
+                record_id = result[0] if result else cur.lastrowid
+                
                 return cls(
-                    id=cur.lastrowid,
+                    id=record_id,
                     station_id=station_id,
                     powerbank_id=powerbank_id,
                     slot_number=slot_number,
@@ -288,6 +303,12 @@ class StationPowerbank:
                             INSERT INTO station_powerbank 
                             (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
                             VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                            ON DUPLICATE KEY UPDATE
+                            powerbank_id = VALUES(powerbank_id),
+                            level = VALUES(level),
+                            voltage = VALUES(voltage),
+                            temperature = VALUES(temperature),
+                            last_update = NOW()
                         """, (
                             station_id,
                             powerbank_id,

@@ -45,6 +45,20 @@ class Order:
         """Создает заказ с указанными параметрами"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Проверяем существование пользователя
+                await cursor.execute("""
+                    SELECT user_id FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                user_exists = await cursor.fetchone()
+                
+                if not user_exists:
+                    # Создаем системного пользователя для административных операций
+                    await cursor.execute("""
+                        INSERT INTO app_user (user_id, username, email, phone, status, created_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW())
+                        ON DUPLICATE KEY UPDATE username = VALUES(username)
+                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
+                
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, order_type, status, notes, timestamp)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -69,6 +83,20 @@ class Order:
         """Создает заказ на выдачу повербанка"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Проверяем существование пользователя
+                await cursor.execute("""
+                    SELECT user_id FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                user_exists = await cursor.fetchone()
+                
+                if not user_exists:
+                    # Создаем системного пользователя для административных операций
+                    await cursor.execute("""
+                        INSERT INTO app_user (user_id, username, email, phone, status, created_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW())
+                        ON DUPLICATE KEY UPDATE username = VALUES(username)
+                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
+                
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
                     VALUES (%s, %s, %s, %s, %s)
@@ -91,6 +119,20 @@ class Order:
         """Создает заказ на возврат повербанка"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Проверяем существование пользователя
+                await cursor.execute("""
+                    SELECT user_id FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                user_exists = await cursor.fetchone()
+                
+                if not user_exists:
+                    # Создаем системного пользователя для административных операций
+                    await cursor.execute("""
+                        INSERT INTO app_user (user_id, username, email, phone, status, created_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW())
+                        ON DUPLICATE KEY UPDATE username = VALUES(username)
+                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
+                
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
                     VALUES (%s, %s, %s, %s, %s)
@@ -142,6 +184,33 @@ class Order:
                     ORDER BY timestamp DESC 
                     LIMIT %s
                 """, (user_id, limit))
+                
+                results = await cursor.fetchall()
+                
+                orders = []
+                for result in results:
+                    orders.append(cls(
+                        order_id=result[0],
+                        station_id=result[1],
+                        user_id=result[2],
+                        powerbank_id=result[3],
+                        status=result[4],
+                        timestamp=result[5]
+                    ))
+                
+                return orders
+    
+    @classmethod
+    async def get_active_orders_by_user(cls, db_pool, user_id: int) -> List['Order']:
+        """Получает активные заказы пользователя"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
+                    FROM orders 
+                    WHERE user_id = %s AND status IN ('borrow', 'return_damage')
+                    ORDER BY timestamp DESC
+                """, (user_id,))
                 
                 results = await cursor.fetchall()
                 
