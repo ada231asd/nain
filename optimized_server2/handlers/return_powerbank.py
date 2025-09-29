@@ -308,3 +308,102 @@ class ReturnPowerbankHandler:
             logger = get_logger('return_powerbank')
             logger.error(f"Ошибка проверки вставки повербанка: {e}")
             return False
+    
+    async def start_manual_return_process(self, station_id: int, user_id: int, order_id: int) -> Dict[str, Any]:
+        """
+        Запускает процесс ручного возврата повербанка (вариант 3)
+        """
+        try:
+            logger = get_logger('return_powerbank')
+            logger.info(f"Начинаем процесс ручного возврата: station_id={station_id}, user_id={user_id}, order_id={order_id}")
+            
+            # Получаем заказ
+            order = await Order.get_by_id(self.db_pool, order_id)
+            if not order:
+                return {"success": False, "message": "Заказ не найден"}
+            
+            if order.user_id != user_id:
+                return {"success": False, "message": "Заказ не принадлежит пользователю"}
+            
+            if order.status != 'borrow':
+                return {"success": False, "message": "Заказ неактивен или уже возвращен"}
+            
+            powerbank_id = order.powerbank_id
+            if not powerbank_id:
+                return {"success": False, "message": "В заказе не указан повербанк"}
+            
+            # Проверяем, что станция существует и активна
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return {"success": False, "message": "Станция не найдена"}
+            
+            if station.status != 'active':
+                return {"success": False, "message": "Станция неактивна"}
+            
+            # Проверяем, что станция подключена
+            if not self.connection_manager:
+                return {"success": False, "message": "Connection manager недоступен"}
+            
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                return {"success": False, "message": "Станция не подключена"}
+            
+            # Отправляем команду на возврат повербанка
+            secret_key = connection.secret_key
+            if not secret_key:
+                return {"success": False, "message": "Нет секретного ключа для станции"}
+            
+            # Создаем команду возврата (используем слот 1 по умолчанию)
+            return_command = build_return_power_bank(
+                secret_key=secret_key,
+                slot=1,  # Можно сделать динамическим
+                vsn=1
+            )
+            
+            # Отправляем команду станции
+            try:
+                connection.writer.write(return_command)
+                await connection.writer.drain()
+                logger.info(f"Команда возврата отправлена на станцию {station_id}")
+            except Exception as e:
+                logger.error(f"Ошибка отправки команды возврата: {e}")
+                return {"success": False, "message": f"Ошибка отправки команды: {e}"}
+            
+            # Ждем 10 секунд для вставки повербанка пользователем
+            logger.info(f"Ожидаем вставку повербанка в течение 10 секунд...")
+            await asyncio.sleep(10)
+            
+            # Запрашиваем инвентарь для получения актуальных данных о вставленном повербанке
+            await self._request_inventory_after_operation(station_id)
+            
+            # Дополнительно ждем еще 2 секунды для обработки ответа инвентаря
+            await asyncio.sleep(2)
+            
+            # Проверяем, был ли повербанк действительно вставлен в станцию
+            powerbank_inserted = await self._check_powerbank_insertion(station_id, powerbank_id)
+            
+            if powerbank_inserted:
+                # Обновляем статус заказа на 'return'
+                await Order.update_order_status(self.db_pool, order_id, 'return')
+                logger.info(f"Заказ {order_id} изменен на статус 'return' - повербанк {powerbank_id} возвращен")
+                message = "Повербанк успешно возвращен и обработан станцией."
+            else:
+                logger.warning(f"Повербанк {powerbank_id} не был обнаружен в станции {station_id} после 10 секунд ожидания")
+                message = "Повербанк не был обнаружен в станции. Проверьте, что повербанк вставлен правильно."
+            
+            logger.info(f"Процесс ручного возврата завершен: order_id={order_id}")
+            
+            return {
+                "success": True,
+                "message": message,
+                "order_id": order_id,
+                "powerbank_id": powerbank_id,
+                "station_id": station_id,
+                "powerbank_inserted": powerbank_inserted
+            }
+            
+        except Exception as e:
+            logger = get_logger('return_powerbank')
+            logger.error(f"Ошибка процесса ручного возврата: {e}")
+            return {"success": False, "message": f"Ошибка процесса возврата: {e}"}

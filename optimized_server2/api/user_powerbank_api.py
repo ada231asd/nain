@@ -192,11 +192,11 @@ class UserPowerbankAPI:
     @jwt_middleware
     async def return_powerbank(self, request: web.Request):
         """
-        Вернуть повербанк
+        Ручной возврат повербанка (вариант 3)
         POST /api/user/powerbanks/return
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил возврат повербанка")
+        self.logger.info(f"Пользователь {user_id} запросил ручной возврат повербанка")
 
         try:
             data = await request.json()
@@ -222,9 +222,9 @@ class UserPowerbankAPI:
                 }, status=403)
 
             # Проверяем, что заказ активен
-            if order.status != 'active':
+            if order.status != 'borrow':
                 return web.json_response({
-                    "error": "Заказ неактивен"
+                    "error": "Заказ неактивен или уже возвращен"
                 }, status=400)
 
             # Проверяем, что станция существует и активна
@@ -239,26 +239,25 @@ class UserPowerbankAPI:
                     "error": "Станция неактивна"
                 }, status=400)
 
-            # Выполняем возврат повербанка
-            return_result = await self.return_api.return_powerbank(
-                station_id,
-                user_id,
-                order.powerbank_id
-            )
+            # Используем обработчик возврата для ручного возврата
+            from handlers.return_powerbank import ReturnPowerbankHandler
+            return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+            
+            result = await return_handler.start_manual_return_process(station_id, user_id, order_id)
 
-            if not return_result["success"]:
+            if result.get('success'):
+                self.logger.info(f"Пользователь {user_id} успешно вернул повербанк {order.powerbank_id} на станцию {station_id}")
                 return web.json_response({
-                    "error": return_result["error"]
+                    "success": True,
+                    "message": result.get('message', 'Повербанк успешно возвращен'),
+                    "order_id": order.order_id,
+                    "station_box_id": station.box_id,
+                    "powerbank_inserted": result.get('powerbank_inserted', False)
+                })
+            else:
+                return web.json_response({
+                    "error": result.get('message', 'Ошибка возврата повербанка')
                 }, status=500)
-
-            self.logger.info(f"Пользователь {user_id} успешно вернул повербанк {order.powerbank_id} на станцию {station_id}")
-
-            return web.json_response({
-                "success": True,
-                "message": "Повербанк успешно возвращен",
-                "order_id": order.order_id,
-                "station_box_id": station.box_id
-            })
 
         except Exception as e:
             self.logger.error(f"Ошибка возврата повербанка пользователем {user_id}: {e}", exc_info=True)
