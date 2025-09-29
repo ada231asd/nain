@@ -22,7 +22,6 @@ class EjectPowerbankHandler:
                                        connection) -> Optional[bytes]:
         """
         Обрабатывает запрос на принудительное извлечение повербанка
-        Возвращает команду для отправки на станцию или None
         """
         try:
             # Проверяем, есть ли повербанк в указанном слоте
@@ -96,7 +95,7 @@ class EjectPowerbankHandler:
                                      terminal_id: str = None) -> None:
         """
         Обрабатывает успешное извлечение повербанка
-        Удаляет повербанк из station_powerbank
+
         """
         try:
             success = await StationPowerbank.remove_powerbank(
@@ -168,13 +167,20 @@ class EjectPowerbankHandler:
                     self.db_pool, sp.powerbank_id
                 )
                 
-                if powerbank and powerbank.org_unit_id != station_org_unit_id:
-                    print(f"Найден несовместимый повербанк в слоте {sp.slot_number}")
+                if powerbank:
+                    # НЕ выплевываем повербанки со статусом 'unknown' - они должны остаться в станции
+                    if powerbank.status == 'unknown':
+                        print(f"Повербанк {powerbank.serial_number} в слоте {sp.slot_number} имеет статус 'unknown' - оставляем в станции")
+                        continue
                     
-                    # Извлекаем несовместимый повербанк
-                    await self.extract_incompatible_powerbank(
-                        station_id, sp.slot_number, powerbank.serial_number, connection
-                    )
+                    # Выплевываем только повербанки других групп, которые НЕ unknown
+                    if powerbank.org_unit_id != station_org_unit_id:
+                        print(f"Найден несовместимый повербанк в слоте {sp.slot_number}")
+                        
+                        # Извлекаем несовместимый повербанк
+                        await self.extract_incompatible_powerbank(
+                            station_id, sp.slot_number, powerbank.serial_number, connection
+                        )
                     
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

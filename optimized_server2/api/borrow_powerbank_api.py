@@ -11,7 +11,7 @@ from models.powerbank import Powerbank
 from models.order import Order
 from handlers.borrow_powerbank import BorrowPowerbankHandler
 from utils.station_resolver import StationResolver
-# from utils.packet_logger import packet_logger  # Удален
+
 
 
 class BorrowPowerbankAPI:
@@ -121,7 +121,7 @@ class BorrowPowerbankAPI:
                 borrow_command = build_borrow_power_bank(
                     secret_key=connection.secret_key,
                     slot=slot_number,
-                    vsn=1  # Используем VSN=1 по умолчанию
+                    vsn=1 
                 )
                 
                 # Логируем исходящий пакет
@@ -132,7 +132,7 @@ class BorrowPowerbankAPI:
                     "powerbank_id": powerbank.powerbank_id,
                     "serial_number": powerbank.serial_number
                 }
-                # packet_logger.log_outgoing_packet(borrow_command, station_info)  # Удален
+              
                 
                 # Отправляем команду через TCP соединение
                 if connection.writer and not connection.writer.is_closing():
@@ -203,7 +203,7 @@ class BorrowPowerbankAPI:
             if not station:
                 return {"error": "Станция не найдена", "success": False}
             
-            # Получаем информацию о подключении (для HTTP API connection_manager может быть None)
+            # Получаем информацию о подключении 
             is_connected = False
             if self.connection_manager:
                 connection = self.connection_manager.get_connection_by_station_id(station_id)

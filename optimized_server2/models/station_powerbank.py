@@ -387,3 +387,22 @@ class StationPowerbank:
         except Exception as e:
             print(f"Ошибка update_or_add_powerbank: {e}")
             return False
+    
+    @classmethod
+    async def get_occupied_slots(cls, db_pool, station_id: int) -> List[int]:
+        """Получает список занятых слотов в станции"""
+        try:
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("""
+                        SELECT slot_number 
+                        FROM station_powerbank 
+                        WHERE station_id = %s
+                    """, (station_id,))
+                    
+                    results = await cur.fetchall()
+                    return [row[0] for row in results]
+                    
+        except Exception as e:
+            print(f"Ошибка получения занятых слотов: {e}")
+            return []

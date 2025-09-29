@@ -22,7 +22,6 @@ class BorrowPowerbankHandler:
     async def handle_borrow_request(self, data: bytes, connection) -> Optional[bytes]:
         """
         Обрабатывает запрос на выдачу повербанка
-        Возвращает команду для отправки на станцию или None
         """
         try:
             # Парсим запрос на выдачу
@@ -144,7 +143,7 @@ class BorrowPowerbankHandler:
     async def process_successful_borrow(self, station_id: int, slot_number: int) -> None:
         """
         Обрабатывает успешную выдачу повербанка
-        Удаляет повербанк из station_powerbank
+
         """
         try:
             success = await StationPowerbank.remove_powerbank(

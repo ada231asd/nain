@@ -141,7 +141,7 @@ class BorrowEndpoints:
                     status=500
                 )
         
-        # Запрос на выдачу повербанка по его ID (автоматическое определение станции)
+        # Запрос на выдачу повербанка по его ID 
         async def request_borrow_by_powerbank_id(request):
             """Запросить выдачу повербанка по его ID"""
             try:

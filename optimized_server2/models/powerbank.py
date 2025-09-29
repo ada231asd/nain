@@ -190,35 +190,6 @@ class Powerbank:
                 self.soh = soh
                 return True
     
-    @classmethod
-    async def activate_unknown_powerbanks_in_station(cls, db_pool, station_id: int) -> int:
-        """
-        Активирует все повербанки со статусом 'unknown' в группе станции
-        Возвращает количество активированных повербанков
-        """
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                # Получаем org_unit_id станции
-                await cursor.execute("SELECT org_unit_id FROM station WHERE station_id = %s", (station_id,))
-                station_result = await cursor.fetchone()
-                
-                if not station_result:
-                    print(f"Станция {station_id} не найдена")
-                    return 0
-                
-                station_org_unit_id = station_result[0]
-                
-                # Активируем все повербанки со статусом 'unknown' в группе станции
-                await cursor.execute("""
-                    UPDATE powerbank 
-                    SET status = 'active' 
-                    WHERE status = 'unknown' AND org_unit_id = %s
-                """, (station_org_unit_id,))
-                
-                activated_count = cursor.rowcount
-                print(f"Активировано {activated_count} повербанков со статусом 'unknown' в группе {station_org_unit_id}")
-                
-                return activated_count
     
     @classmethod
     async def get_powerbank_status_changes(cls, db_pool, station_id: int) -> Dict[int, str]:

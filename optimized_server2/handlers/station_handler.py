@@ -25,7 +25,6 @@ class StationHandler:
     async def handle_login(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
         """
         Обрабатывает логин станции
-        Возвращает ответный пакет или None если соединение должно быть закрыто
         """
         try:
             # Логируем входящий пакет логина
@@ -77,7 +76,7 @@ class StationHandler:
             # Обновляем last_seen при логине
             await station.update_last_seen(self.db_pool)
             
-            # Синхронизируем данные повербанков с БД (создаем активные повербанки в группе станции)
+            # Синхронизируем данные повербанков с БД 
             await self._sync_powerbanks_to_db(station.station_id, packet["Slots"])
             
             # Синхронизируем station_powerbank с данными из пакета
@@ -90,7 +89,7 @@ class StationHandler:
             await self.status_monitor.initialize_station(station.station_id)
             
             # Автоматически запрашиваем инвентарь после успешного логина
-            # (проверка совместимости повербанков выполнится автоматически после получения ответа)
+          
             await self._request_inventory_after_login(connection)
             
             # Автоматически запрашиваем ICCID после успешного логина
@@ -115,16 +114,10 @@ class StationHandler:
             
             # Логируем входящий пакет с информацией о станции
             log_packet(data, "INCOMING", connection.box_id or "unknown", "Heartbeat")
-            
-            # Извлекаем VSN из пакета
             vsn = data[3]
-            
-            # Создаем ответ на heartbeat
             response = build_heartbeat_response(connection.secret_key, vsn)
-            
             # Обновляем время последнего heartbeat
             connection.update_heartbeat()
-            
             # Обновляем last_seen в базе данных
             if connection.station_id:
                 try:
@@ -227,7 +220,7 @@ class StationHandler:
                     soh_int = int(slot['SOH']) if slot['SOH'] is not None else 0
                     await existing_powerbank.update_soh(self.db_pool, soh_int)
             else:
-                # Создаем новый повербанк со статусом unknown в группе 1 (глобальная сервисная группа)
+                # Создаем новый повербанк со статусом unknown в группе 1 
                 new_powerbank = await Powerbank.create_unknown(
                     self.db_pool, 
                     terminal_id, 

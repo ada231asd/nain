@@ -9,7 +9,7 @@ import aiomysql
 
 from models.powerbank import Powerbank
 from models.station_powerbank import StationPowerbank
-# from utils.packet_logger import packet_logger  # Удален
+
 
 
 class AdminPowerbankAPI:
@@ -406,7 +406,7 @@ class AdminPowerbankAPI:
                                     "serial_number": serial_number,
                                     "admin_user_id": admin_user_id
                                 }
-                                # packet_logger.log_outgoing_packet(force_eject_command, station_info)  # Удален
+                                
                                 
                                 connection.writer.write(force_eject_command)
                                 await connection.writer.drain()

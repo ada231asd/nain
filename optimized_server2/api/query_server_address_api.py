@@ -25,7 +25,6 @@ class QueryServerAddressAPI:
         """
         Запрашивает адрес сервера станции
         POST /api/query-server-address
-        { "station_id": 123 }
         """
         user_id = request['user']['user_id']
         self.logger.info(f"Администратор {user_id} запросил адрес сервера станции.")

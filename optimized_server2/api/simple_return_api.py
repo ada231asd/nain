@@ -53,21 +53,26 @@ class SimpleReturnAPI:
             if not connection:
                 return {"error": "Станция не подключена", "success": False}
             
-            # Создаем команду на возврат повербанка (используем слот 1 по умолчанию)
+            # Создаем команду на возврат повербанка 
             secret_key = connection.secret_key
             if not secret_key:
                 return {"error": "Нет секретного ключа для команды возврата", "success": False}
             
-            from utils.packet_utils import build_return_power_bank
-            return_command = build_return_power_bank(
-                secret_key=secret_key,
-                slot=1,  # Используем слот 1 по умолчанию
-                vsn=1
-            )
-            
             # Используем правильный обработчик возврата
             from handlers.return_powerbank import ReturnPowerbankHandler
             return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+            
+            # Находим свободный слот для возврата
+            free_slot = await return_handler._find_free_slot(station_id)
+            if not free_slot:
+                return {"error": "Нет свободных слотов для возврата", "success": False}
+            
+            from utils.packet_utils import build_return_power_bank
+            return_command = build_return_power_bank(
+                secret_key=secret_key,
+                slot=free_slot,  
+                vsn=1
+            )
             
             # Запускаем процесс возврата
             result = await return_handler.start_return_process(station_id, powerbank_id, user_id)

@@ -227,19 +227,24 @@ class ReturnPowerbankHandler:
                 powerbank_id=powerbank_id,
                 station_id=station_id,
                 user_id=user_id,
-                error_type='other',  # Можно расширить типы ошибок
+                error_type='other',  
                 additional_notes=description
             )
             
-            # Отправляем команду на возврат повербанка (станция должна принять его)
+            # Отправляем команду на возврат повербанка
             secret_key = connection.secret_key
             if not secret_key:
                 return {"success": False, "message": "Нет секретного ключа для станции"}
             
-            # Создаем команду возврата (используем слот 1 по умолчанию)
+            # Находим свободный слот для возврата
+            free_slot = await self._find_free_slot(station_id)
+            if not free_slot:
+                return {"success": False, "message": "Нет свободных слотов для возврата"}
+            
+            # Создаем команду возврата
             return_command = build_return_power_bank(
                 secret_key=secret_key,
-                slot=1,  # Можно сделать динамическим
+                slot=free_slot,
                 vsn=1
             )
             
@@ -354,10 +359,15 @@ class ReturnPowerbankHandler:
             if not secret_key:
                 return {"success": False, "message": "Нет секретного ключа для станции"}
             
-            # Создаем команду возврата (используем слот 1 по умолчанию)
+            # Находим свободный слот для возврата
+            free_slot = await self._find_free_slot(station_id)
+            if not free_slot:
+                return {"success": False, "message": "Нет свободных слотов для возврата"}
+            
+            # Создаем команду возврата
             return_command = build_return_power_bank(
                 secret_key=secret_key,
-                slot=1,  # Можно сделать динамическим
+                slot=free_slot,
                 vsn=1
             )
             
@@ -407,3 +417,36 @@ class ReturnPowerbankHandler:
             logger = get_logger('return_powerbank')
             logger.error(f"Ошибка процесса ручного возврата: {e}")
             return {"success": False, "message": f"Ошибка процесса возврата: {e}"}
+    
+    async def _find_free_slot(self, station_id: int) -> Optional[int]:
+        """
+        Находит свободный слот в станции для возврата повербанка
+        """
+        try:
+            from models.station_powerbank import StationPowerbank
+            
+            # Получаем все занятые слоты в станции
+            occupied_slots = await StationPowerbank.get_occupied_slots(self.db_pool, station_id)
+            
+            # Получаем информацию о станции для определения общего количества слотов
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return None
+            
+            # Предполагаем, что у станции может быть до 20 слотов (можно настроить)
+            max_slots = getattr(station, 'max_slots', 20)
+            
+            # Ищем первый свободный слот
+            for slot_number in range(1, max_slots + 1):
+                if slot_number not in occupied_slots:
+                    logger = get_logger('return_powerbank')
+                    logger.info(f"Найден свободный слот {slot_number} для возврата в станции {station_id}")
+                    return slot_number
+            
+            return None
+            
+        except Exception as e:
+            logger = get_logger('return_powerbank')
+            logger.error(f"Ошибка поиска свободного слота: {e}")
+            return None

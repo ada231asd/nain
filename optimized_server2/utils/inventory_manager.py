@@ -106,10 +106,20 @@ class InventoryManager:
                 has_powerbank = status.get('InsertionSwitch', 0) == 1
                 
                 if has_powerbank and terminal_id and terminal_id != '0000000000000000':
-                    # Есть повербанк в слоте - добавляем его
-                    success = await self._add_new_powerbank(
-                        station_id, slot_number, terminal_id, level, voltage, temperature
-                    )
+                    # Есть повербанк в слоте - проверяем, существует ли он в БД
+                    powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
+                    
+                    if powerbank_id:
+                        # Повербанк существует - добавляем его в станцию
+                        success = await self._add_existing_powerbank(
+                            station_id, slot_number, powerbank_id, level, voltage, temperature
+                        )
+                    else:
+                        # Повербанк не существует - создаем его со статусом 'unknown'
+                        success = await self._create_and_add_unknown_powerbank(
+                            station_id, slot_number, terminal_id, level, voltage, temperature
+                        )
+                    
                     if success:
                         added_count += 1
             
@@ -140,23 +150,61 @@ class InventoryManager:
             logger = get_logger('inventory_manager')
             logger.error(f"Ошибка: {e}")
     
-    async def _add_new_powerbank(self, station_id: int, slot_number: int, 
-                               terminal_id: str, level: int, voltage: int, 
-                               temperature: int) -> bool:
-        """Добавляет новый повербанк"""
+    async def _add_existing_powerbank(self, station_id: int, slot_number: int, 
+                                    powerbank_id: int, level: int, voltage: int, 
+                                    temperature: int) -> bool:
+        """Добавляет существующий повербанк в станцию"""
         try:
-            # Получаем powerbank_id по terminal_id
-            powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
-            if not powerbank_id:
-                logger = get_logger('inventory_manager'); logger.info(f"Повербанк {terminal_id} не найден в базе")
-                return False
-            
             # Добавляем повербанк
             await StationPowerbank.add_powerbank(
                 self.db_pool, station_id, powerbank_id, slot_number, 
                 level, voltage, temperature
             )
             
+            logger = get_logger('inventory_manager')
+            logger.info(f"Добавлен существующий повербанк {powerbank_id} в слот {slot_number} станции {station_id}")
+            return True
+            
+        except Exception as e:
+            logger = get_logger('inventory_manager')
+            logger.error(f"Ошибка: {e}")
+            return False
+    
+    async def _create_and_add_unknown_powerbank(self, station_id: int, slot_number: int, 
+                                              terminal_id: str, level: int, voltage: int, 
+                                              temperature: int) -> bool:
+        """Создает новый повербанк со статусом 'unknown' и добавляет в станцию"""
+        try:
+            from models.powerbank import Powerbank
+            from models.station import Station
+            
+            # Получаем информацию о станции
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                logger = get_logger('inventory_manager')
+                logger.error(f"Станция {station_id} не найдена")
+                return False
+            
+            # Создаем повербанк со статусом 'unknown' в группе станции
+            new_powerbank = await Powerbank.create_unknown(
+                self.db_pool, 
+                terminal_id, 
+                station.org_unit_id
+            )
+            
+            if not new_powerbank:
+                logger = get_logger('inventory_manager')
+                logger.error(f"Не удалось создать повербанк {terminal_id}")
+                return False
+            
+            # Добавляем повербанк в станцию
+            await StationPowerbank.add_powerbank(
+                self.db_pool, station_id, new_powerbank.powerbank_id, slot_number, 
+                level, voltage, temperature
+            )
+            
+            logger = get_logger('inventory_manager')
+            logger.info(f"Создан новый повербанк {terminal_id} со статусом 'unknown' и добавлен в слот {slot_number} станции {station_id}")
             return True
             
         except Exception as e:

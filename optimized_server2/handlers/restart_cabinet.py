@@ -113,7 +113,7 @@ class RestartCabinetHandler:
             else:
                 print(f"Получен некорректный ответ на команду перезагрузки от станции {connection.box_id}")
             
-            # Команда перезагрузки не требует ответа от сервера
+           
             return None
             
         except Exception as e:

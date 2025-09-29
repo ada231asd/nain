@@ -67,10 +67,9 @@ def validate_packet(data: bytes, connection) -> Tuple[bool, str]:
         
         packet_len = struct.unpack('>H', data[:2])[0]
        
-        # Для команды QueryInventory (0x64) допускаем большее отклонение длины
-        # так как размер пакета зависит от количества повербанков
+       
         if command == 0x64:  # QueryInventory
-            if abs(packet_len - len(data)) > 50:  # Более гибкая проверка для инвентаря
+            if abs(packet_len - len(data)) > 50:  
                 return False, f"Критичное несоответствие длины: заявлено {packet_len}, фактически {len(data)}"
         else:
             if abs(packet_len - len(data)) > 10:  

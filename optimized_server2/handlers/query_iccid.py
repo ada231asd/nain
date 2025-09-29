@@ -34,7 +34,7 @@ class QueryICCIDHandler:
             # Создаем команду на запрос ICCID
             iccid_command = build_query_iccid_request(
                 secret_key=secret_key,
-                vsn=1  # Можно получить из соединения
+                vsn=1  
             )
             
             print(f"Создана команда на запрос ICCID станции {station_id}")
@@ -118,8 +118,8 @@ class QueryICCIDHandler:
             iccid_command = await self.handle_query_iccid_request(station_id, connection)
             
             if iccid_command:
-                # Здесь нужно отправить команду на станцию
-                # В реальной реализации это делается через writer
+         
+               
                 print(f"Команда запроса ICCID отправлена на станцию {station_id}")
                 
                 return {
