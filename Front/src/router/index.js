@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 
 import AdminPanel from '../views/AdminPanel.vue'
+import UserPage from '../views/admin/UserPage.vue'
 import Profile from '../views/Profile.vue'
 import AddressStations from '../views/AddressStations.vue'
 import Login from '../views/Login.vue'
@@ -24,6 +25,11 @@ const routes = [
     path: '/admin',
     name: 'AdminPanel',
     component: AdminPanel
+  },
+  {
+    path: '/admin/users',
+    name: 'UserPage',
+    component: UserPage
   },
   {
     path: '/profile',
@@ -66,8 +72,8 @@ router.beforeEach(async (to, from, next) => {
     }
   }
   
-  // Защищаем админ панель
-  if (to.name === 'AdminPanel') {
+  // Защищаем админ панель и страницу пользователей
+  if (to.name === 'AdminPanel' || to.name === 'UserPage') {
     if (!authStore.isAuthenticated) {
       next('/login');
       return;
