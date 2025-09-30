@@ -241,11 +241,12 @@ export const useAdminStore = defineStore('admin', {
       this.isLoading = true;
       try {
         const res = await pythonAPI.getOrders();
-        const orders = (res && Array.isArray(res.orders)) ? res.orders : [];
+        const orders = (res && Array.isArray(res.data)) ? res.data : [];
         // Normalize timestamp field for UI that expects created_at
         this.orders = orders.map(o => ({ ...o, created_at: o.created_at || o.timestamp }));
       } catch (err) {
         this.error = 'Failed to fetch orders';
+        console.error('Error fetching orders:', err);
       } finally {
         this.isLoading = false;
       }
