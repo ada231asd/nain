@@ -201,12 +201,15 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useStationsStore } from '../stores/stations'
+import { useAdminStore } from '../stores/admin'
 import { pythonAPI } from '../api/pythonApi'
+import { refreshAllDataAfterReturn } from '../utils/dataSync'
 import ErrorReportModal from '../components/ErrorReportModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const stationsStore = useStationsStore()
+const adminStore = useAdminStore()
 
 // Состояние
 const isLoading = ref(false)
@@ -225,7 +228,7 @@ const returnType = ref('normal') // 'normal' или 'error'
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
-const autoRefreshEnabled = ref(true)
+const autoRefreshEnabled = ref(false) // Отключаем автоматическое обновление по таймеру
 const refreshInterval = 30000 // 30 секунд
 
 // Данные пользователя
@@ -337,9 +340,13 @@ const loadUserProfile = async () => {
 // Загрузка заказов пользователя
 const loadUserOrders = async () => {
   try {
+    console.log('📋 Загружаем заказы для пользователя:', user.value.user_id)
     const response = await pythonAPI.getOrders({ user_id: user.value.user_id })
+    console.log('📋 Ответ API заказов:', response)
     orderHistory.value = response.data || response || []
+    console.log('📋 Загруженные заказы:', orderHistory.value)
   } catch (err) {
+    console.error('❌ Ошибка загрузки заказов:', err)
     orderHistory.value = []
   }
 }
@@ -372,12 +379,17 @@ const stopAutoRefresh = () => {
   }
 }
 
-// Обновление данных после действий
+// Централизованное обновление всех данных после возврата павербанка
+const refreshAllDataAfterReturnLocal = async (orderData) => {
+  await refreshAllDataAfterReturn(orderData, user.value, loadUserOrders)
+}
+
+// Обновление данных после действий (упрощенная версия)
 const refreshAfterAction = async () => {
   try {
     await loadUserOrders()
-    // Дополнительно обновляем данные станций для актуальной информации о портах
-    await stationsStore.fetchStations()
+    // Обновление конкретных станций происходит в самих функциях действий
+    // Здесь обновляем только историю заказов пользователя
   } catch (error) {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }
@@ -448,29 +460,40 @@ const executeReturn = async (order) => {
   try {
     isLoading.value = true
     
-    // Возвращаем павербанк через API
-    await pythonAPI.returnPowerbank({
+    // Логируем данные для отладки
+    console.log('🔄 Данные заказа для возврата:', order)
+    console.log('👤 Данные пользователя:', user.value)
+    
+    const returnData = {
       station_id: order.station_id,
       user_id: user.value.user_id,
       powerbank_id: order.powerbank_id
-    })
-    
-    // Обновляем данные станции в stores
-    try {
-      await stationsStore.refreshStationData(order.station_id)
-    } catch (refreshError) {
-      console.warn('Не удалось обновить данные станции:', refreshError)
     }
     
-    // Обновляем историю
-    await loadUserOrders()
+    console.log('📤 Отправляемые данные:', returnData)
+    
+    // Проверяем наличие всех обязательных полей
+    if (!returnData.station_id) {
+      throw new Error('Отсутствует station_id')
+    }
+    if (!returnData.user_id) {
+      throw new Error('Отсутствует user_id')
+    }
+    if (!returnData.powerbank_id) {
+      throw new Error('Отсутствует powerbank_id')
+    }
+    
+    // Возвращаем павербанк через API
+    await pythonAPI.returnPowerbank(returnData)
+    
+    // Централизованное обновление всех данных после возврата
+    await refreshAllDataAfterReturnLocal(order)
+    
     alert('✅ Повербанк возвращен!')
     
-    // Автоматическое обновление данных
-    await refreshAfterAction()
-    
   } catch (err) {
-    alert('❌ Ошибка при возврате повербанка')
+    console.error('❌ Ошибка при возврате повербанка:', err)
+    alert('❌ Ошибка при возврате повербанка: ' + (err.message || 'Неизвестная ошибка'))
   } finally {
     isLoading.value = false
   }
@@ -490,19 +513,14 @@ const executeReturnWithError = async (errorReport) => {
       powerbank_id: errorReport.powerbank_id
     })
     
-    // Обновляем данные станции в stores
-    try {
-      await stationsStore.refreshStationData(errorReport.station_id)
-    } catch (refreshError) {
-      console.warn('Не удалось обновить данные станции:', refreshError)
-    }
+    // Централизованное обновление всех данных после возврата с ошибкой
+    await refreshAllDataAfterReturnLocal({
+      station_id: errorReport.station_id,
+      user_id: errorReport.user_id,
+      powerbank_id: errorReport.powerbank_id
+    })
     
-    // Обновляем историю
-    await loadUserOrders()
     alert('✅ Повербанк возвращен с отчетом об ошибке!')
-    
-    // Автоматическое обновление данных
-    await refreshAfterAction()
     
   } catch (err) {
     alert('❌ Ошибка при возврате повербанка с отчетом об ошибке')
@@ -547,8 +565,8 @@ const formatDate = (date) => {
 onMounted(async () => {
   await loadUserProfile()
   
-  // Запускаем автоматическое обновление
-  startAutoRefresh()
+  // Не запускаем автоматическое обновление по таймеру
+  // Обновление происходит только после действий
 })
 
 onUnmounted(() => {

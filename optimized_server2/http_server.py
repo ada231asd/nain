@@ -200,7 +200,7 @@ class HTTPServer:
         app.router.add_get('/api/user/orders', self.user_powerbank_api.get_user_orders)
         app.router.add_post('/api/user/powerbanks/borrow', self.user_powerbank_api.borrow_powerbank)
         app.router.add_post('/api/user/powerbanks/return', self.user_powerbank_api.return_powerbank)
-        app.router.add_post('/api/return-powerbank', self.user_powerbank_api.return_powerbank)  # Алиас для фронтенда
+        # app.router.add_post('/api/return-powerbank', self.user_powerbank_api.return_powerbank)  # Удален неправильный алиас
         app.router.add_post('/api/return-damage', self.user_powerbank_api.return_damage_powerbank)  # Возврат с поломкой
         app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
         app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)

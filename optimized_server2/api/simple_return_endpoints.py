@@ -100,5 +100,5 @@ class SimpleReturnEndpoints:
                 )
         
         # Регистрируем маршруты
-        app.router.add_post('/return-powerbank', return_powerbank)
+        app.router.add_post('/api/return-powerbank', return_powerbank)
         app.router.add_get('/api/return/stations/{station_id}/active-orders', get_active_orders)

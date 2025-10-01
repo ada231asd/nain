@@ -105,15 +105,18 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStationsStore } from '../stores/stations'
 import { useAuthStore } from '../stores/auth'
+import { useAdminStore } from '../stores/admin'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import QRScanner from '../components/QRScanner.vue'
 import StationCard from '../components/StationCard.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import { pythonAPI } from '../api/pythonApi'
+import { refreshAllDataAfterBorrow } from '../utils/dataSync'
 
 const router = useRouter()
 const stationsStore = useStationsStore()
 const auth = useAuthStore()
+const adminStore = useAdminStore()
 
 // Состояние
 const searchQuery = ref('')
@@ -131,7 +134,7 @@ const isBorrowing = ref(false)
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
-const autoRefreshEnabled = ref(true)
+const autoRefreshEnabled = ref(false) // Отключаем автоматическое обновление по таймеру
 const refreshInterval = 30000 // 30 секунд
 
 // Вычисляемые свойства
@@ -176,12 +179,17 @@ const stopAutoRefresh = () => {
   }
 }
 
-// Обновление данных после действий
+// Централизованное обновление всех данных после взятия павербанка
+const refreshAllDataAfterBorrowLocal = async (stationId, userId) => {
+  await refreshAllDataAfterBorrow(stationId, userId, user.value, refreshFavorites)
+}
+
+// Обновление данных после действий (упрощенная версия)
 const refreshAfterAction = async () => {
   try {
     await refreshFavorites()
-    // Дополнительно обновляем данные станций для актуальной информации о портах
-    await stationsStore.fetchStations()
+    // Обновление конкретных станций происходит в самих функциях действий
+    // Здесь обновляем только избранные станции
   } catch (error) {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }
@@ -255,18 +263,11 @@ const handleTakeBattery = async (station) => {
     
     console.log('Ответ API:', response)
     
-    // Обновляем данные станции в stores
-    try {
-      await stationsStore.refreshStationData(stationId)
-    } catch (refreshError) {
-      console.warn('Не удалось обновить данные станции:', refreshError)
-    }
+    // Централизованное обновление данных после взятия павербанка
+    await refreshAllDataAfterBorrowLocal(stationId, userId)
     
     // Здесь можно добавить уведомление об успехе
     alert('Запрос на взятие аккумулятора отправлен успешно!')
-    
-    // Автоматическое обновление данных
-    await refreshAfterAction()
     
   } catch (error) {
     console.error('Ошибка при запросе аккумулятора:', error)
@@ -326,13 +327,9 @@ const borrowPowerbank = async (powerbank) => {
     if (result && (result.status === 'success' || result.status === 'accepted')) {
       alert('Повербанк успешно выдан!')
       
-      // Обновляем данные станции в stores
+      // Централизованное обновление данных после выдачи павербанка
       const stationId = selectedStation.value.station_id || selectedStation.value.id
-      try {
-        await stationsStore.refreshStationData(stationId)
-      } catch (refreshError) {
-        console.warn('Не удалось обновить данные станции:', refreshError)
-      }
+      await refreshAllDataAfterBorrowLocal(stationId, userId)
       
       // Обновляем список повербанков в модальном окне
       const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
@@ -372,13 +369,9 @@ const forceEjectPowerbank = async (powerbank) => {
     await pythonAPI.forceEjectPowerbank(requestData)
     alert('Повербанк принудительно извлечен!')
 
-    // Обновляем данные станции в stores
+    // Централизованное обновление данных после принудительного извлечения
     const stationId = selectedStation.value.station_id || selectedStation.value.id
-    try {
-      await stationsStore.refreshStationData(stationId)
-    } catch (refreshError) {
-      console.warn('Не удалось обновить данные станции:', refreshError)
-    }
+    await refreshAllDataAfterBorrowLocal(stationId, userId)
 
     // Обновляем список повербанков в модальном окне
     const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
@@ -606,8 +599,8 @@ onMounted(async () => {
     console.log('onMounted: загружаем избранное для user_id:', user.value?.user_id)
     await stationsStore.fetchFavoriteStations(user.value?.user_id)
     
-    // Запускаем автоматическое обновление
-    startAutoRefresh()
+    // Не запускаем автоматическое обновление по таймеру
+    // Обновление происходит только после действий
   } catch (err) {
     console.error('Ошибка при загрузке избранного:', err)
   }

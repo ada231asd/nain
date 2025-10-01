@@ -570,7 +570,7 @@ const serverRestingMessage = ref('')
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
-const autoRefreshEnabled = ref(true)
+const autoRefreshEnabled = ref(false) // Отключаем автоматическое обновление по таймеру
 const refreshInterval = 30000 // 30 секунд
 
 if (typeof window !== 'undefined') {
@@ -1400,10 +1400,8 @@ const refreshCurrentTabData = async () => {
 const refreshAfterAction = async () => {
   try {
     await refreshCurrentTabData()
-    // Дополнительно обновляем данные станций для актуальной информации о портах
-    if (activeTab.value === 'stations') {
-      await adminStore.fetchStations()
-    }
+    // Обновление конкретных станций происходит в самих функциях действий
+    // Здесь обновляем только общие данные для текущей вкладки
   } catch (error) {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }
@@ -1422,8 +1420,8 @@ const toggleAutoRefresh = () => {
 // Watcher для отслеживания изменений активной вкладки
 watch(activeTab, (newTab, oldTab) => {
   if (newTab !== oldTab) {
-    // Перезапускаем автообновление для новой вкладки
-    startAutoRefresh()
+    // Не перезапускаем автообновление по таймеру
+    // Обновление происходит только после действий
   }
 })
 
@@ -1438,8 +1436,8 @@ onMounted(async () => {
       adminStore.fetchOrgUnits()
     ])
 
-    // Запускаем автоматическое обновление
-    startAutoRefresh()
+    // Не запускаем автоматическое обновление по таймеру
+    // Обновление происходит только после действий
   } catch (error) {
     // Error handled silently
   }
