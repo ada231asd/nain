@@ -36,8 +36,10 @@
             :isFavorite="true"
             :showFavoriteButton="true"
             :showTakeBatteryButton="true"
+            :showAdminActions="isAdmin"
             @toggleFavorite="toggleFavorite"
             @takeBattery="handleTakeBattery"
+            @adminClick="handleAdminStationClick"
           />
         </div>
       </section>
@@ -50,8 +52,10 @@
           :isFavorite="isStationFavorite(scannedStation)"
           :showFavoriteButton="true"
           :showTakeBatteryButton="true"
+          :showAdminActions="isAdmin"
           @toggleFavorite="toggleFavorite"
           @takeBattery="handleTakeBattery"
+          @adminClick="handleAdminStationClick"
         />
       </section>
 
@@ -82,6 +86,17 @@
       @close="closeQRScanner"
       @scan="handleQRScan"
     />
+
+    <!-- Station Powerbanks Modal -->
+    <StationPowerbanksModal
+      :is-visible="showPowerbanksModal"
+      :station="selectedStation"
+      :powerbanks="selectedStationPowerbanks"
+      :is-borrowing="isBorrowing"
+      @close="closePowerbanks"
+      @borrow-powerbank="borrowPowerbank"
+      @force-eject-powerbank="forceEjectPowerbank"
+    />
   </DefaultLayout>
 </template>
 
@@ -93,6 +108,7 @@ import { useAuthStore } from '../stores/auth'
 import DefaultLayout from '../layouts/DefaultLayout.vue'
 import QRScanner from '../components/QRScanner.vue'
 import StationCard from '../components/StationCard.vue'
+import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 
 const router = useRouter()
@@ -106,6 +122,12 @@ const searchTimeout = ref(null)
 const scannedStation = ref(null)
 const isScanning = ref(false)
 const scanningError = ref('')
+
+// Модальное окно для просмотра банков станции
+const showPowerbanksModal = ref(false)
+const selectedStation = ref(null)
+const selectedStationPowerbanks = ref([])
+const isBorrowing = ref(false)
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
@@ -247,6 +269,103 @@ const handleTakeBattery = async (station) => {
 
 const goToAdmin = () => {
   router.push('/admin')
+}
+
+// Функции для работы с модальным окном банков станции
+const handleAdminStationClick = async (station) => {
+  try {
+    selectedStation.value = station
+    const stationId = station.station_id || station.id
+    if (!stationId) return
+    
+    const res = await pythonAPI.getStationPowerbanks(stationId)
+    selectedStationPowerbanks.value = Array.isArray(res?.available_powerbanks) ? res.available_powerbanks : []
+    showPowerbanksModal.value = true
+  } catch (error) {
+    console.error('Ошибка при загрузке банков станции:', error)
+    selectedStationPowerbanks.value = []
+    showPowerbanksModal.value = true
+  }
+}
+
+const closePowerbanks = () => {
+  showPowerbanksModal.value = false
+  selectedStation.value = null
+  selectedStationPowerbanks.value = []
+}
+
+const borrowPowerbank = async (powerbank) => {
+  if (!selectedStation.value || isBorrowing.value) return
+
+  isBorrowing.value = true
+  try {
+    const userId = user.value?.id || user.value?.user_id
+
+    if (!userId) {
+      alert('Не удалось определить пользователя')
+      return
+    }
+
+    const requestData = {
+      station_id: selectedStation.value.station_id || selectedStation.value.id,
+      user_id: userId,
+      slot_number: powerbank.slot_number
+    }
+
+    const result = await pythonAPI.requestBorrowPowerbank(requestData)
+
+    if (result && (result.status === 'success' || result.status === 'accepted')) {
+      alert('Повербанк успешно выдан!')
+      // Обновляем список повербанков
+      const stationId = selectedStation.value.station_id || selectedStation.value.id
+      const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
+      selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
+    } else {
+      alert('Ошибка при выдаче повербанка')
+    }
+  } catch (error) {
+    console.error('Ошибка при выдаче повербанка:', error)
+    alert('Ошибка при выдаче повербанка: ' + (error.message || 'Неизвестная ошибка'))
+  } finally {
+    isBorrowing.value = false
+  }
+}
+
+const forceEjectPowerbank = async (powerbank) => {
+  if (!selectedStation.value || isBorrowing.value) return
+
+  const confirmMessage = `Вы уверены, что хотите принудительно извлечь повербанк из слота ${powerbank.slot_number}?`
+  if (!confirm(confirmMessage)) return
+
+  isBorrowing.value = true
+  try {
+    const userId = user.value?.id || user.value?.user_id
+
+    if (!userId) {
+      alert('Не удалось определить пользователя')
+      return
+    }
+
+    const requestData = {
+      station_id: selectedStation.value.station_id || selectedStation.value.id,
+      slot_number: powerbank.slot_number,
+      admin_user_id: userId
+    }
+
+    await pythonAPI.forceEjectPowerbank(requestData)
+    alert('Повербанк принудительно извлечен!')
+
+    // Обновляем список повербанков
+    const stationId = selectedStation.value.station_id || selectedStation.value.id
+    const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
+    selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
+
+  } catch (error) {
+    console.error('Ошибка при принудительном извлечении повербанка:', error)
+    alert('Ошибка при принудительном извлечении повербанка: ' + (error.message || 'Неизвестная ошибка'))
+  } finally {
+    isBorrowing.value = false
+  }
 }
 
 const handleSearch = () => {

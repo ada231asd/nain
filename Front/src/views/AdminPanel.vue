@@ -23,7 +23,7 @@
             </button>
           </div>
           <span class="user-role">{{ userRoleText }}</span>
-          <span class="user-name">{{ user?.phone || 'Администратор' }}</span>
+          <span class="user-name">{{ getUserDisplayName(user) }}</span>
         </div>
       </div>
     </header>
@@ -784,6 +784,23 @@ const getUserGroupName = (orgUnitId) => {
   if (!orgUnitId) return 'Без группы'
   const group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
   return group ? group.name : 'Неизвестная группа'
+}
+
+const getUserDisplayName = (user) => {
+  if (!user) return 'Администратор'
+  
+  // Определяем имя пользователя из доступных полей
+  if (user.fio && user.fio.trim()) {
+    return user.fio.trim()
+  } else if (user.first_name && user.last_name) {
+    return `${user.first_name} ${user.last_name}`.trim()
+  } else if (user.name && user.name.trim()) {
+    return user.name.trim()
+  } else if (user.phone_e164) {
+    return user.phone_e164
+  } else {
+    return 'Администратор'
+  }
 }
 
 const getStationStatusClass = (status) => {
@@ -2105,38 +2122,38 @@ onUnmounted(() => {
 }
 
 .status-active {
-  background: #d4edda;
-  color: #155724;
+  background: transparent;
+  color: #333;
 }
 
 .status-pending {
-  background: #fff3cd;
-  color: #856404;
+  background: transparent;
+  color: #333;
 }
 
 .status-blocked {
-  background: #f8d7da;
-  color: #721c24;
+  background: transparent;
+  color: #333;
 }
 
 .status-inactive {
-  background: #f8d7da;
-  color: #721c24;
+  background: transparent;
+  color: #333;
 }
 
 .status-maintenance {
-  background: #fff3cd;
-  color: #856404;
+  background: transparent;
+  color: #333;
 }
 
 .status-error {
-  background: #f8d7da;
-  color: #721c24;
+  background: transparent;
+  color: #333;
 }
 
 .status-unknown {
-  background: #e2e3e5;
-  color: #383d41;
+  background: transparent;
+  color: #333;
 }
 
 /* Role badges */
@@ -2150,23 +2167,23 @@ onUnmounted(() => {
 }
 
 .role-service-admin {
-  background: #dc3545;
-  color: white;
+  background: transparent;
+  color: #333;
 }
 
 .role-group-admin {
-  background: #fd7e14;
-  color: white;
+  background: transparent;
+  color: #333;
 }
 
 .role-subgroup-admin {
-  background: #ffc107;
-  color: #212529;
+  background: transparent;
+  color: #333;
 }
 
 .role-user {
-  background: #6c757d;
-  color: white;
+  background: transparent;
+  color: #333;
 }
 
 /* Group badges */
@@ -2175,9 +2192,9 @@ onUnmounted(() => {
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: #e3f2fd;
-  color: #1976d2;
-  border: 1px solid #bbdefb;
+  background: transparent;
+  color: #333;
+  border: none;
 }
 
 /* Stats */

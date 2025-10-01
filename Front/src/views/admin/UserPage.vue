@@ -614,7 +614,6 @@ onMounted(async () => {
   font-weight: 600;
   background: #e3f2fd;
   color: #1976d2;
-  border: 1px solid #bbdefb;
 }
 
 /* Loading overlay */

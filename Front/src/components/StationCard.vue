@@ -68,6 +68,15 @@
       >
         {{ isFavorite ? 'Удалить из избранного' : 'Добавить в избранное' }}
       </BaseButton>
+
+      <BaseButton
+        v-if="showAdminActions"
+        variant="warning"
+        size="small"
+        @click="$emit('adminClick', station)"
+      >
+        🔋 Управление банками
+      </BaseButton>
     </div>
     
     <div v-if="station.distance" class="station-card__distance">
@@ -101,10 +110,14 @@ const props = defineProps({
   showReturnBatteryButton: {
     type: Boolean,
     default: false
+  },
+  showAdminActions: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery'])
+const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'adminClick'])
 
 const availablePorts = computed(() => {
   return props.station.freePorts || 0
