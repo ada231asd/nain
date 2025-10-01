@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
+from utils.packet_utils import get_moscow_time
 
 
 class PowerbankCRUD:
@@ -335,9 +336,9 @@ class PowerbankCRUD:
                     await cur.execute("""
                         UPDATE station_powerbank sp
                         INNER JOIN powerbank p ON sp.powerbank_id = p.id
-                        SET sp.last_update = NOW()
+                        SET sp.last_update = %s
                         WHERE p.id = %s
-                    """, (powerbank_id,))
+                    """, (get_moscow_time(), powerbank_id))
                     
                     return web.json_response({
                         "success": True,

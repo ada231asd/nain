@@ -90,9 +90,9 @@ class QueryICCIDHandler:
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         UPDATE station 
-                        SET iccid = %s, updated_at = NOW()
+                        SET iccid = %s, updated_at = %s
                         WHERE station_id = %s
-                    """, (iccid, station_id))
+                    """, (iccid, get_moscow_time(), station_id))
                     await conn.commit()
             
             print(f"ICCID {iccid} сохранен для станции {station_id}")

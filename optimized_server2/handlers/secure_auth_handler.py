@@ -13,6 +13,7 @@ import re
 from models.user import User, VerificationCode
 from utils.notification_service import notification_service
 from utils.centralized_logger import get_logger
+from utils.packet_utils import get_moscow_time
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS
 from middleware.input_validator import create_input_validator
 
@@ -273,8 +274,8 @@ class SecureAuthHandler:
         """Обновляет время последнего входа"""
         try:
             await self.secure_db.execute_safe_update(
-                "UPDATE app_user SET last_login_at = NOW() WHERE user_id = %s",
-                (user_id,)
+                "UPDATE app_user SET last_login_at = %s WHERE user_id = %s",
+                (get_moscow_time(), user_id)
             )
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

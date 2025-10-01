@@ -69,14 +69,15 @@ class SlotAbnormalReportHandler:
                         INSERT INTO slot_abnormal_reports 
                         (station_id, slot_number, terminal_id, event_type, event_text, 
                          reported_at, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (
                         station_id,
                         abnormal_report['SlotNo'],
                         abnormal_report['TerminalID'],
                         abnormal_report['Event'],
                         abnormal_report['EventText'],
-                        abnormal_report['ReceivedAt']
+                        abnormal_report['ReceivedAt'],
+                        get_moscow_time()
                     ))
                     await conn.commit()
             

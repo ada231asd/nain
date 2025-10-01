@@ -12,6 +12,7 @@ from models.user import User
 from utils.notification_service import notification_service
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, PASSWORD_MAX_LENGTH
 from utils.centralized_logger import get_logger
+from utils.packet_utils import get_moscow_time
 
 
 class AuthHandler:
@@ -132,8 +133,8 @@ class AuthHandler:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
                     await cur.execute(
-                        "UPDATE app_user SET last_login_at = NOW() WHERE user_id = %s",
-                        (user.user_id,)
+                        "UPDATE app_user SET last_login_at = %s WHERE user_id = %s",
+                        (get_moscow_time(), user.user_id)
                     )
             
             # Создаем JWT токен

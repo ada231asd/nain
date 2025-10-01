@@ -149,17 +149,18 @@ class StationPowerbank:
                 temperature_int = int(temperature) if temperature is not None else None
                 
                 # Используем INSERT ... ON DUPLICATE KEY UPDATE для избежания дубликатов
+                moscow_time = get_moscow_time()
                 await cur.execute("""
                     INSERT INTO station_powerbank 
                     (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW()) AS new_values
+                    VALUES (%s, %s, %s, %s, %s, %s, %s) AS new_values
                     ON DUPLICATE KEY UPDATE
                     powerbank_id = new_values.powerbank_id,
                     level = new_values.level,
                     voltage = new_values.voltage,
                     temperature = new_values.temperature,
-                    last_update = NOW()
-                """, (station_id, powerbank_id, slot_number, level_int, voltage_int, temperature_int))
+                    last_update = new_values.last_update
+                """, (station_id, powerbank_id, slot_number, level_int, voltage_int, temperature_int, moscow_time))
                 
                 # Получаем ID записи (новой или обновленной)
                 await cur.execute("""
@@ -241,7 +242,9 @@ class StationPowerbank:
                 if not updates:
                     return False
                 
-                updates.append("last_update = NOW()")
+                moscow_time = get_moscow_time()
+                updates.append("last_update = %s")
+                params.append(moscow_time)
                 params.extend([station_id, slot_number])
                 
                 query = f"""
@@ -299,23 +302,25 @@ class StationPowerbank:
                         voltage = int(slot.get('Voltage', 0)) if slot.get('Voltage') is not None else None
                         temperature = int(slot.get('Temp', 0)) if slot.get('Temp') is not None else None
                         
+                        moscow_time = get_moscow_time()
                         await cur.execute("""
                             INSERT INTO station_powerbank 
                             (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
-                            VALUES (%s, %s, %s, %s, %s, %s, NOW()) AS new_values
+                            VALUES (%s, %s, %s, %s, %s, %s, %s) AS new_values
                             ON DUPLICATE KEY UPDATE
                             powerbank_id = new_values.powerbank_id,
                             level = new_values.level,
                             voltage = new_values.voltage,
                             temperature = new_values.temperature,
-                            last_update = NOW()
+                            last_update = new_values.last_update
                         """, (
                             station_id,
                             powerbank_id,
                             int(slot['Slot']),
                             level,
                             voltage,
-                            temperature
+                            temperature,
+                            moscow_time
                         ))
                         
                         added_count += 1

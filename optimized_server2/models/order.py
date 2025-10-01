@@ -55,9 +55,9 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                        VALUES (%s, %s, %s, %s, %s, %s) AS new_values
                         ON DUPLICATE KEY UPDATE username = new_values.username
-                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
+                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, order_type, status, notes, timestamp)
@@ -93,9 +93,9 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                        VALUES (%s, %s, %s, %s, %s, %s) AS new_values
                         ON DUPLICATE KEY UPDATE username = new_values.username
-                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
+                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
@@ -129,9 +129,9 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                        VALUES (%s, %s, %s, %s, %s, %s) AS new_values
                         ON DUPLICATE KEY UPDATE username = new_values.username
-                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
+                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)

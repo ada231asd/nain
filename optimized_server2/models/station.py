@@ -124,9 +124,10 @@ class Station:
         """Обновляет статус станции"""
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
+                moscow_time = get_moscow_time()
                 await cur.execute(
-                    "UPDATE station SET status = %s, updated_at = NOW() WHERE station_id = %s",
-                    (new_status, self.station_id)
+                    "UPDATE station SET status = %s, updated_at = %s WHERE station_id = %s",
+                    (new_status, moscow_time, self.station_id)
                 )
                 self.status = new_status
                 self.updated_at = get_moscow_time()
@@ -135,34 +136,37 @@ class Station:
         """Обновляет время последнего контакта"""
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
+                moscow_time = get_moscow_time()
                 await cur.execute(
-                    "UPDATE station SET last_seen = NOW(), updated_at = NOW() WHERE station_id = %s",
-                    (self.station_id,)
+                    "UPDATE station SET last_seen = %s, updated_at = %s WHERE station_id = %s",
+                    (moscow_time, moscow_time, self.station_id)
                 )
-                self.last_seen = get_moscow_time()
-                self.updated_at = get_moscow_time()
+                self.last_seen = moscow_time
+                self.updated_at = moscow_time
     
     async def update_remain_num(self, pool, remain_num: int) -> None:
         """Обновляет количество свободных слотов"""
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
+                moscow_time = get_moscow_time()
                 await cur.execute(
-                    "UPDATE station SET remain_num = %s, updated_at = NOW() WHERE station_id = %s",
-                    (remain_num, self.station_id)
+                    "UPDATE station SET remain_num = %s, updated_at = %s WHERE station_id = %s",
+                    (remain_num, moscow_time, self.station_id)
                 )
                 self.remain_num = remain_num
-                self.updated_at = get_moscow_time()
+                self.updated_at = moscow_time
     
     async def update_iccid(self, pool, iccid: str) -> None:
         """Обновляет ICCID станции"""
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
+                moscow_time = get_moscow_time()
                 await cur.execute(
-                    "UPDATE station SET iccid = %s, updated_at = NOW() WHERE station_id = %s",
-                    (iccid, self.station_id)
+                    "UPDATE station SET iccid = %s, updated_at = %s WHERE station_id = %s",
+                    (iccid, moscow_time, self.station_id)
                 )
                 self.iccid = iccid
-                self.updated_at = get_moscow_time()
+                self.updated_at = moscow_time
 
     @classmethod
     async def get_all_active(cls, db_pool) -> list:

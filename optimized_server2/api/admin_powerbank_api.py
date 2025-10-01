@@ -62,16 +62,16 @@ class AdminPowerbankAPI:
                     if target_org_unit_id:
                         await cur.execute("""
                             UPDATE powerbank 
-                            SET status = 'active', org_unit_id = %s, updated_at = NOW()
+                            SET status = 'active', org_unit_id = %s, updated_at = %s
                             WHERE id = %s
-                        """, (target_org_unit_id, powerbank_id))
+                        """, (target_org_unit_id, get_moscow_time(), powerbank_id))
                     else:
                         # Оставляем в текущей группе
                         await cur.execute("""
                             UPDATE powerbank 
-                            SET status = 'active', updated_at = NOW()
+                            SET status = 'active', updated_at = %s
                             WHERE id = %s
-                        """, (powerbank_id,))
+                        """, (get_moscow_time(), powerbank_id))
                     
                     # Синхронизируем со станциями
                     await self._sync_activated_powerbank_to_stations(powerbank_id)
@@ -112,9 +112,9 @@ class AdminPowerbankAPI:
                     # Деактивируем повербанк
                     await cur.execute("""
                         UPDATE powerbank 
-                        SET status = 'written_off', write_off_reason = %s, updated_at = NOW()
+                        SET status = 'written_off', write_off_reason = %s, updated_at = %s
                         WHERE id = %s
-                    """, (reason, powerbank_id))
+                    """, (reason, get_moscow_time(), powerbank_id))
                     
                     # Удаляем из всех станций
                     await self._remove_powerbank_from_all_stations(powerbank_id)
@@ -375,15 +375,15 @@ class AdminPowerbankAPI:
                         # Создаем системного пользователя для административных операций
                         await cur.execute("""
                             INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                            VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                            VALUES (%s, %s, %s, %s, %s, %s) AS new_values
                             ON DUPLICATE KEY UPDATE username = new_values.username
-                        """, (admin_user_id, f'admin_user_{admin_user_id}', f'admin_{admin_user_id}@system.local', '0000000000', 'active'))
+                        """, (admin_user_id, f'admin_user_{admin_user_id}', f'admin_{admin_user_id}@system.local', '0000000000', 'active', get_moscow_time()))
                     
                     # Создаем запись о принудительном извлечении
                     await cur.execute("""
                         INSERT INTO `orders` (station_id, user_id, powerbank_id, status, timestamp)
-                        VALUES (%s, %s, %s, %s, NOW())
-                    """, (station_id, admin_user_id, powerbank_id, 'force_eject'))
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (station_id, admin_user_id, powerbank_id, 'force_eject', get_moscow_time()))
                     
                     # Отправляем команду принудительного извлечения станции
                     if self.connection_manager:
