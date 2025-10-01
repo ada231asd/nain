@@ -114,14 +114,15 @@ class InventoryManager:
                         success = await self._add_existing_powerbank(
                             station_id, slot_number, powerbank_id, level, voltage, temperature
                         )
+                        if success:
+                            added_count += 1
                     else:
                         # Повербанк не существует - создаем его со статусом 'unknown'
                         success = await self._create_and_add_unknown_powerbank(
                             station_id, slot_number, terminal_id, level, voltage, temperature
                         )
-                    
-                    if success:
-                        added_count += 1
+                        if success:
+                            added_count += 1
             
             
         except Exception as e:

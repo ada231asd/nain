@@ -55,8 +55,8 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW())
-                        ON DUPLICATE KEY UPDATE username = VALUES(username)
+                        VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                        ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
                 
                 await cursor.execute("""
@@ -93,8 +93,8 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW())
-                        ON DUPLICATE KEY UPDATE username = VALUES(username)
+                        VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                        ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
                 
                 await cursor.execute("""
@@ -129,8 +129,8 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW())
-                        ON DUPLICATE KEY UPDATE username = VALUES(username)
+                        VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                        ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active'))
                 
                 await cursor.execute("""

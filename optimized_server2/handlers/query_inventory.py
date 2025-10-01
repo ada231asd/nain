@@ -122,39 +122,8 @@ class QueryInventoryHandler:
                     await powerbank.update_soh(self.db_pool, soh_int)
                     print(f" Обновлен повербанк {terminal_id}: SOH {soh_int}")
                 else:
-                    # Повербанк не существует, создаем его со статусом unknown
-                    # Конвертируем SOH в int, чтобы избежать MySQL warnings
-                    soh_int = int(soh) if soh is not None else 0
-                    new_powerbank = await Powerbank.create(self.db_pool, station.org_unit_id, terminal_id, soh_int, 'unknown')
-                    if new_powerbank:
-                        print(f" Создан новый повербанк {terminal_id} со статусом unknown, SOH {soh}")
-                    else:
-                        print(f" Не удалось создать повербанк для TerminalID {terminal_id}")
-
-                # Обновляем или добавляем повербанк в station_powerbank
-                from models.station_powerbank import StationPowerbank
-                if powerbank:
-                    # Повербанк найден - обновляем или добавляем в станцию
-                    await StationPowerbank.update_or_add_powerbank(
-                        self.db_pool, 
-                        connection.station_id, 
-                        powerbank.powerbank_id, 
-                        slot_number, 
-                        level=level, 
-                        voltage=voltage, 
-                        temperature=temperature
-                    )
-                elif new_powerbank:
-                    # Новый повербанк - добавляем в станцию
-                    await StationPowerbank.update_or_add_powerbank(
-                        self.db_pool, 
-                        connection.station_id, 
-                        new_powerbank.powerbank_id, 
-                        slot_number, 
-                        level=level, 
-                        voltage=voltage, 
-                        temperature=temperature
-                    )
+                    # Повербанк не существует - InventoryManager уже создаст его со статусом 'unknown'
+                    print(f" Повербанк {terminal_id} не найден в БД - будет создан InventoryManager'ом")
 
                 # Добавляем данные слота в инвентарь
                 inventory_data.append({

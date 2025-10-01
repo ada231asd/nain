@@ -152,12 +152,12 @@ class StationPowerbank:
                 await cur.execute("""
                     INSERT INTO station_powerbank 
                     (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW()) AS new_values
                     ON DUPLICATE KEY UPDATE
-                    powerbank_id = VALUES(powerbank_id),
-                    level = VALUES(level),
-                    voltage = VALUES(voltage),
-                    temperature = VALUES(temperature),
+                    powerbank_id = new_values.powerbank_id,
+                    level = new_values.level,
+                    voltage = new_values.voltage,
+                    temperature = new_values.temperature,
                     last_update = NOW()
                 """, (station_id, powerbank_id, slot_number, level_int, voltage_int, temperature_int))
                 
@@ -302,12 +302,12 @@ class StationPowerbank:
                         await cur.execute("""
                             INSERT INTO station_powerbank 
                             (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
-                            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                            VALUES (%s, %s, %s, %s, %s, %s, NOW()) AS new_values
                             ON DUPLICATE KEY UPDATE
-                            powerbank_id = VALUES(powerbank_id),
-                            level = VALUES(level),
-                            voltage = VALUES(voltage),
-                            temperature = VALUES(temperature),
+                            powerbank_id = new_values.powerbank_id,
+                            level = new_values.level,
+                            voltage = new_values.voltage,
+                            temperature = new_values.temperature,
                             last_update = NOW()
                         """, (
                             station_id,

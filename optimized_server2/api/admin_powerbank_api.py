@@ -375,8 +375,8 @@ class AdminPowerbankAPI:
                         # Создаем системного пользователя для административных операций
                         await cur.execute("""
                             INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                            VALUES (%s, %s, %s, %s, %s, NOW())
-                            ON DUPLICATE KEY UPDATE username = VALUES(username)
+                            VALUES (%s, %s, %s, %s, %s, NOW()) AS new_values
+                            ON DUPLICATE KEY UPDATE username = new_values.username
                         """, (admin_user_id, f'admin_user_{admin_user_id}', f'admin_{admin_user_id}@system.local', '0000000000', 'active'))
                     
                     # Создаем запись о принудительном извлечении
