@@ -119,10 +119,25 @@ const showUserMenu = ref(false)
 // Реальные данные пользователя из auth store
 const user = computed(() => {
   if (!auth.user) return null
+  
+  // Определяем имя пользователя из доступных полей
+  let userName = ''
+  if (auth.user.fio && auth.user.fio.trim()) {
+    userName = auth.user.fio.trim()
+  } else if (auth.user.first_name && auth.user.last_name) {
+    userName = `${auth.user.first_name} ${auth.user.last_name}`.trim()
+  } else if (auth.user.name && auth.user.name.trim()) {
+    userName = auth.user.name.trim()
+  } else if (auth.user.phone_e164) {
+    userName = auth.user.phone_e164
+  } else {
+    userName = 'Пользователь'
+  }
+  
   return {
-    name: `${auth.user.first_name} ${auth.user.last_name}`.trim(),
+    name: userName,
     role: auth.user.role || 'user',
-    login: auth.user.login
+    login: auth.user.login || auth.user.phone_e164
   }
 })
 const isAdmin = computed(() => user.value?.role?.includes('admin') || false)
@@ -146,13 +161,17 @@ const bottomNavItems = computed(() => [
 ])
 
 const getUserInitials = (name) => {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+  if (!name || name === 'Пользователь') return '👤'
+  
+  // Для ФИО берем первые буквы имени и фамилии
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length >= 2) {
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase()
+  } else if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase()
+  }
+  
+  return '👤'
 }
 
 const getUserRoleText = (role) => {
