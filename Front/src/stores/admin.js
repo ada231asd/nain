@@ -172,6 +172,79 @@ export const useAdminStore = defineStore('admin', {
         // Игнорируем, остаёмся на оптимистичном состоянии
       }
     },
+    // Обновление конкретной станции с актуальными данными о портах
+    async refreshStationData(stationId) {
+      try {
+        console.log('Обновляем данные станции:', stationId);
+        
+        // Получаем актуальные детали станции
+        const stationResponse = await pythonAPI.getStation(stationId);
+        console.log('Ответ API для станции:', stationResponse);
+        
+        // Извлекаем данные из ответа API
+        let stationDetails = stationResponse?.data || stationResponse;
+        console.log('Детали станции извлечены:', stationDetails);
+        
+        // Если данные все еще в структуре API, извлекаем их
+        if (stationDetails && stationDetails.success && stationDetails.data) {
+          console.log('Извлекаем данные из вложенной структуры API');
+          stationDetails = stationDetails.data;
+          console.log('Финальные детали станции:', stationDetails);
+        }
+        
+        // Получаем актуальные данные о powerbank'ах
+        const powerbanksResponse = await pythonAPI.getStationPowerbanks(stationId);
+        console.log('Ответ API для powerbank:', powerbanksResponse);
+        
+        // Извлекаем данные о powerbank'ах из ответа API
+        let powerbanksData = powerbanksResponse?.data || powerbanksResponse;
+        console.log('Данные powerbank извлечены:', powerbanksData);
+        
+        // Если данные все еще в структуре API, извлекаем их
+        if (powerbanksData && powerbanksData.success && powerbanksData.data) {
+          console.log('Извлекаем данные powerbank из вложенной структуры API');
+          powerbanksData = powerbanksData.data;
+          console.log('Финальные данные powerbank:', powerbanksData);
+        }
+        
+        // Обновляем данные станции актуальной информацией о портах
+        if (powerbanksData && Array.isArray(powerbanksData)) {
+          stationDetails.ports = powerbanksData;
+          // Вычисляем числовые свойства на основе данных с сервера
+          stationDetails.freePorts = powerbanksData.filter(port => port.status === 'free').length;
+          stationDetails.totalPorts = powerbanksData.length;
+          stationDetails.occupiedPorts = powerbanksData.filter(port => port.status === 'occupied').length;
+          console.log('Порты станции обновлены актуальными данными:', stationDetails.ports);
+        } else {
+          // Если нет данных о powerbank'ах, создаем числовые свойства на основе remain_num
+          const totalSlots = stationDetails.slots_declared || 20;
+          const freeSlots = stationDetails.remain_num || 0;
+          const occupiedSlots = totalSlots - freeSlots;
+          
+          stationDetails.freePorts = freeSlots;
+          stationDetails.totalPorts = totalSlots;
+          stationDetails.occupiedPorts = occupiedSlots;
+          
+          console.log('Созданы числовые свойства портов:', {
+            freePorts: stationDetails.freePorts,
+            totalPorts: stationDetails.totalPorts,
+            occupiedPorts: stationDetails.occupiedPorts
+          });
+        }
+        
+        // Обновляем станцию в локальном состоянии
+        const stationIndex = this.stations.findIndex(s => (s.station_id || s.id) === stationId);
+        if (stationIndex !== -1) {
+          this.stations[stationIndex] = { ...this.stations[stationIndex], ...stationDetails };
+          console.log('Станция обновлена в локальном состоянии:', this.stations[stationIndex]);
+        }
+        
+        return stationDetails;
+      } catch (error) {
+        console.error('Ошибка при обновлении данных станции:', error);
+        throw error;
+      }
+    },
     async createStation(data) {
       try {
         await pythonAPI.createStation(data);
@@ -319,8 +392,13 @@ export const useAdminStore = defineStore('admin', {
     async forceEjectPowerbank(data) {
       try {
         await pythonAPI.forceEjectPowerbank(data);
-        // Обновляем данные станций после принудительного извлечения
-        await this.fetchStations();
+        // Обновляем данные конкретной станции после принудительного извлечения
+        if (data.station_id) {
+          await this.refreshStationData(data.station_id);
+        } else {
+          // Если нет station_id, обновляем все станции
+          await this.fetchStations();
+        }
       } catch (err) {
         throw err;
       }

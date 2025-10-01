@@ -123,15 +123,6 @@
                   </button>
                 </div>
               </div>
-              
-              <!-- Отладочная информация -->
-              <div class="debug-info" style="background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 12px;">
-                <strong>Отладка:</strong> 
-                Загрузка: {{ isLoading ? 'Да' : 'Нет' }} | 
-                Всего станций: {{ stations.length }} | 
-                Отфильтровано: {{ filteredStations.length }} |
-                Поиск: "{{ stationSearch }}"
-              </div>
 
               <div class="stations-grid">
                 <div v-for="station in filteredStations" :key="station.station_id || station.id" :class="['station-card', getStationCardClass(station.status)]">
@@ -175,11 +166,15 @@
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Слотов:</span>
-                        <span class="detail-value">{{ station.slots_declared || 0 }}</span>
+                        <span class="detail-value">{{ station.slots_declared || station.totalPorts || 0 }}</span>
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Свободно:</span>
-                        <span class="detail-value">{{ station.remain_num || 0 }}</span>
+                        <span class="detail-value">{{ station.freePorts || station.remain_num || 0 }}</span>
+                      </div>
+                      <div class="detail-row">
+                        <span class="detail-label">Занято:</span>
+                        <span class="detail-value">{{ station.occupiedPorts || ((station.slots_declared || 0) - (station.remain_num || 0)) }}</span>
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Последний сигнал:</span>
@@ -253,15 +248,6 @@
                     {{ isLoading ? '🔄' : '↻' }} Обновить
                   </button>
                 </div>
-              </div>
-
-              <!-- Отладочная информация -->
-              <div class="debug-info" style="background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 12px;">
-                <strong>Отладка заказов:</strong> 
-                Загрузка: {{ isLoading ? 'Да' : 'Нет' }} | 
-                Всего заказов: {{ orders.length }} | 
-                Отфильтровано: {{ filteredOrders.length }} |
-                Фильтр: "{{ orderFilter.status || 'Все' }}"
               </div>
 
               <div v-if="isLoading" class="loading-state">
@@ -1247,8 +1233,11 @@ const borrowPowerbank = async (powerbank) => {
     const result = await pythonAPI.requestBorrowPowerbank(requestData)
 
     if (result && (result.status === 'success' || result.status === 'accepted')) {
-      // Обновляем список повербанков
+      // Обновляем данные станции в админ панели
       const stationId = selectedStation.value.station_id
+      await adminStore.refreshStationData(stationId)
+      
+      // Обновляем список повербанков в модальном окне
       const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
       selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
     } else {
@@ -1284,7 +1273,8 @@ const forceEjectPowerbank = async (powerbank) => {
 
     await adminStore.forceEjectPowerbank(requestData)
 
-    // Обновляем список повербанков
+    // Данные станции уже обновлены в store через forceEjectPowerbank
+    // Обновляем список повербанков в модальном окне
     const stationId = selectedStation.value.station_id
     const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
     selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
@@ -1410,6 +1400,10 @@ const refreshCurrentTabData = async () => {
 const refreshAfterAction = async () => {
   try {
     await refreshCurrentTabData()
+    // Дополнительно обновляем данные станций для актуальной информации о портах
+    if (activeTab.value === 'stations') {
+      await adminStore.fetchStations()
+    }
   } catch (error) {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }

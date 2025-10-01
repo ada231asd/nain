@@ -200,11 +200,13 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useStationsStore } from '../stores/stations'
 import { pythonAPI } from '../api/pythonApi'
 import ErrorReportModal from '../components/ErrorReportModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const stationsStore = useStationsStore()
 
 // Состояние
 const isLoading = ref(false)
@@ -374,6 +376,8 @@ const stopAutoRefresh = () => {
 const refreshAfterAction = async () => {
   try {
     await loadUserOrders()
+    // Дополнительно обновляем данные станций для актуальной информации о портах
+    await stationsStore.fetchStations()
   } catch (error) {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }
@@ -451,6 +455,13 @@ const executeReturn = async (order) => {
       powerbank_id: order.powerbank_id
     })
     
+    // Обновляем данные станции в stores
+    try {
+      await stationsStore.refreshStationData(order.station_id)
+    } catch (refreshError) {
+      console.warn('Не удалось обновить данные станции:', refreshError)
+    }
+    
     // Обновляем историю
     await loadUserOrders()
     alert('✅ Повербанк возвращен!')
@@ -478,6 +489,13 @@ const executeReturnWithError = async (errorReport) => {
       user_id: errorReport.user_id,
       powerbank_id: errorReport.powerbank_id
     })
+    
+    // Обновляем данные станции в stores
+    try {
+      await stationsStore.refreshStationData(errorReport.station_id)
+    } catch (refreshError) {
+      console.warn('Не удалось обновить данные станции:', refreshError)
+    }
     
     // Обновляем историю
     await loadUserOrders()
