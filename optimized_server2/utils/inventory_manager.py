@@ -63,13 +63,9 @@ class InventoryManager:
                 return
             
             slots = inventory_data.get("Slots", [])
-            if not slots:
-                logger = get_logger('inventory_manager'); logger.warning(f"Нет данных о слотах в ответе инвентаря станции {station_id}")
-                return
-            
             logger = get_logger('inventory_manager'); logger.info(f"Обрабатываем инвентарь станции {station_id}: {len(slots)} слотов")
             
-            # Синхронизируем данные с базой
+            # Синхронизируем данные с базой (даже если слотов нет - это означает, что станция пустая)
             await self._sync_inventory_with_database(station_id, slots)
             
         except Exception as e:
@@ -86,7 +82,9 @@ class InventoryManager:
             current_powerbanks = await StationPowerbank.get_by_station(self.db_pool, station_id)
             
             # Очищаем все старые данные station_powerbank для этой станции
-            await StationPowerbank.clear_station_powerbanks(self.db_pool, station_id)
+            cleared_count = await StationPowerbank.clear_station_powerbanks(self.db_pool, station_id)
+            logger = get_logger('inventory_manager')
+            logger.info(f"Очищено {cleared_count} записей station_powerbank для станции {station_id}")
             
             # Обрабатываем каждый слот из инвентаря
             added_count = 0
@@ -124,6 +122,8 @@ class InventoryManager:
                         if success:
                             added_count += 1
             
+            logger = get_logger('inventory_manager')
+            logger.info(f"Синхронизация инвентаря станции {station_id} завершена: добавлено {added_count} повербанков")
             
         except Exception as e:
             logger = get_logger('inventory_manager')
