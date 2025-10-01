@@ -332,16 +332,4 @@ const savePowerbank = async () => {
   background-color: #545b62;
 }
 
-.debug-info {
-  margin-bottom: 5px;
-  padding: 5px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
-}
-
-.debug-info small {
-  color: #6c757d;
-  font-size: 12px;
-}
 </style>

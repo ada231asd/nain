@@ -180,6 +180,8 @@ const stopAutoRefresh = () => {
 const refreshAfterAction = async () => {
   try {
     await refreshFavorites()
+    // Дополнительно обновляем данные станций для актуальной информации о портах
+    await stationsStore.fetchStations()
   } catch (error) {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }
@@ -253,6 +255,13 @@ const handleTakeBattery = async (station) => {
     
     console.log('Ответ API:', response)
     
+    // Обновляем данные станции в stores
+    try {
+      await stationsStore.refreshStationData(stationId)
+    } catch (refreshError) {
+      console.warn('Не удалось обновить данные станции:', refreshError)
+    }
+    
     // Здесь можно добавить уведомление об успехе
     alert('Запрос на взятие аккумулятора отправлен успешно!')
     
@@ -316,8 +325,16 @@ const borrowPowerbank = async (powerbank) => {
 
     if (result && (result.status === 'success' || result.status === 'accepted')) {
       alert('Повербанк успешно выдан!')
-      // Обновляем список повербанков
+      
+      // Обновляем данные станции в stores
       const stationId = selectedStation.value.station_id || selectedStation.value.id
+      try {
+        await stationsStore.refreshStationData(stationId)
+      } catch (refreshError) {
+        console.warn('Не удалось обновить данные станции:', refreshError)
+      }
+      
+      // Обновляем список повербанков в модальном окне
       const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
       selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
     } else {
@@ -355,8 +372,15 @@ const forceEjectPowerbank = async (powerbank) => {
     await pythonAPI.forceEjectPowerbank(requestData)
     alert('Повербанк принудительно извлечен!')
 
-    // Обновляем список повербанков
+    // Обновляем данные станции в stores
     const stationId = selectedStation.value.station_id || selectedStation.value.id
+    try {
+      await stationsStore.refreshStationData(stationId)
+    } catch (refreshError) {
+      console.warn('Не удалось обновить данные станции:', refreshError)
+    }
+
+    // Обновляем список повербанков в модальном окне
     const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
     selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
 
@@ -805,19 +829,6 @@ onUnmounted(() => {
   margin-bottom: 30px;
 }
 
-.debug-info {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 15px;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.debug-info p {
-  margin: 5px 0;
-}
 
 .scan-error {
   margin: 10px 0 20px;
