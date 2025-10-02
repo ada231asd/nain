@@ -18,6 +18,8 @@ class BorrowPowerbankHandler:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.logger = get_logger('borrow_powerbank')
+        # Словарь для ожидания ответов от станций: {order_id: asyncio.Future}
+        self.pending_requests = {}
     
     async def handle_borrow_request(self, data: bytes, connection) -> Optional[bytes]:
         """
@@ -94,12 +96,22 @@ class BorrowPowerbankHandler:
             if not station_id:
                 return
             
+            slot_number = borrow_response.get('Slot', 0)
+            success = borrow_response.get('Success', False)
+            
+            # Ищем соответствующий pending request
+            pending_order_id = None
+            for order_id, request_info in self.pending_requests.items():
+                if (request_info['station_id'] == station_id and 
+                    request_info['slot_number'] == slot_number):
+                    pending_order_id = order_id
+                    break
+            
             # Проверяем успешность ответа
-            if borrow_response.get('Success', False):
+            if success:
                 print("Выдача повербанка успешна")
                 
                 # Получаем информацию о повербанке из слота
-                slot_number = borrow_response.get('Slot', 0)
                 station_powerbank = await StationPowerbank.get_by_slot(
                     self.db_pool, station_id, slot_number
                 )
@@ -118,8 +130,15 @@ class BorrowPowerbankHandler:
                 
                 print(f"Выдача повербанка успешна для станции {station_id}")
                 
-                # Автоматически запрашиваем инвентарь после успешной выдачи
-                await self._request_inventory_after_operation(station_id)
+                # Уведомляем ожидающий запрос об успехе
+                if pending_order_id and pending_order_id in self.pending_requests:
+                    future = self.pending_requests[pending_order_id]['future']
+                    if not future.done():
+                        future.set_result({"success": True, "message": "Повербанк успешно выдан"})
+                    del self.pending_requests[pending_order_id]
+                
+                # Не запрашиваем инвентарь автоматически - станция сама отправит обновленный инвентарь
+                # после физической выдачи повербанка, что избежит race condition
             else:
                 # Обрабатываем различные коды ошибок
                 result_code = borrow_response.get('ResultCode', 0)
@@ -136,6 +155,13 @@ class BorrowPowerbankHandler:
                 }
                 error_msg = error_messages.get(result_code, f"Неизвестная ошибка (код: {result_code})")
                 print(f"Выдача повербанка не удалась для станции {station_id}: {error_msg}")
+                
+                # Уведомляем ожидающий запрос об ошибке
+                if pending_order_id and pending_order_id in self.pending_requests:
+                    future = self.pending_requests[pending_order_id]['future']
+                    if not future.done():
+                        future.set_result({"success": False, "message": error_msg})
+                    del self.pending_requests[pending_order_id]
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -224,9 +250,82 @@ class BorrowPowerbankHandler:
             self.logger.error(f"Ошибка: {e}")
             return False
     
+    async def send_borrow_request_and_wait(self, station_id: int, powerbank_id: int, user_id: int, order_id: int) -> Dict[str, Any]:
+        """
+        Отправляет запрос на выдачу повербанка на станцию и ждет ответа
+        """
+        import asyncio
+        
+        try:
+            # Получаем соединение со станцией
+            if not self.connection_manager:
+                return {"success": False, "message": "Connection manager недоступен"}
+            
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                return {"success": False, "message": "Станция не подключена"}
+            
+            # Получаем информацию о повербанке и его слоте
+            station_powerbank = await StationPowerbank.get_by_powerbank_id(self.db_pool, powerbank_id)
+            if not station_powerbank:
+                return {"success": False, "message": "Повербанк не найден в станции"}
+            
+            slot_number = station_powerbank.slot_number
+            
+            # Получаем секретный ключ
+            secret_key = connection.secret_key
+            if not secret_key:
+                return {"success": False, "message": "Нет секретного ключа для команды выдачи"}
+            
+            # Создаем Future для ожидания ответа
+            future = asyncio.Future()
+            self.pending_requests[order_id] = {
+                'future': future,
+                'station_id': station_id,
+                'slot_number': slot_number,
+                'powerbank_id': powerbank_id,
+                'user_id': user_id
+            }
+            
+            # Создаем команду на выдачу повербанка
+            borrow_command = build_borrow_power_bank(
+                secret_key=secret_key,
+                slot=slot_number,
+                vsn=1  # Используем VSN=1 по умолчанию
+            )
+            
+            # Отправляем команду через TCP соединение
+            if connection.writer and not connection.writer.is_closing():
+                connection.writer.write(borrow_command)
+                await connection.writer.drain()
+                print(f" Команда на выдачу повербанка отправлена станции {station_id}, слот {slot_number}")
+                
+                # Ждем ответа от станции (максимум 30 секунд)
+                try:
+                    result = await asyncio.wait_for(future, timeout=30.0)
+                    return result
+                except asyncio.TimeoutError:
+                    # Убираем из pending_requests при таймауте
+                    if order_id in self.pending_requests:
+                        del self.pending_requests[order_id]
+                    return {"success": False, "message": "Таймаут ожидания ответа от станции"}
+                
+            else:
+                # Убираем из pending_requests если соединение недоступно
+                if order_id in self.pending_requests:
+                    del self.pending_requests[order_id]
+                return {"success": False, "message": "TCP соединение со станцией недоступно"}
+                
+        except Exception as e:
+            # Убираем из pending_requests при ошибке
+            if order_id in self.pending_requests:
+                del self.pending_requests[order_id]
+            print(f" Ошибка отправки запроса на выдачу: {e}")
+            return {"success": False, "message": f"Ошибка отправки команды: {str(e)}"}
+
     async def send_borrow_request(self, station_id: int, powerbank_id: int, user_id: int) -> Dict[str, Any]:
         """
-        Отправляет запрос на выдачу повербанка на станцию
+        Отправляет запрос на выдачу повербанка на станцию (старый метод для совместимости)
         """
         try:
             

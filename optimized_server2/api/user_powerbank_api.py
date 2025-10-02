@@ -148,8 +148,8 @@ class UserPowerbankAPI:
                     "error": "Станция неактивна"
                 }, status=400)
 
-            # Создаем заказ
-            order = await Order.create(
+            # Создаем заказ со статусом 'pending' (ожидание ответа от станции)
+            order = await Order.create_pending_order(
                 self.db_pool,
                 user_id,
                 powerbank_id,
@@ -161,29 +161,33 @@ class UserPowerbankAPI:
                     "error": "Не удалось создать заказ"
                 }, status=500)
 
-            # Отправляем команду выдачи на станцию
-            borrow_result = await self.borrow_handler.send_borrow_request(
+            # Отправляем команду выдачи на станцию и ждем ответа
+            borrow_result = await self.borrow_handler.send_borrow_request_and_wait(
                 station_id, 
                 powerbank_id, 
-                user_id
+                user_id,
+                order.order_id
             )
 
-            if not borrow_result["success"]:
-                # Если команда не отправилась, отменяем заказ
+            if borrow_result["success"]:
+                # Станция подтвердила выдачу - обновляем заказ на 'borrow'
+                await Order.confirm_borrow(self.db_pool, order.order_id)
+                
+                self.logger.info(f"Пользователь {user_id} успешно взял повербанк {powerbank_id} со станции {station_id}")
+
+                return web.json_response({
+                    "success": True,
+                    "message": "Повербанк успешно выдан",
+                    "order_id": order.order_id,
+                    "powerbank_serial": powerbank.serial_number,
+                    "station_box_id": station.box_id
+                })
+            else:
+                # Станция отклонила выдачу - отменяем заказ
                 await Order.cancel(self.db_pool, order.order_id)
                 return web.json_response({
-                    "error": f"Ошибка отправки команды на станцию: {borrow_result['message']}"
-                }, status=500)
-
-            self.logger.info(f"Пользователь {user_id} успешно взял повербанк {powerbank_id} со станции {station_id}")
-
-            return web.json_response({
-                "success": True,
-                "message": "Повербанк успешно выдан",
-                "order_id": order.order_id,
-                "powerbank_serial": powerbank.serial_number,
-                "station_box_id": station.box_id
-            })
+                    "error": f"Станция отклонила выдачу: {borrow_result['message']}"
+                }, status=400)
 
         except Exception as e:
             self.logger.error(f"Ошибка выдачи повербанка пользователю {user_id}: {e}", exc_info=True)

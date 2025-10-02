@@ -2,7 +2,7 @@
 TCP пакет логгер - использует основной логгер для минимизации файловых дескрипторов
 """
 from utils.centralized_logger import get_logger
-from datetime import datetime, timezone, timedelta
+from utils.time_utils import format_moscow_time_with_microseconds
 
 def get_tcp_logger():
     """Возвращает основной логгер для TCP пакетов"""
@@ -17,9 +17,7 @@ def log_tcp_packet(direction: str, packet_type: str, station_id: str,
     logger = get_tcp_logger()
     
     # Добавляем микросекунды к сообщению
-    from datetime import datetime
-    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
-    timestamp = datetime.now(moscow_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    timestamp = format_moscow_time_with_microseconds()
     
     # Формируем сообщение
     message_parts = [
@@ -44,9 +42,7 @@ def log_tcp_error(station_id: str, error_message: str, packet_data: str = "") ->
     logger = get_tcp_logger()
     
     # Добавляем микросекунды к сообщению
-    from datetime import datetime
-    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
-    timestamp = datetime.now(moscow_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    timestamp = format_moscow_time_with_microseconds()
     
     message_parts = [
         f"[ERROR]",

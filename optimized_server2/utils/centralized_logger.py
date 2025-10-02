@@ -47,8 +47,8 @@ def get_logger(name: str) -> logging.Logger:
 def log_tcp_packet(packet_type: str, data: bytes, station_id: str = None):
     """Логирует TCP пакет"""
     tcp_logger = get_logger('tcp_packets')
-    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
-    timestamp = datetime.now(moscow_tz).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+    from utils.time_utils import format_moscow_time_with_microseconds
+    timestamp = format_moscow_time_with_microseconds()
     
     if station_id:
         tcp_logger.info(f"[{timestamp}] Station {station_id} - {packet_type}: {data.hex().upper()}")

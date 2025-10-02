@@ -4,7 +4,7 @@
 from aiohttp import web
 from typing import Dict, Any
 from datetime import datetime
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 from models.powerbank import Powerbank
 from models.order import Order

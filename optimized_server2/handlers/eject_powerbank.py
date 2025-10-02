@@ -187,10 +187,26 @@ class EjectPowerbankHandler:
                         print(f"Повербанк {powerbank.serial_number} в слоте {sp.slot_number} имеет статус 'unknown' - оставляем в станции")
                         continue
                     
-                    # Выплевываем только повербанки других групп, которые НЕ unknown
-                    if powerbank.org_unit_id != station_org_unit_id:
+                    # Проверяем совместимость с использованием новой утилиты
+                    from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
+                    
+                    compatible = await is_powerbank_compatible(
+                        self.db_pool, powerbank.org_unit_id, station_org_unit_id
+                    )
+                    
+                    if not compatible:
+                        reason = await get_compatibility_reason(
+                            self.db_pool, powerbank.org_unit_id, station_org_unit_id
+                        )
                         print(f"Найден несовместимый повербанк в слоте {sp.slot_number}")
-                        self.logger.info(f"Повербанк {powerbank.serial_number} (группа: {powerbank.org_unit_id}) не совместим со станцией {station_id} (группа: {station_org_unit_id})")
+                        self.logger.info(f"Повербанк {powerbank.serial_number} (org_unit: {powerbank.org_unit_id}) не совместим со станцией {station_id} (org_unit: {station_org_unit_id}). Причина: {reason}")
+                        
+                        # Логируем событие выплева
+                        from utils.org_unit_utils import log_powerbank_ejection_event
+                        await log_powerbank_ejection_event(
+                            self.db_pool, station_id, sp.slot_number, powerbank.serial_number,
+                            powerbank.org_unit_id, station_org_unit_id, reason
+                        )
                         
                         # Извлекаем несовместимый повербанк
                         await self.extract_incompatible_powerbank(

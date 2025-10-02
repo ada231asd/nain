@@ -4,7 +4,7 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import aiomysql
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 
 class Order:
@@ -39,6 +39,13 @@ class Order:
         }
     
     @classmethod
+    async def create_pending_order(cls, db_pool, user_id: int, powerbank_id: int, 
+                                 station_id: int) -> 'Order':
+        """Создает заказ со статусом 'pending' (ожидание ответа от станции)"""
+        return await cls.create(db_pool, station_id, user_id, powerbank_id, 
+                              order_type='borrow', status='pending')
+    
+    @classmethod
     async def create(cls, db_pool, station_id: int, user_id: int, 
                     powerbank_id: int = None, order_type: str = 'borrow', 
                     status: str = 'borrow', notes: str = None) -> 'Order':
@@ -54,15 +61,15 @@ class Order:
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
-                        INSERT INTO app_user (user_id, username, email, phone, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s) AS new_values
-                        ON DUPLICATE KEY UPDATE username = new_values.username
-                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
+                        INSERT INTO app_user (fio, email, phone_e164, status, created_at)
+                        VALUES (%s, %s, %s, %s, %s) AS new_values
+                        ON DUPLICATE KEY UPDATE fio = new_values.fio
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, order_type, status, notes, timestamp)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, order_type, status, notes, get_moscow_time()))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, status, get_moscow_time()))
                 
                 order_id = cursor.lastrowid
                 
@@ -420,6 +427,18 @@ class Order:
                         timestamp=result[5]
                     )
                 return None
+    
+    @classmethod
+    async def confirm_borrow(cls, db_pool, order_id: int) -> bool:
+        """Подтверждает заказ на выдачу (меняет статус с 'pending' на 'borrow')"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    UPDATE orders SET status = 'borrow', borrow_time = %s 
+                    WHERE id = %s AND status = 'pending'
+                """, (get_moscow_time(), order_id))
+                
+                return cursor.rowcount > 0
     
     @classmethod
     async def complete_order(cls, db_pool, order_id: int) -> bool:

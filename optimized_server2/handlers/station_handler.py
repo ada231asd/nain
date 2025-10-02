@@ -207,8 +207,25 @@ class StationHandler:
             
             if existing_powerbank:
                 # Проверяем совместимость групп - выплевываем повербанки других групп
-                if existing_powerbank.org_unit_id != station.org_unit_id:
-                    logger = get_logger('station_handler'); logger.info(f"Повербанк {terminal_id} из группы {existing_powerbank.org_unit_id} не принадлежит группе станции {station.org_unit_id} - выплевываем")
+                from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
+                
+                compatible = await is_powerbank_compatible(
+                    self.db_pool, existing_powerbank.org_unit_id, station.org_unit_id
+                )
+                
+                if not compatible:
+                    reason = await get_compatibility_reason(
+                        self.db_pool, existing_powerbank.org_unit_id, station.org_unit_id
+                    )
+                    logger = get_logger('station_handler')
+                    logger.info(f"Повербанк {terminal_id} (org_unit {existing_powerbank.org_unit_id}) не совместим со станцией {station.org_unit_id} — выплёвываем. Причина: {reason}")
+                    
+                    # Логируем событие выплева
+                    from utils.org_unit_utils import log_powerbank_ejection_event
+                    await log_powerbank_ejection_event(
+                        self.db_pool, station_id, slot['Slot'], terminal_id,
+                        existing_powerbank.org_unit_id, station.org_unit_id, reason
+                    )
                     
                     # Планируем извлечение несовместимого повербанка
                     await self._schedule_incompatible_powerbank_ejection(station_id, slot['Slot'], terminal_id)

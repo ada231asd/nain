@@ -12,7 +12,7 @@ from models.user import User
 from utils.notification_service import notification_service
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, PASSWORD_MAX_LENGTH
 from utils.centralized_logger import get_logger
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 
 class AuthHandler:

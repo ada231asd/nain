@@ -4,7 +4,7 @@
 from typing import Optional, Dict, Any
 from datetime import datetime
 import asyncio
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 import socket
 
 

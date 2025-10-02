@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 
 class PowerbankCRUD:

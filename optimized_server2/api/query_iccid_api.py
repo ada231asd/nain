@@ -3,7 +3,7 @@ API для запроса ICCID SIM карт станций
 """
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 from models.station import Station
 

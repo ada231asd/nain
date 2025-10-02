@@ -3,7 +3,7 @@
 """
 from typing import Optional, Dict, Any
 from datetime import datetime
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 from utils.packet_utils import parse_slot_abnormal_report_request, build_slot_abnormal_report_response
 from utils.centralized_logger import get_logger

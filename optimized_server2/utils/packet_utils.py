@@ -8,13 +8,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Tuple, Optional
 from config.settings import MAX_PACKET_SIZE, PROTOCOL_COMMAND_RANGE, MAX_SUSPICIOUS_PACKETS
 
-def get_moscow_time() -> datetime:
-    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
-    return datetime.now(moscow_tz)
-
-def get_moscow_now() -> datetime:
-    """Возвращает текущее время по Москве (алиас для get_moscow_time)"""
-    return get_moscow_time()
+# Импортируем централизованные функции времени
+from utils.time_utils import get_moscow_time, get_moscow_now
 
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
     """Логирование TCP пакета через логгер"""

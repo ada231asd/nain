@@ -81,8 +81,8 @@ def jwt_middleware(handler):
 def create_jwt_token(user_data: Dict[str, Any], expires_hours: int = 24) -> str:
 #  создание токена для пользователя
     # Добавляем время истечения
-    moscow_tz = timezone(timedelta(hours=3))  # UTC+3
-    now = datetime.now(moscow_tz)
+    from utils.time_utils import get_moscow_time
+    now = get_moscow_time()
     exp_time = now.timestamp() + (expires_hours * 3600)
     
     payload = {
@@ -119,8 +119,8 @@ def is_token_expired(token: str) -> bool:
     try:
         payload = verify_jwt_token(token)
         exp_time = payload.get('exp', 0)
-        moscow_tz = timezone(timedelta(hours=3))  # UTC+3
-        current_time = datetime.now(moscow_tz).timestamp()
+        from utils.time_utils import moscow_timestamp
+        current_time = moscow_timestamp()
         return current_time >= exp_time
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return True

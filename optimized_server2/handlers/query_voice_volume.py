@@ -2,7 +2,7 @@
 Обработчик команды запроса уровня громкости голосового вещания
 """
 from datetime import datetime
-from utils.packet_utils import get_moscow_time
+from utils.time_utils import get_moscow_time
 
 from models.station import Station
 from utils.packet_utils import build_query_voice_volume_request, parse_query_voice_volume_response
