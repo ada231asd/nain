@@ -88,9 +88,9 @@ class SecureAuthHandler:
                 self.secure_db.db_pool, phone_e164, email, fio
             )
             
-            # Отправляем пароль на email
+            # Отправляем пароль на email с номером телефона
             email_sent = await notification_service.send_password_email(
-                email, password, fio
+                email, password, fio, phone_e164
             )
             
             if not email_sent:

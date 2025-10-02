@@ -37,17 +37,27 @@ class UserPowerbankAPI:
             # Получаем все активные повербанки
             powerbanks = await Powerbank.get_all_active(self.db_pool)
             
+            # Импортируем функцию проверки доступа
+            from utils.org_unit_utils import can_user_borrow_powerbank
+            
             available_powerbanks = []
             for powerbank in powerbanks:
                 # Проверяем, не выдан ли уже повербанк
                 active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
                 if not active_order:
-                    available_powerbanks.append({
-                        "powerbank_id": powerbank.powerbank_id,
-                        "serial_number": powerbank.serial_number,
-                        "soh": powerbank.soh,
-                        "status": powerbank.status
-                    })
+                    # Проверяем права доступа пользователя к этому повербанку
+                    can_borrow, access_reason = await can_user_borrow_powerbank(
+                        self.db_pool, user_id, powerbank.powerbank_id
+                    )
+                    
+                    if can_borrow:
+                        available_powerbanks.append({
+                            "powerbank_id": powerbank.powerbank_id,
+                            "serial_number": powerbank.serial_number,
+                            "soh": powerbank.soh,
+                            "status": powerbank.status,
+                            "access_reason": access_reason  # Добавляем причину доступа для информации
+                        })
 
             return web.json_response({
                 "success": True,
@@ -122,7 +132,19 @@ class UserPowerbankAPI:
                     "error": "Не указаны powerbank_id или station_id"
                 }, status=400)
 
-            # Проверяем, что повербанк существует и доступен
+            # Проверяем права доступа пользователя к повербанку
+            from utils.org_unit_utils import can_user_borrow_powerbank, log_access_denied_event
+            
+            can_borrow, access_reason = await can_user_borrow_powerbank(self.db_pool, user_id, powerbank_id)
+            if not can_borrow:
+                # Логируем отказ в доступе
+                await log_access_denied_event(self.db_pool, user_id, 'powerbank', powerbank_id, access_reason)
+                
+                return web.json_response({
+                    "error": access_reason
+                }, status=403)
+
+            # Проверяем, что повербанк существует и доступен (дополнительная проверка)
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
             if not powerbank:
                 return web.json_response({
@@ -136,7 +158,19 @@ class UserPowerbankAPI:
                     "error": "Повербанк уже выдан другому пользователю"
                 }, status=400)
 
-            # Проверяем, что станция существует и активна
+            # Проверяем права доступа пользователя к станции
+            from utils.org_unit_utils import can_user_access_station
+            
+            can_access_station, station_access_reason = await can_user_access_station(self.db_pool, user_id, station_id)
+            if not can_access_station:
+                # Логируем отказ в доступе к станции
+                await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
+                
+                return web.json_response({
+                    "error": station_access_reason
+                }, status=403)
+
+            # Проверяем, что станция существует и активна (дополнительная проверка)
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
                 return web.json_response({

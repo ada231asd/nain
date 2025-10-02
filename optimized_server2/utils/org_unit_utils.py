@@ -120,3 +120,149 @@ async def log_powerbank_ejection_event(db_pool, station_id: int, slot_number: in
     except Exception as e:
         # В случае ошибки логирования просто выводим в консоль
         print(f"Ошибка логирования события выплева: {e}")
+
+
+async def can_user_borrow_powerbank(db_pool, user_id: int, powerbank_id: int) -> tuple[bool, str]:
+    """
+    Проверяет, может ли пользователь взять указанный повербанк
+    
+    Args:
+        db_pool: Пул соединений с БД
+        user_id: ID пользователя
+        powerbank_id: ID повербанка
+        
+    Returns:
+        tuple[bool, str]: (разрешено, причина отказа/разрешения)
+    """
+    try:
+        from models.user_role import UserRole
+        from models.powerbank import Powerbank
+        
+        # Получаем основную роль пользователя
+        user_role = await UserRole.get_primary_role(db_pool, user_id)
+        if not user_role:
+            return False, "У пользователя нет назначенных ролей"
+        
+        # Глобальный администратор может взять любой повербанк
+        if user_role.role == 'service_admin':
+            return True, f"Глобальный администратор имеет доступ ко всем повербанкам"
+        
+        # Получаем повербанк
+        powerbank = await Powerbank.get_by_id(db_pool, powerbank_id)
+        if not powerbank:
+            return False, "Повербанк не найден"
+        
+        # Проверяем статус повербанка
+        if powerbank.status not in ['active', 'unknown']:
+            return False, f"Повербанк недоступен (статус: {powerbank.status})"
+        
+        # Если у роли нет привязки к org_unit, доступ запрещен
+        if user_role.org_unit_id is None:
+            return False, "Роль пользователя не привязана к организационной единице"
+        
+        # Если у повербанка нет привязки к org_unit, доступ запрещен
+        if powerbank.org_unit_id is None:
+            return False, "Повербанк не привязан к организационной единице"
+        
+        # Проверяем совместимость организационных единиц
+        compatible = await is_powerbank_compatible(
+            db_pool, user_role.org_unit_id, powerbank.org_unit_id
+        )
+        
+        if compatible:
+            reason = await get_compatibility_reason(
+                db_pool, user_role.org_unit_id, powerbank.org_unit_id
+            )
+            return True, f"Доступ разрешен: {reason}"
+        else:
+            reason = await get_compatibility_reason(
+                db_pool, user_role.org_unit_id, powerbank.org_unit_id
+            )
+            return False, f"Повербанк недоступен вашему подразделению: {reason}"
+        
+    except Exception as e:
+        return False, f"Ошибка проверки прав доступа: {e}"
+
+
+async def can_user_access_station(db_pool, user_id: int, station_id: int) -> tuple[bool, str]:
+    """
+    Проверяет, может ли пользователь получить доступ к станции
+    
+    Args:
+        db_pool: Пул соединений с БД
+        user_id: ID пользователя
+        station_id: ID станции
+        
+    Returns:
+        tuple[bool, str]: (разрешено, причина отказа/разрешения)
+    """
+    try:
+        from models.user_role import UserRole
+        from models.station import Station
+        
+        # Получаем основную роль пользователя
+        user_role = await UserRole.get_primary_role(db_pool, user_id)
+        if not user_role:
+            return False, "У пользователя нет назначенных ролей"
+        
+        # Глобальный администратор может получить доступ к любой станции
+        if user_role.role == 'service_admin':
+            return True, "Глобальный администратор имеет доступ ко всем станциям"
+        
+        # Получаем станцию
+        station = await Station.get_by_id(db_pool, station_id)
+        if not station:
+            return False, "Станция не найдена"
+        
+        # Если у роли нет привязки к org_unit, доступ запрещен
+        if user_role.org_unit_id is None:
+            return False, "Роль пользователя не привязана к организационной единице"
+        
+        # Если у станции нет привязки к org_unit, доступ запрещен
+        if station.org_unit_id is None:
+            return False, "Станция не привязана к организационной единице"
+        
+        # Проверяем совместимость организационных единиц
+        compatible = await is_powerbank_compatible(
+            db_pool, user_role.org_unit_id, station.org_unit_id
+        )
+        
+        if compatible:
+            reason = await get_compatibility_reason(
+                db_pool, user_role.org_unit_id, station.org_unit_id
+            )
+            return True, f"Доступ к станции разрешен: {reason}"
+        else:
+            reason = await get_compatibility_reason(
+                db_pool, user_role.org_unit_id, station.org_unit_id
+            )
+            return False, f"Станция недоступна вашему подразделению: {reason}"
+        
+    except Exception as e:
+        return False, f"Ошибка проверки доступа к станции: {e}"
+
+
+async def log_access_denied_event(db_pool, user_id: int, resource_type: str, 
+                                resource_id: int, reason: str) -> None:
+    """
+    Логирует событие отказа в доступе
+    
+    Args:
+        db_pool: Пул соединений с БД
+        user_id: ID пользователя
+        resource_type: Тип ресурса ('powerbank', 'station')
+        resource_id: ID ресурса
+        reason: Причина отказа
+    """
+    try:
+        logger = get_logger('access_control')
+        logger.warning(f"ОТКАЗ В ДОСТУПЕ: пользователь {user_id}, {resource_type} {resource_id}, "
+                      f"причина: {reason}")
+        
+        # Дополнительное структурированное логирование
+        access_logger = get_logger('access_denied')
+        access_logger.warning(f"ACCESS_DENIED|{get_moscow_time().isoformat()}|"
+                            f"USER:{user_id}|RESOURCE:{resource_type.upper()}:{resource_id}|"
+                            f"REASON:{reason}")
+    except Exception as e:
+        print(f"Ошибка логирования отказа в доступе: {e}")

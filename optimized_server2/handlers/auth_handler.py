@@ -65,9 +65,9 @@ class AuthHandler:
                 self.db_pool, phone_e164, email, fio
             )
             
-            # Отправляем пароль на email
+            # Отправляем пароль на email с номером телефона
             email_sent = await notification_service.send_password_email(
-                email, password, fio
+                email, password, fio, phone_e164
             )
             
             if not email_sent:
@@ -341,6 +341,13 @@ class AuthHandler:
                     'error': 'ID пользователя обязателен'
                 }, status=400)
             
+            # Получаем данные пользователя перед обновлением
+            user_to_approve = await User.get_by_id(self.db_pool, user_id)
+            if not user_to_approve:
+                return web.json_response({
+                    'error': 'Пользователь не найден'
+                }, status=404)
+            
             # Обновляем статус пользователя на active
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
@@ -354,9 +361,27 @@ class AuthHandler:
                             'error': 'Пользователь не найден'
                         }, status=404)
             
-            return web.json_response({
-                'message': 'Пользователь подтвержден'
-            })
+            # Отправляем уведомление об одобрении
+            try:
+                email_sent = await notification_service.send_account_approved_email(
+                    user_to_approve.email, 
+                    user_to_approve.fio, 
+                    user_to_approve.phone_e164
+                )
+                
+                if email_sent:
+                    return web.json_response({
+                        'message': 'Пользователь подтвержден. Уведомление отправлено на email.'
+                    })
+                else:
+                    return web.json_response({
+                        'message': 'Пользователь подтвержден, но не удалось отправить уведомление на email.'
+                    })
+            except Exception as e:
+                # Если не удалось отправить email, всё равно возвращаем успех
+                return web.json_response({
+                    'message': f'Пользователь подтвержден, но ошибка отправки уведомления: {str(e)}'
+                })
             
         except Exception as e:
             return web.json_response({
