@@ -442,3 +442,41 @@ class AuthHandler:
             return web.json_response({
                 'error': f'Ошибка отклонения пользователя: {str(e)}'
             }, status=500)
+    
+    async def reset_email_service(self, request):
+        """Сброс состояния email сервиса (только для администраторов)"""
+        try:
+            # Извлекаем токен из заголовка
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return web.json_response({
+                    'error': 'Токен авторизации не предоставлен'
+                }, status=401)
+            
+            token = auth_header.split(' ')[1]
+            payload = self.verify_jwt_token(token)
+            
+            if not payload:
+                return web.json_response({
+                    'error': 'Недействительный токен'
+                }, status=401)
+            
+            # Проверяем, что пользователь - администратор
+            current_user = await User.get_by_phone(self.db_pool, payload['phone_e164'])
+            if not current_user or current_user.role not in ['service_admin', 'group_admin']:
+                return web.json_response({
+                    'error': 'Недостаточно прав доступа. Требуется роль service_admin или group_admin'
+                }, status=403)
+            
+            # Сбрасываем состояние email сервиса
+            notification_service.force_enable_email()
+            
+            return web.json_response({
+                'message': 'Email сервис сброшен и включен',
+                'email_enabled': notification_service.email_enabled
+            })
+            
+        except Exception as e:
+            return web.json_response({
+                'error': f'Ошибка сброса email сервиса: {str(e)}'
+            }, status=500)

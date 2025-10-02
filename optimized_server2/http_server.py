@@ -158,6 +158,7 @@ class HTTPServer:
         app.router.add_get('/api/admin/pending-users', self.auth_handler.get_pending_users)
         app.router.add_post('/api/admin/approve-user', self.auth_handler.approve_user)
         app.router.add_post('/api/admin/reject-user', self.auth_handler.reject_user)
+        app.router.add_post('/api/admin/reset-email', self.auth_handler.reset_email_service)
         
         # Административные функции для повербанков
         self.admin_endpoints.setup_routes(app)

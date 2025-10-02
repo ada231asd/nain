@@ -42,13 +42,15 @@ PASSWORD_HASH_ROUNDS = 12  # Для bcrypt
 # Настройки уведомлений
 NOTIFICATION_CONFIG = {
     "smtp": {
+        "enabled": os.getenv("SMTP_ENABLED", "true").lower() == "true",  # Можно отключить через переменную окружения
         "host": "smtp.mail.ru",
         "port": 587,
         "use_tls": True,
         "username": "v.bazarov142@mail.ru",
         "password": "aj3wqoCmWQbJFtRQdp8V",
         "from_email": "v.bazarov142@mail.ru",
-        "app_name": "ЗАРЯД"
+        "app_name": "ЗАРЯД",
+        "max_retries": int(os.getenv("SMTP_MAX_RETRIES", "2"))  # Количество повторных попыток
     },
     "sms": {
         "enabled": False,  
