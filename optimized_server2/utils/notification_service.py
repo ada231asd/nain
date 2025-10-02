@@ -82,6 +82,9 @@ class NotificationService:
                 msg['From'] = self.smtp_config.get('from_email')
                 msg['To'] = to_email
                 msg['Subject'] = subject
+                msg['Reply-To'] = 'noreply@zarayd.ru'  
+                msg['X-Auto-Response-Suppress'] = 'All'  # Подавляем автоответы
+                msg['Precedence'] = 'bulk'  # Помечаем как массовую рассылку
                 
                 # Добавляем текстовую версию
                 text_part = MIMEText(body, 'plain', 'utf-8')
@@ -194,11 +197,15 @@ class NotificationService:
     
     <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #2c5aa0; margin: 20px 0;">
         <h3 style="margin-top: 0; color: #2c5aa0;">Данные для входа:</h3>
-        <p><strong>Логин (телефон):</strong> <span style="font-weight: bold; color: #d63384;">{phone_number}</span></p>
-        <p><strong>Пароль:</strong> <span style="font-weight: bold; color: #d63384; font-size: 18px; background-color: #fff3cd; padding: 2px 6px; border-radius: 3px;">{password}</span></p>
+        <p><strong>Логин (телефон):</strong> <span style="font-weight: 600; color: #495057;">{phone_number}</span></p>
+        <p><strong>Пароль:</strong> <span style="font-family: 'Courier New', monospace; font-weight: 600; color: #495057; background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 16px;">{password}</span></p>
     </div>
     
-    <p style="color: #6c757d;"> Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
+    <p style="color: #050300;"> Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
+    
+    <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+        Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
+    </p>
     
     <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
     <p style="color: #6c757d; font-size: 14px;">
@@ -217,11 +224,15 @@ class NotificationService:
     
     <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #2c5aa0; margin: 20px 0;">
         <h3 style="margin-top: 0; color: #2c5aa0;">Данные для входа:</h3>
-        <p><strong>Логин (телефон):</strong> <span style="font-weight: bold; color: #d63384;">{phone_number}</span></p>
-        <p><strong>Пароль:</strong> <span style="font-weight: bold; color: #d63384; font-size: 18px; background-color: #fff3cd; padding: 2px 6px; border-radius: 3px;">{password}</span></p>
+        <p><strong>Логин (телефон):</strong> <span style="font-weight: 600; color: #495057;">{phone_number}</span></p>
+        <p><strong>Пароль:</strong> <span style="font-family: 'Courier New', monospace; font-weight: 600; color: #495057; background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 16px;">{password}</span></p>
     </div>
     
-    <p style="color: #6c757d;"> Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
+    <p style="color: #050300;"> Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
+    
+    <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+        Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
+    </p>
     
     <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
     <p style="color: #6c757d; font-size: 14px;">
@@ -278,11 +289,15 @@ class NotificationService:
     </div>
     
     <p>Теперь вы можете войти в систему, используя ранее отправленные данные:</p>
-    <p><strong>Логин (телефон):</strong> <span style="font-weight: bold; color: #2c5aa0;">{phone_number}</span></p>
+    <p><strong>Логин (телефон):</strong> <span style="font-weight: 600; color: #495057;">{phone_number}</span></p>
     
     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
         <p style="margin: 0; color: #28a745; font-size: 18px;"><strong>Добро пожаловать в систему ЗАРЯД!</strong></p>
     </div>
+    
+    <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+        Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
+    </p>
     
     <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
     <p style="color: #6c757d; font-size: 14px;">
@@ -302,11 +317,15 @@ class NotificationService:
     </div>
     
     <p>Теперь вы можете войти в систему, используя ранее отправленные данные:</p>
-    <p><strong>Логин (телефон):</strong> <span style="font-weight: bold; color: #2c5aa0;">{phone_number}</span></p>
+    <p><strong>Логин (телефон):</strong> <span style="font-weight: 600; color: #495057;">{phone_number}</span></p>
     
     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
         <p style="margin: 0; color: #28a745; font-size: 18px;"><strong>Добро пожаловать в систему ЗАРЯД!</strong></p>
     </div>
+    
+    <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+        Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
+    </p>
     
     <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
     <p style="color: #6c757d; font-size: 14px;">

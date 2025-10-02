@@ -92,23 +92,29 @@ class BorrowPowerbankAPI:
             if not station_powerbank:
                 return {"error": f"В слоте {slot_number} нет повербанка", "success": False}
             
-            # Проверяем, что повербанк активен
+            # Комплексная валидация запроса на выдачу с защитой от дублирования
+            from utils.order_utils import validate_borrow_request
+            request_valid, validation_message = await validate_borrow_request(
+                self.db_pool, user_id, station_powerbank.powerbank_id, station_id
+            )
+            
+            if not request_valid:
+                return {"error": validation_message, "success": False}
+            
+            # Получаем информацию о powerbank'е (уже проверенном в validate_borrow_request)
             powerbank = await Powerbank.get_by_id(self.db_pool, station_powerbank.powerbank_id)
-            if not powerbank or powerbank.status != 'active':
-                return {"error": f"Повербанк в слоте {slot_number} неактивен", "success": False}
             
-            # Проверяем, что повербанк не находится в активном заказе
-            existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
-            if existing_order:
-                return {"error": f"Повербанк {powerbank.serial_number} уже находится в активном заказе", "success": False}
+            # Проверяем, что станция была онлайн в течение последних 30 секунд
+            from utils.station_utils import validate_station_for_operation
+            station_valid, station_message = await validate_station_for_operation(
+                self.db_pool, self.connection_manager, station_id, "выдача powerbank'а", 30
+            )
             
-            # Проверяем, что станция подключена
-            if not self.connection_manager:
-                return {"error": "Connection manager недоступен", "success": False}
+            if not station_valid:
+                return {"error": station_message, "success": False}
             
+            # Получаем соединение (уже проверенное в validate_station_for_operation)
             connection = self.connection_manager.get_connection_by_station_id(station_id)
-            if not connection:
-                return {"error": "Станция не подключена", "success": False}
             
             # Создаем заказ на выдачу
             await Order.create_borrow_order(

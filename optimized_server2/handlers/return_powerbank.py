@@ -179,13 +179,17 @@ class ReturnPowerbankHandler:
             if station.status != 'active':
                 return {"success": False, "message": "Станция неактивна"}
             
-            # Проверяем, что станция подключена
-            if not self.connection_manager:
-                return {"success": False, "message": "Connection manager недоступен"}
+            # Проверяем, что станция была онлайн в течение последних 30 секунд
+            from utils.station_utils import validate_station_for_operation
+            station_valid, station_message = await validate_station_for_operation(
+                self.db_pool, self.connection_manager, station_id, "возврат powerbank'а с поломкой", 30
+            )
             
+            if not station_valid:
+                return {"success": False, "message": station_message}
+            
+            # Получаем соединение (уже проверенное в validate_station_for_operation)
             connection = self.connection_manager.get_connection_by_station_id(station_id)
-            if not connection:
-                return {"success": False, "message": "Станция не подключена"}
             
             # Ищем активный заказ пользователя
             active_orders = await Order.get_active_orders_by_user(self.db_pool, user_id)
@@ -346,13 +350,17 @@ class ReturnPowerbankHandler:
             if station.status != 'active':
                 return {"success": False, "message": "Станция неактивна"}
             
-            # Проверяем, что станция подключена
-            if not self.connection_manager:
-                return {"success": False, "message": "Connection manager недоступен"}
+            # Проверяем, что станция была онлайн в течение последних 30 секунд
+            from utils.station_utils import validate_station_for_operation
+            station_valid, station_message = await validate_station_for_operation(
+                self.db_pool, self.connection_manager, station_id, "ручной возврат powerbank'а", 30
+            )
             
+            if not station_valid:
+                return {"success": False, "message": station_message}
+            
+            # Получаем соединение (уже проверенное в validate_station_for_operation)
             connection = self.connection_manager.get_connection_by_station_id(station_id)
-            if not connection:
-                return {"success": False, "message": "Станция не подключена"}
             
             # Отправляем команду на возврат повербанка
             secret_key = connection.secret_key

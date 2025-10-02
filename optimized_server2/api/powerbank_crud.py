@@ -302,7 +302,7 @@ class PowerbankCRUD:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование powerbank
-                    await cur.execute("SELECT id, status FROM powerbank WHERE id = %s", (powerbank_id,))
+                    await cur.execute("SELECT id, serial_number, status, org_unit_id FROM powerbank WHERE id = %s", (powerbank_id,))
                     powerbank = await cur.fetchone()
                     if not powerbank:
                         return web.json_response({
@@ -325,24 +325,60 @@ class PowerbankCRUD:
                             "error": "Группа/подгруппа не найдена"
                         }, status=400)
                     
+                    # Проверяем, находится ли powerbank в станции и совместимость групп
+                    await cur.execute("""
+                        SELECT sp.station_id, sp.slot_number, s.org_unit_id as station_org_unit_id, s.box_id
+                        FROM station_powerbank sp
+                        INNER JOIN station s ON sp.station_id = s.station_id
+                        WHERE sp.powerbank_id = %s
+                    """, (powerbank_id,))
+                    station_info = await cur.fetchone()
+                    
+                    # Проверяем совместимость групп, если powerbank в станции
+                    if station_info and station_info['station_org_unit_id'] != data['org_unit_id']:
+                        from utils.org_unit_utils import is_powerbank_compatible
+                        compatible = await is_powerbank_compatible(
+                            self.db_pool, data['org_unit_id'], station_info['station_org_unit_id']
+                        )
+                        
+                        if not compatible:
+                            return web.json_response({
+                                "success": False,
+                                "error": f"Powerbank нельзя одобрить в группу {data['org_unit_id']}, так как он находится в станции {station_info['box_id']} группы {station_info['station_org_unit_id']} и группы несовместимы. Сначала извлеките powerbank из станции."
+                            }, status=400)
+                    
                     # Обновляем статус на 'active' и назначаем группу
                     await cur.execute("""
                         UPDATE powerbank 
-                        SET status = 'active', org_unit_id = %s 
+                        SET status = 'active', org_unit_id = %s, updated_at = %s
                         WHERE id = %s
-                    """, (data['org_unit_id'], powerbank_id))
+                    """, (data['org_unit_id'], get_moscow_time(), powerbank_id))
                     
                     # Обновляем station_powerbank если powerbank находится в станции
-                    await cur.execute("""
-                        UPDATE station_powerbank sp
-                        INNER JOIN powerbank p ON sp.powerbank_id = p.id
-                        SET sp.last_update = %s
-                        WHERE p.id = %s
-                    """, (get_moscow_time(), powerbank_id))
+                    if station_info:
+                        await cur.execute("""
+                            UPDATE station_powerbank 
+                            SET last_update = %s
+                            WHERE powerbank_id = %s AND station_id = %s
+                        """, (get_moscow_time(), powerbank_id, station_info['station_id']))
+                        
+                        # Логируем одобрение powerbank'а в станции
+                        from utils.centralized_logger import get_logger
+                        logger = get_logger('powerbank_crud')
+                        logger.info(f"Powerbank {powerbank['serial_number']} одобрен и активирован в группе {data['org_unit_id']}, находится в станции {station_info['box_id']}, слот {station_info['slot_number']}")
                     
                     return web.json_response({
                         "success": True,
-                        "message": "Powerbank успешно одобрен и активирован"
+                        "message": "Powerbank успешно одобрен и активирован",
+                        "powerbank_id": powerbank_id,
+                        "serial_number": powerbank['serial_number'],
+                        "new_org_unit_id": data['org_unit_id'],
+                        "in_station": station_info is not None,
+                        "station_info": {
+                            "station_id": station_info['station_id'],
+                            "box_id": station_info['box_id'],
+                            "slot_number": station_info['slot_number']
+                        } if station_info else None
                     })
                     
         except ValueError:

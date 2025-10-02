@@ -330,6 +330,18 @@ class AdminPowerbankAPI:
                             "message": "Станция неактивна"
                         }
                     
+                    # Проверяем, что станция была онлайн в течение последних 30 секунд
+                    from utils.station_utils import validate_station_for_operation
+                    station_valid, station_message = await validate_station_for_operation(
+                        self.db_pool, self.connection_manager, station_id, "принудительное извлечение powerbank'а", 30
+                    )
+                    
+                    if not station_valid:
+                        return {
+                            "success": False,
+                            "message": station_message
+                        }
+                    
                     # Проверяем, есть ли повербанк в указанном слоте
                     await cur.execute("""
                         SELECT sp.powerbank_id, p.serial_number, sp.level, sp.voltage, sp.temperature
