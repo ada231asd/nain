@@ -76,7 +76,8 @@ apiClient.interceptors.response.use(
       // Обработка специфических HTTP статусов
       switch (errorStatus) {
         case 401:
-          errorMessage = 'Неавторизован'
+          // Для ошибок авторизации сохраняем оригинальное сообщение от сервера
+          errorMessage = error.response.data?.error || error.response.data?.message || 'Неавторизован'
           break
           
         case 403:

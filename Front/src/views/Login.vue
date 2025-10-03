@@ -228,7 +228,10 @@ async function handleSubmit() {
     router.push('/dashboard');
   } catch (err) {
     // Обработка ошибок авторизации
-    if (err.message && err.message.includes('phone')) {
+    if (err.message && err.message.includes('Неверный номер телефона, пароль или пользователь не подтвержден администратором')) {
+      // Показываем сообщение о ожидании подтверждения для всех случаев неудачной авторизации
+      phoneError.value = 'Ожидайте подтверждения администратора';
+    } else if (err.message && err.message.includes('phone')) {
       phoneError.value = 'Неверный номер телефона';
     } else if (err.message && err.message.includes('password')) {
       passwordError.value = 'Неверный пароль';
