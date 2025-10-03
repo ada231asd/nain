@@ -34,6 +34,7 @@
             :key="station.station_id"
             :station="station"
             :isFavorite="true"
+            :isHighlighted="isStationHighlighted(station)"
             :showFavoriteButton="true"
             :showTakeBatteryButton="true"
             :showAdminActions="isAdmin"
@@ -69,7 +70,7 @@
         <div class="actions-grid">
           <button @click="showQRScanner = true" class="action-btn">
             <span class="action-icon">📱</span>
-            <span>Сканировать QR</span>
+            <span>Добавить станцию</span>
           </button>
           <button @click="goToAdmin" v-if="isAdmin" class="action-btn">
             <span class="action-icon">⚙️</span>
@@ -125,6 +126,7 @@ const searchTimeout = ref(null)
 const scannedStation = ref(null)
 const isScanning = ref(false)
 const scanningError = ref('')
+const highlightedFavoriteId = ref(null)
 
 // Модальное окно для просмотра банков станции
 const showPowerbanksModal = ref(false)
@@ -207,6 +209,12 @@ const isStationFavorite = (station) => {
   if (!station) return false
   const stationId = station.station_id || station.id
   return favoriteStations.value.some(fav => (fav.station_id || fav.id) === stationId)
+}
+
+const isStationHighlighted = (station) => {
+  if (!station || !highlightedFavoriteId.value) return false
+  const stationId = station.station_id || station.id
+  return stationId === highlightedFavoriteId.value
 }
 
 const toggleFavorite = async (station) => {
@@ -546,7 +554,34 @@ const handleQRScan = async (payload) => {
       console.log('Извлечены данные из API структуры:', detailed)
     }
 
-    scannedStation.value = detailed
+    // Если найденная станция уже в избранном, только подсвечиваем её
+    if (isStationFavorite(detailed)) {
+      const stationId = detailed.station_id || detailed.id
+      highlightedFavoriteId.value = stationId
+      
+      // Убираем подсветку через 5 секунд
+      setTimeout(() => {
+        highlightedFavoriteId.value = null
+      }, 5000)
+      
+      // Прокручиваем к секции избранных станций
+      setTimeout(() => {
+        const favoritesSection = document.querySelector('.favorites-section')
+        if (favoritesSection) {
+          favoritesSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          })
+        }
+      }, 1000)
+      
+      // НЕ показываем станцию в секции "Найденная станция"
+      scannedStation.value = null
+    } else {
+      // Показываем станцию в секции "Найденная станция" только если её нет в избранном
+      scannedStation.value = detailed
+    }
+    
     console.log('Финальная станция для отображения:', scannedStation.value)
   } catch (error) {
     console.error('Ошибка при обработке QR:', error)

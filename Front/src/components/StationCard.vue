@@ -1,5 +1,8 @@
 <template>
-  <div class="station-card" :class="{ 'station-card--favorite': isFavorite }">
+  <div class="station-card" :class="{ 
+    'station-card--favorite': isFavorite,
+    'station-card--highlighted': isHighlighted 
+  }">
     <div class="station-card__header">
       <div v-if="station.box_id" class="station-card__box-id station-card__box-id--header">
         {{ station.box_id }}
@@ -99,6 +102,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  isHighlighted: {
+    type: Boolean,
+    default: false
+  },
   showFavoriteButton: {
     type: Boolean,
     default: true
@@ -193,6 +200,25 @@ const toggleFavorite = () => {
 .station-card--favorite {
   background: linear-gradient(135deg, var(--background-color) 0%, rgba(255, 193, 7, 0.05) 100%);
 }
+
+.station-card--highlighted {
+  background: linear-gradient(135deg, var(--background-color) 0%, rgba(255, 193, 7, 0.15) 100%);
+  border: 3px solid #ffc107;
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.3), 0 8px 25px rgba(255, 193, 7, 0.2);
+  animation: highlightPulse 5s ease-in-out infinite;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.3), 0 8px 25px rgba(255, 193, 7, 0.2);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.5), 0 12px 30px rgba(255, 193, 7, 0.3);
+  }
+}
+
 
 .station-card__header {
   display: flex;

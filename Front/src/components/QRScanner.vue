@@ -2,7 +2,7 @@
   <div class="qr-scanner-modal" @click="closeScanner">
     <div class="qr-scanner-content" @click.stop>
       <div class="scanner-header">
-        <h3>Сканирование QR-кода</h3>
+        <h3>Добавление станции</h3>
         <button @click="closeScanner" class="close-btn">✕</button>
       </div>
       
@@ -31,7 +31,7 @@
            
            <div v-if="!showCamera" class="camera-placeholder">
              <div class="camera-icon">📱</div>
-             <p>Нажмите "Включить камеру" для сканирования</p>
+             <p>Нажмите "Сканировать QR-код" для сканирования</p>
            </div>
            
            <!-- Отображение ошибок -->
@@ -67,7 +67,7 @@
           @click="startCamera" 
           class="btn-primary"
         >
-          Включить камеру
+          Сканировать QR-код
         </button>
         <button 
           v-if="showCamera" 
