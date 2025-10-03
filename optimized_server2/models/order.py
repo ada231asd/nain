@@ -66,10 +66,13 @@ class Order:
                         ON DUPLICATE KEY UPDATE fio = new_values.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
+                # Устанавливаем borrow_time для заказов со статусом 'borrow'
+                borrow_time = get_moscow_time() if status == 'borrow' else None
+                
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, status, get_moscow_time()))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, borrow_time)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, status, get_moscow_time(), borrow_time))
                 
                 order_id = cursor.lastrowid
                 
@@ -104,10 +107,11 @@ class Order:
                         ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
+                borrow_time = get_moscow_time()
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'borrow', get_moscow_time()))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, borrow_time)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, 'borrow', get_moscow_time(), borrow_time))
                 
                 order_id = cursor.lastrowid
                 
@@ -140,10 +144,11 @@ class Order:
                         ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
+                return_time = get_moscow_time()
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'return', get_moscow_time()))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, return_time)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, 'return', get_moscow_time(), return_time))
                 
                 order_id = cursor.lastrowid
                 
@@ -455,15 +460,21 @@ class Order:
     async def update_order_status(cls, db_pool, order_id: int, new_status: str) -> bool:
         """Обновляет статус заказа"""
         # Проверяем, что статус соответствует допустимым значениям
-        allowed_statuses = ['borrow', 'return', 'force_eject']
+        allowed_statuses = ['borrow', 'return']
         if new_status not in allowed_statuses:
             print(f"Недопустимый статус заказа: {new_status}. Допустимые: {allowed_statuses}")
             return False
             
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute("""
-                    UPDATE orders SET status = %s WHERE id = %s
-                """, (new_status, order_id))
+                # Обновляем статус и устанавливаем completed_at для завершенных заказов
+                if new_status == 'return':
+                    await cursor.execute("""
+                        UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
+                    """, (new_status, get_moscow_time(), order_id))
+                else:
+                    await cursor.execute("""
+                        UPDATE orders SET status = %s WHERE id = %s
+                    """, (new_status, order_id))
                 
                 return cursor.rowcount > 0

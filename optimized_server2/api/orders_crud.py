@@ -118,6 +118,7 @@ class OrdersCRUD:
                     # Получаем заказы
                     query = f"""
                         SELECT o.id, o.station_id, o.user_id, o.powerbank_id, o.status, o.timestamp,
+                               o.borrow_time, o.return_time, o.completed_at,
                                s.box_id as station_box_id,
                                u.phone_e164 as user_phone, u.fio as user_fio,
                                p.serial_number as powerbank_serial
@@ -158,6 +159,7 @@ class OrdersCRUD:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     await cur.execute("""
                         SELECT o.id, o.station_id, o.user_id, o.powerbank_id, o.status, o.timestamp,
+                               o.borrow_time, o.return_time, o.completed_at,
                                s.box_id as station_box_id,
                                u.phone_e164 as user_phone, u.fio as user_fio,
                                p.serial_number as powerbank_serial

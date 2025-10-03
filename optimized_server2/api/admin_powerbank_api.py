@@ -392,10 +392,8 @@ class AdminPowerbankAPI:
                         """, (admin_user_id, f'admin_user_{admin_user_id}', f'admin_{admin_user_id}@system.local', '0000000000', 'active', get_moscow_time()))
                     
                     # Создаем запись о принудительном извлечении
-                    await cur.execute("""
-                        INSERT INTO `orders` (station_id, user_id, powerbank_id, status, timestamp)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (station_id, admin_user_id, powerbank_id, 'force_eject', get_moscow_time()))
+                    # Не создаем заказ для принудительного извлечения
+                    # Это просто команда станции, не заказ пользователя
                     
                     # Отправляем команду принудительного извлечения станции
                     if self.connection_manager:

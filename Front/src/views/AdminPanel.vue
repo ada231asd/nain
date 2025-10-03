@@ -296,15 +296,15 @@
                       </div>
                     </div>
                     <div class="order-details">
-                      <p class="order-time">Создан: {{ formatTime(order.created_at || order.timestamp) }}</p>
+                      <p class="order-time">Создан: {{ formatTime(order.timestamp) }}</p>
+                      <p class="order-borrow" v-if="order.borrow_time">
+                        Взят: {{ formatTime(order.borrow_time) }}
+                      </p>
                       <p class="order-completed" v-if="order.completed_at">
                         Завершен: {{ formatTime(order.completed_at) }}
                       </p>
                       <p class="order-powerbank" v-if="order.powerbank_serial || order.powerbank_id">
                         Повербанк: {{ order.powerbank_serial || order.powerbank_id }}
-                      </p>
-                      <p class="order-slot" v-if="order.slot_number">
-                        Слот: {{ order.slot_number }}
                       </p>
                     </div>
                   </div>
@@ -323,7 +323,6 @@
                         <th>Создан</th>
                         <th>Завершен</th>
                         <th>Повербанк</th>
-                        <th>Слот</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -337,10 +336,9 @@
                             {{ getOrderStatusText(order.status) }}
                           </span>
                         </td>
-                        <td>{{ formatTime(order.created_at || order.timestamp) }}</td>
+                        <td>{{ formatTime(order.timestamp) }}</td>
                         <td>{{ order.completed_at ? formatTime(order.completed_at) : '—' }}</td>
                         <td>{{ order.powerbank_serial || order.powerbank_id || '—' }}</td>
-                        <td>{{ order.slot_number || '—' }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -822,7 +820,9 @@ const getStationCardClass = (status) => {
 const getOrderStatusClass = (status) => {
   switch (status) {
     case 'pending': return 'status-pending'
-    case 'completed': return 'status-active'
+    case 'borrow': return 'status-active'
+    case 'return': return 'status-success'
+    case 'completed': return 'status-success'
     case 'cancelled': return 'status-error'
     default: return 'status-unknown'
   }
@@ -831,9 +831,11 @@ const getOrderStatusClass = (status) => {
 const getOrderStatusText = (status) => {
   switch (status) {
     case 'pending': return 'В ожидании'
+    case 'borrow': return 'Взято'
+    case 'return': return 'Возвращено'
     case 'completed': return 'Завершен'
     case 'cancelled': return 'Отменен'
-    default: return 'Неизвестно'
+    default: return status || 'Неизвестно'
   }
 }
 
