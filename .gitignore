@@ -5,4 +5,17 @@
 /optimized_server copy
 /optimized_server2.7z
 /optimized_server3
-optimized_server2/config/settings.py
+optimized_server2/config/settings.py/
+/script.log
+/tcp_packets.log
+/tcp_server.log
+/exceptions.log
+/api_requests.log
+/app.log
+/logs
+/logs/*
+/logs/**/*
+/logs/**/**/*
+/logs/**/**/**/*
+/logs/**/**/**/**/*
+/logs/**/**/**/**/**/*

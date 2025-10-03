@@ -37,7 +37,12 @@ async def check_station_online_status(db_pool, station_id: int, required_seconds
             return False, f"Станция {station.box_id} никогда не подключалась"
         
         current_time = get_moscow_time()
-        time_diff = current_time - station.last_seen
+        
+        # Нормализуем last_seen к московскому времени
+        from utils.time_utils import normalize_datetime_to_moscow
+        last_seen = normalize_datetime_to_moscow(station.last_seen)
+        
+        time_diff = current_time - last_seen
         
         if time_diff.total_seconds() > required_seconds:
             logger.warning(f"Станция {station.box_id} была офлайн {int(time_diff.total_seconds())} секунд (требуется не более {required_seconds})")

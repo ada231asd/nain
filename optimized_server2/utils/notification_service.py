@@ -3,6 +3,7 @@
 """
 import smtplib
 import logging
+import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -23,6 +24,15 @@ class NotificationService:
         if self.email_enabled:
             self._check_smtp_config()
     
+    def _validate_email(self, email: str) -> bool:
+        """Валидирует email адрес"""
+        if not email or not isinstance(email, str):
+            return False
+        
+        # Простая валидация email
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(email_pattern, email.strip()))
+    
     def _check_smtp_config(self):
         """Проверяет конфигурацию SMTP"""
         if not self.smtp_config:
@@ -34,6 +44,12 @@ class NotificationService:
         missing_fields = [field for field in required_fields if not self.smtp_config.get(field)]
         if missing_fields:
             self.logger.warning(f"Отсутствуют обязательные поля SMTP конфигурации: {missing_fields}, отправка email отключена")
+            self.email_enabled = False
+            return
+        
+        # Валидируем from_email
+        if not self._validate_email(self.smtp_config.get('from_email')):
+            self.logger.warning(f"Некорректный from_email: {self.smtp_config.get('from_email')}, отправка email отключена")
             self.email_enabled = False
             return
             
@@ -56,9 +72,33 @@ class NotificationService:
         self.last_disable_time = None
         self.logger.info("Email принудительно включен")
     
+    async def verify_email_delivery(self, to_email: str) -> bool:
+        """Проверяет возможность доставки email (базовая проверка)"""
+        if not self._validate_email(to_email):
+            self.logger.warning(f"Некорректный email адрес: {to_email}")
+            return False
+        
+        # Проверяем, что email не является тестовым или несуществующим
+        test_emails = ['test@example.com', 'krug@gmail.com', 'nonexistent@test.com']
+        if to_email.lower() in test_emails:
+            self.logger.warning(f"Попытка отправки на тестовый/несуществующий email: {to_email}")
+            return False
+        
+        return True
+    
     async def send_email(self, to_email: str, subject: str, body: str, 
                         html_body: Optional[str] = None, max_retries: int = 2) -> bool:
         """Отправляет email с повторными попытками"""
+        # Валидируем email адрес получателя
+        if not self._validate_email(to_email):
+            self.logger.error(f"Некорректный email адрес получателя: {to_email}")
+            return False
+        
+        # Проверяем возможность доставки
+        if not await self.verify_email_delivery(to_email):
+            self.logger.warning(f"Email {to_email} не прошел проверку доставки, пропускаем отправку")
+            return True  # Возвращаем True чтобы не блокировать регистрацию
+        
         # Проверяем автоматическое включение
         self._check_auto_reenable()
         
@@ -119,6 +159,17 @@ class NotificationService:
                 # Отключаем email при ошибке аутентификации (не повторяем)
                 self.email_enabled = False
                 return False
+            except smtplib.SMTPRecipientsRefused as e:
+                # Ошибка "пользователь не существует" или "почтовый ящик недоступен"
+                self.logger.error(f"Отклонен получатель {to_email}: {e}")
+                # Не отключаем email полностью, но не повторяем для этого адреса
+                return False
+            except smtplib.SMTPDataError as e:
+                # Ошибка данных (например, неправильный формат сообщения)
+                self.logger.error(f"Ошибка данных SMTP для {to_email}: {e}")
+                if attempt == max_retries:
+                    return False
+                continue  # Повторяем попытку
             except smtplib.SMTPConnectError as e:
                 self.logger.error(f"Ошибка подключения к SMTP серверу для {to_email}: {e}")
                 if attempt == max_retries:
@@ -201,7 +252,7 @@ class NotificationService:
         <p><strong>Пароль:</strong> <span style="font-family: 'Courier New', monospace; font-weight: 600; color: #495057; background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 16px;">{password}</span></p>
     </div>
     
-    <p style="color: #050300;"> Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
+    <p style="color: #050300;">Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
     
     <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
         Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
@@ -228,7 +279,7 @@ class NotificationService:
         <p><strong>Пароль:</strong> <span style="font-family: 'Courier New', monospace; font-weight: 600; color: #495057; background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 16px;">{password}</span></p>
     </div>
     
-    <p style="color: #050300;"> Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
+    <p style="color: #050300;">Ожидайте одобрения администратором. Администратор одобрит вас в ближайшее время.</p>
     
     <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
         Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
@@ -255,7 +306,7 @@ class NotificationService:
         if full_name:
             body = f"""Здравствуйте, {full_name}!
 
-🎉 Отличные новости! Ваш аккаунт в системе ЗАРЯД был одобрен администратором.
+ Отличные новости! Ваш аккаунт в системе ЗАРЯД был одобрен администратором.
 
 Теперь вы можете войти в систему, используя ранее отправленные данные:
 Логин (телефон): {phone_number}
@@ -265,7 +316,7 @@ class NotificationService:
 С уважением,
 Команда ЗАРЯД"""
         else:
-            body = f"""🎉 Отличные новости! Ваш аккаунт в системе ЗАРЯД был одобрен администратором.
+            body = f""" Отличные новости! Ваш аккаунт в системе ЗАРЯД был одобрен администратором.
 
 Теперь вы можете войти в систему, используя ранее отправленные данные:
 Логин (телефон): {phone_number}
@@ -279,6 +330,16 @@ class NotificationService:
         if full_name:
             html_body = f"""
 <html>
+<head>
+    <style>
+        .welcome-button:hover {{
+            background-color: #28a745 !important;
+            color: #fff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }}
+    </style>
+</head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <h2 style="color: #28a745;"> Аккаунт одобрен!</h2>
     
@@ -292,7 +353,9 @@ class NotificationService:
     <p><strong>Логин (телефон):</strong> <span style="font-weight: 600; color: #495057;">{phone_number}</span></p>
     
     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-        <p style="margin: 0; color: #28a745; font-size: 18px;"><strong>Добро пожаловать в систему ЗАРЯД!</strong></p>
+        <a href="https://redmine.primetech.ru:8443" class="welcome-button" style="text-decoration: none; color: #28a745; font-size: 18px; font-weight: bold; display: inline-block; padding: 10px 20px; border: 2px solid #28a745; border-radius: 5px; background-color: #fff; transition: all 0.3s ease;">
+            Добро пожаловать в систему ЗАРЯД!
+        </a>
     </div>
     
     <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
@@ -309,6 +372,16 @@ class NotificationService:
         else:
             html_body = f"""
 <html>
+<head>
+    <style>
+        .welcome-button:hover {{
+            background-color: #28a745 !important;
+            color: #fff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }}
+    </style>
+</head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <h2 style="color: #28a745;"> Аккаунт одобрен!</h2>
     
@@ -320,7 +393,9 @@ class NotificationService:
     <p><strong>Логин (телефон):</strong> <span style="font-weight: 600; color: #495057;">{phone_number}</span></p>
     
     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-        <p style="margin: 0; color: #28a745; font-size: 18px;"><strong>Добро пожаловать в систему ЗАРЯД!</strong></p>
+        <a href="https://redmine.primetech.ru:8443" class="welcome-button" style="text-decoration: none; color: #28a745; font-size: 18px; font-weight: bold; display: inline-block; padding: 10px 20px; border: 2px solid #28a745; border-radius: 5px; background-color: #fff; transition: all 0.3s ease;">
+            Добро пожаловать в систему ЗАРЯД!
+        </a>
     </div>
     
     <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
@@ -346,3 +421,28 @@ def reset_email_service():
     global notification_service
     notification_service.force_enable_email()
     print("Email сервис сброшен и включен")
+
+async def test_email_sending(test_email: str = "test@example.com") -> bool:
+    """Тестирует отправку email"""
+    global notification_service
+    
+    print(f"Тестируем отправку email на {test_email}")
+    
+    # Проверяем валидацию
+    is_valid = notification_service._validate_email(test_email)
+    print(f"Email валиден: {is_valid}")
+    
+    # Проверяем возможность доставки
+    can_deliver = await notification_service.verify_email_delivery(test_email)
+    print(f"Можно доставить: {can_deliver}")
+    
+    # Пробуем отправить тестовое сообщение
+    success = await notification_service.send_email(
+        to_email=test_email,
+        subject="Тестовое сообщение",
+        body="Это тестовое сообщение для проверки работы email сервиса.",
+        html_body="<p>Это <strong>тестовое сообщение</strong> для проверки работы email сервиса.</p>"
+    )
+    
+    print(f"Результат отправки: {success}")
+    return success

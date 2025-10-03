@@ -99,6 +99,30 @@ def to_moscow_time(dt: datetime) -> datetime:
     return dt.astimezone(MOSCOW_TZ)
 
 
+def normalize_datetime_to_moscow(dt: Optional[datetime]) -> Optional[datetime]:
+    """
+    Нормализует datetime объект к московскому времени
+    
+    Args:
+        dt: Объект datetime для нормализации
+        
+    Returns:
+        datetime: Время в московской временной зоне или None если входной объект None
+    """
+    if dt is None:
+        return None
+    
+    if dt.tzinfo is None:
+        # Если время без временной зоны, считаем его московским
+        return dt.replace(tzinfo=MOSCOW_TZ)
+    elif dt.tzinfo != MOSCOW_TZ:
+        # Конвертируем в московское время
+        return dt.astimezone(MOSCOW_TZ)
+    else:
+        # Уже московское время
+        return dt
+
+
 def from_timestamp_moscow(timestamp: float) -> datetime:
     """
     Создает datetime из timestamp в московском времени

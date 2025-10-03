@@ -52,6 +52,9 @@ class Station:
                 station_data = await cur.fetchone()
                 
                 if station_data:
+                    # Нормализуем datetime поля к московскому времени
+                    from utils.time_utils import normalize_datetime_to_moscow
+                    
                     return cls(
                         station_id=int(station_data["station_id"]),
                         box_id=str(station_data["box_id"]),
@@ -61,9 +64,9 @@ class Station:
                         org_unit_id=int(station_data["org_unit_id"]),
                         iccid=station_data.get("iccid"),
                         address_id=station_data.get("address_id"),
-                        last_seen=station_data.get("last_seen"),
-                        created_at=station_data.get("created_at"),
-                        updated_at=station_data.get("updated_at")
+                        last_seen=normalize_datetime_to_moscow(station_data.get("last_seen")),
+                        created_at=normalize_datetime_to_moscow(station_data.get("created_at")),
+                        updated_at=normalize_datetime_to_moscow(station_data.get("updated_at"))
                     )
                 return None
     
@@ -181,6 +184,9 @@ class Station:
                 
                 stations = []
                 for result in results:
+                    # Нормализуем datetime поля к московскому времени
+                    from utils.time_utils import normalize_datetime_to_moscow
+                    
                     stations.append(cls(
                         station_id=int(result[0]),
                         box_id=str(result[1]),
@@ -188,10 +194,10 @@ class Station:
                         slots_declared=int(result[3]) if result[3] else 0,
                         remain_num=int(result[4]) if result[4] else 0,
                         status=str(result[5]),
-                        last_seen=result[6],
+                        last_seen=normalize_datetime_to_moscow(result[6]),
                         org_unit_id=int(result[7]) if result[7] else None,
-                        created_at=result[8],
-                        updated_at=result[9]
+                        created_at=normalize_datetime_to_moscow(result[8]),
+                        updated_at=normalize_datetime_to_moscow(result[9])
                     ))
                 return stations
     
