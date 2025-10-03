@@ -14,6 +14,14 @@
         </div>
       </div>
 
+      <!-- Информационное сообщение для пользователей -->
+      <div v-if="user?.role === 'user'" class="user-info-message">
+        <div class="info-icon">ℹ️</div>
+        <div class="info-text">
+          <strong>Ограничения доступа:</strong> Вы можете сканировать и использовать только станции, принадлежащие вашему подразделению.
+        </div>
+      </div>
+
       <!-- Избранные станции -->
       <section class="favorites-section">
         <div class="section-header">
@@ -279,7 +287,15 @@ const handleTakeBattery = async (station) => {
     
   } catch (error) {
     console.error('Ошибка при запросе аккумулятора:', error)
-    alert('Ошибка при запросе аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+    
+    // Специальная обработка ошибок доступа
+    if (error.status === 403 || (error.message && error.message.includes('недоступна вашему подразделению'))) {
+      alert('❌ Доступ запрещен: ' + (error.message || 'Эта станция недоступна вашему подразделению'))
+    } else if (error.status === 400 && error.message) {
+      alert('❌ Ошибка: ' + error.message)
+    } else {
+      alert('❌ Ошибка при запросе аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+    }
   }
 }
 
@@ -578,6 +594,32 @@ const handleQRScan = async (payload) => {
       // НЕ показываем станцию в секции "Найденная станция"
       scannedStation.value = null
     } else {
+      // Проверяем доступ к станции (только для пользователей с ролью 'user')
+      if (user.value?.role === 'user') {
+        try {
+          const stationId = detailed.station_id || detailed.id
+          
+          // Проверяем доступ через API (пробуем получить повербанки станции)
+          const powerbanksResponse = await pythonAPI.getStationPowerbanks(stationId)
+          
+          // Если получили ошибку доступа, показываем соответствующее сообщение
+          if (powerbanksResponse && powerbanksResponse.error) {
+            if (powerbanksResponse.error.includes('недоступна вашему подразделению') || 
+                powerbanksResponse.error.includes('не привязана к организационной единице')) {
+              scanningError.value = `❌ Доступ запрещен: ${powerbanksResponse.error}`
+              return
+            }
+          }
+        } catch (accessError) {
+          console.log('Ошибка проверки доступа к станции:', accessError)
+          // Если ошибка не связана с доступом, продолжаем обычную обработку
+          if (accessError.status === 403 || (accessError.message && accessError.message.includes('недоступна вашему подразделению'))) {
+            scanningError.value = `❌ Доступ запрещен: ${accessError.message}`
+            return
+          }
+        }
+      }
+      
       // Показываем станцию в секции "Найденная станция" только если её нет в избранном
       scannedStation.value = detailed
     }
@@ -693,6 +735,28 @@ onUnmounted(() => {
 
 .btn-qr-search:hover {
   background: #138496;
+}
+
+.user-info-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  color: #1565c0;
+}
+
+.info-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.info-text {
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .favorites-section {

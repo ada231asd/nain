@@ -105,7 +105,6 @@
                 <p><strong>Повербанк:</strong> {{ item.powerbank_serial || item.powerbank_id || 'Не указан' }}</p>
                 <p><strong>Станция:</strong> {{ item.station_box_id || item.station_id || 'Не указана' }}</p>
                 <p><strong>Дата создания:</strong> {{ formatDate(item.timestamp) }}</p>
-                <p v-if="item.borrow_time"><strong>Взят:</strong> {{ formatDate(item.borrow_time) }}</p>
                 <p v-if="item.completed_at"><strong>Завершен:</strong> {{ formatDate(item.completed_at) }}</p>
               </div>
               

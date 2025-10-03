@@ -297,9 +297,6 @@
                     </div>
                     <div class="order-details">
                       <p class="order-time">Создан: {{ formatTime(order.timestamp) }}</p>
-                      <p class="order-borrow" v-if="order.borrow_time">
-                        Взят: {{ formatTime(order.borrow_time) }}
-                      </p>
                       <p class="order-completed" v-if="order.completed_at">
                         Завершен: {{ formatTime(order.completed_at) }}
                       </p>

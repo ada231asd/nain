@@ -23,7 +23,7 @@ class BorrowPowerbankAPI:
         self.station_resolver = StationResolver(connection_manager) if connection_manager else None
         self.borrow_handler = BorrowPowerbankHandler(db_pool, connection_manager)
     
-    async def get_available_powerbanks(self, station_id: int) -> Dict[str, Any]:
+    async def get_available_powerbanks(self, station_id: int, user_id: int = None) -> Dict[str, Any]:
         """
         Получает список доступных повербанков в станции
         """
@@ -32,6 +32,17 @@ class BorrowPowerbankAPI:
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
                 return {"error": "Станция не найдена", "success": False}
+            
+            # Если указан user_id, проверяем права доступа к станции
+            if user_id is not None:
+                from utils.org_unit_utils import can_user_access_station, log_access_denied_event
+                
+                can_access_station, station_access_reason = await can_user_access_station(self.db_pool, user_id, station_id)
+                if not can_access_station:
+                    # Логируем отказ в доступе к станции
+                    await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
+                    
+                    return {"error": station_access_reason, "success": False}
             
             # Получаем повербанки в станции
             powerbanks = await StationPowerbank.get_station_powerbanks(self.db_pool, station_id)
@@ -84,6 +95,16 @@ class BorrowPowerbankAPI:
             if station.status != 'active':
                 return {"error": "Станция неактивна", "success": False}
             
+            # Проверяем права доступа пользователя к станции
+            from utils.org_unit_utils import can_user_access_station, log_access_denied_event
+            
+            can_access_station, station_access_reason = await can_user_access_station(self.db_pool, user_id, station_id)
+            if not can_access_station:
+                # Логируем отказ в доступе к станции
+                await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
+                
+                return {"error": station_access_reason, "success": False}
+            
             # Проверяем, есть ли повербанк в слоте
             station_powerbank = await StationPowerbank.get_by_slot(
                 self.db_pool, station_id, slot_number
@@ -117,44 +138,39 @@ class BorrowPowerbankAPI:
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             
             # Создаем заказ на выдачу
-            await Order.create_borrow_order(
+            order = await Order.create_borrow_order(
                 self.db_pool, station_id, user_id, powerbank.powerbank_id
             )
             
-            # Отправляем команду на выдачу станции
-            try:
-                from utils.packet_utils import build_borrow_power_bank
-                borrow_command = build_borrow_power_bank(
-                    secret_key=connection.secret_key,
-                    slot=slot_number,
-                    vsn=1 
-                )
-                
-                # Логируем исходящий пакет
-                station_info = {
-                    "station_id": station_id,
-                    "box_id": connection.box_id,
-                    "slot_number": slot_number,
-                    "powerbank_id": powerbank.powerbank_id,
-                    "serial_number": powerbank.serial_number
+            if not order:
+                return {"error": "Не удалось создать заказ", "success": False}
+            
+            # Отправляем команду на выдачу станции и ждем ответа
+            borrow_result = await self.borrow_handler.send_borrow_request_and_wait(
+                station_id, 
+                powerbank.powerbank_id, 
+                user_id,
+                order.order_id
+            )
+            
+            if not borrow_result["success"]:
+                # Если команда не отправилась или станция отклонила, отменяем заказ
+                await Order.cancel(self.db_pool, order.order_id)
+                return {
+                    "success": False,
+                    "error": f"Ошибка выдачи повербанка: {borrow_result['message']}"
                 }
-              
-                
-                # Отправляем команду через TCP соединение
-                if connection.writer and not connection.writer.is_closing():
-                    connection.writer.write(borrow_command)
-                    await connection.writer.drain()
-                    print(f"Команда на выдачу повербанка отправлена станции {station_id}, слот {slot_number}")
-                else:
-                    return {"error": "TCP соединение со станцией недоступно", "success": False}
-                    
-            except Exception as e:
-                self.logger.error(f"Ошибка: {e}")
-                return {"error": f"Ошибка отправки команды станции: {str(e)}", "success": False}
+            
+            # Подтверждаем заказ после успешной выдачи
+            await Order.confirm_borrow(self.db_pool, order.order_id)
+            
+            # Запрашиваем инвентарь для проверки, что повербанк действительно выдался
+            await self._request_inventory_after_operation(station_id)
             
             return {
                 "success": True,
-                "message": f"Запрос на выдачу повербанка {powerbank.serial_number} из слота {slot_number} отправлен",
+                "message": f"Повербанк {powerbank.serial_number} успешно выдан из слота {slot_number}",
+                "order_id": order.order_id,
                 "station_id": station_id,
                 "slot_number": slot_number,
                 "powerbank_id": powerbank.powerbank_id,
@@ -363,11 +379,40 @@ class BorrowPowerbankAPI:
         except Exception as e:
             return {"error": f"Ошибка выбора повербанка: {str(e)}", "success": False}
     
+    async def _request_inventory_after_operation(self, station_id: int) -> None:
+        """
+        Запрашивает инвентарь после операции с повербанком
+        """
+        try:
+            from utils.inventory_manager import InventoryManager
+            inventory_manager = InventoryManager(self.db_pool)
+            
+            # Получаем соединение со станцией
+            connection = self.borrow_handler.connection_manager.get_connection_by_station_id(station_id)
+            if not connection:
+                print(f"Соединение со станцией {station_id} не найдено")
+                return
+            
+            await inventory_manager.request_inventory_after_operation(station_id, connection)
+            print(f"Запрос инвентаря отправлен после операции выдачи")
+            
+        except Exception as e:
+            print(f"Ошибка запроса инвентаря после операции: {e}")
+    
     async def request_optimal_borrow(self, station_id: int, user_id: int) -> Dict[str, Any]:
         """
         Запрашивает выдачу оптимального повербанка (автоматический выбор)
         """
         try:
+            # Проверяем права доступа пользователя к станции
+            from utils.org_unit_utils import can_user_access_station, log_access_denied_event
+            
+            can_access_station, station_access_reason = await can_user_access_station(self.db_pool, user_id, station_id)
+            if not can_access_station:
+                # Логируем отказ в доступе к станции
+                await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
+                
+                return {"error": station_access_reason, "success": False}
             
             # Выбираем оптимальный повербанк
             selection_result = await self.select_optimal_powerbank(station_id)
@@ -407,24 +452,31 @@ class BorrowPowerbankAPI:
                     "error": "Не удалось создать заказ"
                 }
             
-            # Отправляем команду выдачи на станцию
-            borrow_result = await self.borrow_handler.send_borrow_request(
+            # Отправляем команду выдачи на станцию и ждем ответа
+            borrow_result = await self.borrow_handler.send_borrow_request_and_wait(
                 station_id, 
                 selected['powerbank_id'], 
-                int(user_id)
+                int(user_id),
+                order.order_id
             )
             
             if not borrow_result["success"]:
-                # Если команда не отправилась, отменяем заказ
+                # Если команда не отправилась или станция отклонила, отменяем заказ
                 await Order.cancel(self.db_pool, order.order_id)
                 return {
                     "success": False,
-                    "error": f"Ошибка отправки команды на станцию: {borrow_result['message']}"
+                    "error": f"Ошибка выдачи повербанка: {borrow_result['message']}"
                 }
+            
+            # Подтверждаем заказ после успешной выдачи
+            await Order.confirm_borrow(self.db_pool, order.order_id)
+            
+            # Запрашиваем инвентарь для проверки, что повербанк действительно выдался
+            await self._request_inventory_after_operation(station_id)
             
             return {
                 "success": True,
-                "message": f"Запрос на выдачу оптимального повербанка {selected['serial_number']} из слота {slot_number} отправлен на станцию",
+                "message": f"Повербанк {selected['serial_number']} успешно выдан из слота {slot_number}",
                 "order_id": order.order_id,
                 "station_id": station_id,
                 "slot_number": slot_number,
@@ -461,7 +513,7 @@ class BorrowPowerbankAPI:
             station_id = station_info["station_id"]
             slot_number = station_info["slot_number"]
             
-            # Используем существующий метод
+            # Используем существующий метод (в нем уже есть проверка доступа)
             return await self.request_borrow(station_id, slot_number, user_id)
             
         except Exception as e:

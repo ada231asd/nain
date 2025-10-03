@@ -24,7 +24,26 @@ class BorrowEndpoints:
             """Получить список доступных повербанков в станции"""
             try:
                 station_id = int(request.match_info['station_id'])
-                result = await self.borrow_api.get_available_powerbanks(station_id)
+                
+                # Извлекаем user_id из JWT токена, если он есть
+                user_id = None
+                auth_header = request.headers.get('Authorization')
+                if auth_header and auth_header.startswith('Bearer '):
+                    try:
+                        from handlers.auth_handler import AuthHandler
+                        auth_handler = AuthHandler(self.db_pool)
+                        token = auth_header.split(' ')[1]
+                        payload = auth_handler.verify_jwt_token(token)
+                        if payload:
+                            from models.user import User
+                            user = await User.get_by_phone(self.db_pool, payload['phone_e164'])
+                            if user:
+                                user_id = user.user_id
+                    except Exception:
+                        # Игнорируем ошибки авторизации для этого эндпоинта
+                        pass
+                
+                result = await self.borrow_api.get_available_powerbanks(station_id, user_id)
                 return web.json_response(result)
             except Exception as e:
                 return web.json_response(

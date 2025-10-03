@@ -66,13 +66,10 @@ class Order:
                         ON DUPLICATE KEY UPDATE fio = new_values.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
-                # Устанавливаем borrow_time для заказов со статусом 'borrow'
-                borrow_time = get_moscow_time() if status == 'borrow' else None
-                
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, borrow_time)
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, status, get_moscow_time(), borrow_time))
+                """, (station_id, user_id, powerbank_id, status, get_moscow_time(), None))
                 
                 order_id = cursor.lastrowid
                 
@@ -107,11 +104,10 @@ class Order:
                         ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
-                borrow_time = get_moscow_time()
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, borrow_time)
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'borrow', get_moscow_time(), borrow_time))
+                """, (station_id, user_id, powerbank_id, 'borrow', get_moscow_time(), None))
                 
                 order_id = cursor.lastrowid
                 
@@ -144,11 +140,12 @@ class Order:
                         ON DUPLICATE KEY UPDATE username = new_values.username
                     """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
-                return_time = get_moscow_time()
+                # Для заказов на возврат сразу устанавливаем completed_at
+                completed_time = get_moscow_time()
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, return_time)
+                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'return', get_moscow_time(), return_time))
+                """, (station_id, user_id, powerbank_id, 'return', get_moscow_time(), completed_time))
                 
                 order_id = cursor.lastrowid
                 
@@ -473,8 +470,9 @@ class Order:
                         UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
                     """, (new_status, get_moscow_time(), order_id))
                 else:
+                    # При смене на другие статусы сбрасываем completed_at
                     await cursor.execute("""
-                        UPDATE orders SET status = %s WHERE id = %s
+                        UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
                     """, (new_status, order_id))
                 
                 return cursor.rowcount > 0
