@@ -281,13 +281,13 @@
 
                 <!-- Карточный вид -->
                 <div v-if="ordersViewMode === 'cards'" class="orders-list">
-                  <div v-for="order in filteredOrders" :key="order.order_id" class="order-card">
+                  <div v-for="order in filteredOrders" :key="order.id || order.order_id" class="order-card">
                     <div class="order-info">
                       <div class="order-main">
-                        <h3>Заказ #{{ order.order_id }}</h3>
-                        <p class="order-user">Пользователь: {{ order.user_phone || 'N/A' }}</p>
-                        <p class="order-station">Станция: {{ order.station_name || order.station_id || 'N/A' }}</p>
-                        <p class="order-action">Действие: {{ getOrderActionText(order.action) }}</p>
+                        <h3>Заказ #{{ order.id || order.order_id }}</h3>
+                        <p class="order-user">Пользователь: {{ order.user_fio || order.user_phone || 'N/A' }}</p>
+                        <p class="order-station">Станция: {{ order.station_box_id || order.station_name || order.station_id || 'N/A' }}</p>
+                        <p class="order-action">Действие: {{ getOrderActionText(order.status) }}</p>
                       </div>
                       <div class="order-status">
                         <span class="status-badge" :class="getOrderStatusClass(order.status)">
@@ -296,12 +296,12 @@
                       </div>
                     </div>
                     <div class="order-details">
-                      <p class="order-time">Создан: {{ formatTime(order.created_at) }}</p>
+                      <p class="order-time">Создан: {{ formatTime(order.created_at || order.timestamp) }}</p>
                       <p class="order-completed" v-if="order.completed_at">
                         Завершен: {{ formatTime(order.completed_at) }}
                       </p>
-                      <p class="order-powerbank" v-if="order.powerbank_id">
-                        Повербанк: {{ order.powerbank_id }}
+                      <p class="order-powerbank" v-if="order.powerbank_serial || order.powerbank_id">
+                        Повербанк: {{ order.powerbank_serial || order.powerbank_id }}
                       </p>
                       <p class="order-slot" v-if="order.slot_number">
                         Слот: {{ order.slot_number }}
@@ -327,19 +327,19 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="order in filteredOrders" :key="order.order_id">
-                        <td class="order-id">#{{ order.order_id }}</td>
-                        <td>{{ order.user_phone || 'N/A' }}</td>
-                        <td>{{ order.station_name || order.station_id || 'N/A' }}</td>
-                        <td>{{ getOrderActionText(order.action) }}</td>
+                      <tr v-for="order in filteredOrders" :key="order.id || order.order_id">
+                        <td class="order-id">#{{ order.id || order.order_id }}</td>
+                        <td>{{ order.user_fio || order.user_phone || 'N/A' }}</td>
+                        <td>{{ order.station_box_id || order.station_name || order.station_id || 'N/A' }}</td>
+                        <td>{{ getOrderActionText(order.status) }}</td>
                         <td>
                           <span class="status-badge" :class="getOrderStatusClass(order.status)">
                             {{ getOrderStatusText(order.status) }}
                           </span>
                         </td>
-                        <td>{{ formatTime(order.created_at) }}</td>
+                        <td>{{ formatTime(order.created_at || order.timestamp) }}</td>
                         <td>{{ order.completed_at ? formatTime(order.completed_at) : '—' }}</td>
-                        <td>{{ order.powerbank_id || '—' }}</td>
+                        <td>{{ order.powerbank_serial || order.powerbank_id || '—' }}</td>
                         <td>{{ order.slot_number || '—' }}</td>
                       </tr>
                     </tbody>

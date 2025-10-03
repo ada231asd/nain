@@ -90,22 +90,22 @@
           <div v-else class="history-items">
             <div 
               v-for="item in filteredHistory" 
-              :key="item.order_id"
+              :key="item.id || item.order_id"
               class="history-item"
               :class="`history-${item.status}`"
             >
               <div class="history-header">
-                <h4>Заказ №{{ item.id }}</h4>
+                <h4>Заказ №{{ item.id || item.order_id }}</h4>
                 <span class="history-status" :class="`status-${item.status}`">
                   {{ getOrderStatusText(item.status) }}
                 </span>
               </div>
               
               <div class="history-details">
-                <p><strong>Повербанк:</strong> #{{ item.powerbank_id || 'Не указан' }}</p>
-                <p><strong>Станция:</strong> #{{ item.station_id || 'Не указана' }}</p>
-                <p><strong>Дата создания:</strong> {{ formatDate(item.timestamp) }}</p>
-                <p v-if="item.updated_at"><strong>Обновлен:</strong> {{ formatDate(item.updated_at) }}</p>
+                <p><strong>Повербанк:</strong> {{ item.powerbank_serial || item.powerbank_id || 'Не указан' }}</p>
+                <p><strong>Станция:</strong> {{ item.station_box_id || item.station_id || 'Не указана' }}</p>
+                <p><strong>Дата создания:</strong> {{ formatDate(item.created_at || item.timestamp) }}</p>
+                <p v-if="item.return_time"><strong>Возвращен:</strong> {{ formatDate(item.return_time) }}</p>
               </div>
               
               <div class="history-actions">
