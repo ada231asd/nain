@@ -177,7 +177,7 @@ const errorMessage = computed(() => typeof props.error === 'string' ? props.erro
 const successMessage = computed(() => typeof props.success === 'string' ? props.success : '')
 
 const handleInput = (event) => {
-  emit('input', event.target.value)
+  emit('input', event)
 }
 
 const handleFocus = (event) => {

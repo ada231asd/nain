@@ -4,6 +4,18 @@ import { getCurrentConfig, getEndpoint } from './config'
 // Получаем текущую конфигурацию
 const config = getCurrentConfig()
 
+// Логируем конфигурацию для отладки
+if (import.meta.env.DEV) {
+  console.log('🔧 API Config:', {
+    baseURL: config.baseURL,
+    timeout: config.timeout,
+    headers: config.headers,
+    environment: import.meta.env.MODE,
+    viteApiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+    vitePyBackendUrl: import.meta.env.VITE_PY_BACKEND_URL
+  });
+}
+
 // Создаем единый экземпляр axios с конфигурацией
 const apiClient = axios.create({
   baseURL: config.baseURL,
@@ -19,7 +31,17 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Request logging disabled
+    // Включаем логирование для отладки
+    if (import.meta.env.DEV) {
+      console.log('🚀 API Request:', {
+        url: config.url,
+        method: config.method,
+        baseURL: config.baseURL,
+        fullURL: `${config.baseURL}${config.url}`,
+        data: config.data,
+        headers: config.headers
+      });
+    }
 
     return config
   },
@@ -33,9 +55,11 @@ apiClient.interceptors.response.use(
   (response) => {
     // Логирование успешных ответов (в DEV режиме или для авторизации)
     if (import.meta.env.DEV || response.config.url?.includes('/login') || response.config.url?.includes('/register')) {
-      if (response.data) {
-       
-      }
+      console.log('✅ API Response:', {
+        url: response.config.url,
+        status: response.status,
+        data: response.data
+      });
     }
     return response.data
   },
@@ -101,7 +125,17 @@ apiClient.interceptors.response.use(
       errorStatus = 0
     }
     
-    // Error logging disabled
+    // Логирование ошибок для отладки
+    if (import.meta.env.DEV) {
+      console.error('❌ API Error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: errorStatus,
+        message: errorMessage,
+        response: error.response?.data,
+        originalError: error
+      });
+    }
     
     // Возвращаем стандартизированную ошибку
     return Promise.reject({

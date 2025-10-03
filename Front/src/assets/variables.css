@@ -24,6 +24,16 @@
   --info-dark: #0891b2;
   --info-light: #22d3ee;
   
+  /* Success message colors */
+  --success-bg: #d4edda;
+  --success-border: #c3e6cb;
+  --success-text: #155724;
+  
+  /* Error message colors */
+  --error-bg: #f8d7da;
+  --error-border: #f5c6cb;
+  --error-text: #721c24;
+  
   /* Background colors */
   --background-color: #ffffff;
   --background-secondary: #f8fafc;
@@ -132,6 +142,16 @@
     --border-color: #334155;
     --border-secondary: #475569;
     --border-focus: #60a5fa;
+    
+    /* Success message colors (dark mode) */
+    --success-bg: #064e3b;
+    --success-border: #065f46;
+    --success-text: #6ee7b7;
+    
+    /* Error message colors (dark mode) */
+    --error-bg: #7f1d1d;
+    --error-border: #991b1b;
+    --error-text: #fca5a5;
     
     /* Shadow colors */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);

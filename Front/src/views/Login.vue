@@ -3,16 +3,23 @@
     <h2>Вход по паролю</h2>
     <form @submit.prevent="handleSubmit">
       <BaseInput 
-        v-model="form.phone_e164" 
+        v-model="formattedPhone" 
         label="Телефон" 
-        placeholder="+79001234567" 
+        placeholder="+7 (999) 999-99-99" 
         type="tel"
+        :error="phoneError"
+        autocomplete="tel"
+        @input="handlePhoneInput"
+        @focus="handlePhoneFocus"
+        @keydown="handlePhoneKeydown"
       />
       <BaseInput 
         v-model="form.password" 
         label="Пароль" 
         placeholder="Введите пароль" 
         type="password"
+        :error="passwordError"
+        autocomplete="current-password"
       />
       <BaseButton type="submit" :disabled="isLoading">
         {{ isLoading ? 'Вход...' : 'Войти' }}
@@ -25,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 import BaseInput from '../components/BaseInput.vue';
@@ -35,35 +42,199 @@ const auth = useAuthStore();
 const router = useRouter();
 const form = ref({ phone_e164: '', password: '' });
 const isLoading = ref(false);
+const phoneError = ref('');
+const passwordError = ref('');
+const formattedPhone = ref('');
+
+// Функция форматирования телефона в маску +7 (999) 999-99-99
+function formatPhone(value) {
+  // Убираем все символы кроме цифр
+  const numbers = value.replace(/\D/g, '');
+  
+  // Если номер начинается с 8, заменяем на 7
+  let cleanNumbers = numbers;
+  if (cleanNumbers.startsWith('8')) {
+    cleanNumbers = '7' + cleanNumbers.slice(1);
+  }
+  
+  // Если номер не начинается с 7, добавляем 7
+  if (!cleanNumbers.startsWith('7') && cleanNumbers.length > 0) {
+    cleanNumbers = '7' + cleanNumbers;
+  }
+  
+  // Ограничиваем длину до 11 цифр (7 + 10)
+  if (cleanNumbers.length > 11) {
+    cleanNumbers = cleanNumbers.slice(0, 11);
+  }
+  
+  // Форматируем в маску
+  if (cleanNumbers.length === 0) return '';
+  if (cleanNumbers.length === 1) return `+${cleanNumbers}`;
+  if (cleanNumbers.length === 2) return `+${cleanNumbers}`;
+  if (cleanNumbers.length === 3) return `+${cleanNumbers}`;
+  if (cleanNumbers.length === 4) return `+${cleanNumbers.slice(0, 1)} (${cleanNumbers.slice(1)})`;
+  if (cleanNumbers.length <= 7) return `+${cleanNumbers.slice(0, 1)} (${cleanNumbers.slice(1, 4)}) ${cleanNumbers.slice(4)}`;
+  if (cleanNumbers.length <= 9) return `+${cleanNumbers.slice(0, 1)} (${cleanNumbers.slice(1, 4)}) ${cleanNumbers.slice(4, 7)}-${cleanNumbers.slice(7)}`;
+  return `+${cleanNumbers.slice(0, 1)} (${cleanNumbers.slice(1, 4)}) ${cleanNumbers.slice(4, 7)}-${cleanNumbers.slice(7, 9)}-${cleanNumbers.slice(9)}`;
+}
+
+// Функция извлечения чистого номера телефона
+function extractPhoneNumber(formattedValue) {
+  const numbers = formattedValue.replace(/\D/g, '');
+  
+  // Если номер пустой, возвращаем пустую строку
+  if (!numbers) {
+    return '';
+  }
+  
+  if (numbers.startsWith('8')) {
+    return '+7' + numbers.slice(1);
+  }
+  if (numbers.startsWith('7')) {
+    return '+' + numbers;
+  }
+  return '+' + numbers;
+}
+
+// Обработка ввода телефона
+function handlePhoneInput(event) {
+  const value = event.target.value;
+  const cursorPosition = event.target.selectionStart;
+  
+  // Форматируем значение
+  const formatted = formatPhone(value);
+  formattedPhone.value = formatted;
+  form.value.phone_e164 = extractPhoneNumber(formatted);
+  
+  // Восстанавливаем позицию курсора
+  nextTick(() => {
+    const input = event.target;
+    let newCursorPosition = cursorPosition;
+    
+    // Если значение стало длиннее (добавились символы маски), корректируем позицию
+    if (formatted.length > value.length) {
+      newCursorPosition = Math.min(cursorPosition + (formatted.length - value.length), formatted.length);
+    }
+    
+    input.setSelectionRange(newCursorPosition, newCursorPosition);
+  });
+}
+
+// Обработка удаления символов (Backspace/Delete)
+function handlePhoneKeydown(event) {
+  const value = event.target.value;
+  const cursorPosition = event.target.selectionStart;
+  
+  // Если нажали Backspace и курсор находится в позиции, где есть символ маски
+  if (event.key === 'Backspace') {
+    const maskPositions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]; // позиции символов маски
+    const maskChars = ['+', '7', ' ', '(', ')', ' ', '-', '-'];
+    
+    // Если курсор находится на символе маски, удаляем предыдущую цифру
+    if (maskPositions.includes(cursorPosition - 1)) {
+      event.preventDefault();
+      
+      // Находим предыдущую цифру и удаляем её
+      let newValue = value;
+      let pos = cursorPosition - 1;
+      
+      while (pos >= 0 && !/\d/.test(newValue[pos])) {
+        pos--;
+      }
+      
+      if (pos >= 0) {
+        newValue = newValue.slice(0, pos) + newValue.slice(pos + 1);
+        formattedPhone.value = formatPhone(newValue);
+        form.value.phone_e164 = extractPhoneNumber(formattedPhone.value);
+        
+        nextTick(() => {
+          event.target.setSelectionRange(pos, pos);
+        });
+      }
+    }
+  }
+}
+
+// Обработка фокуса на поле телефона
+function handlePhoneFocus() {
+  if (!formattedPhone.value) {
+    formattedPhone.value = '+7 (';
+  }
+}
+
+// Функция валидации телефона
+function validatePhone(phone) {
+  if (!phone) {
+    return 'Пожалуйста, введите номер телефона';
+  }
+  
+  // Проверяем формат E164: начинается с +7, затем 10 цифр
+  const phoneRegex = /^\+7\d{10}$/;
+  if (!phoneRegex.test(phone)) {
+    return 'Неверный формат телефона. Введите полный номер';
+  }
+  
+  return '';
+}
+
+// Функция валидации пароля
+function validatePassword(password) {
+  if (!password) {
+    return 'Пожалуйста, введите пароль';
+  }
+  
+  if (password.length < 6) {
+    return 'Пароль должен содержать минимум 6 символов';
+  }
+  
+  return '';
+}
 
 async function handleSubmit() {
-  // Валидация полей
-  if (!form.value.phone_e164) {
-    // Пожалуйста, введите номер телефона
-    return;
+  // Очищаем предыдущие ошибки
+  phoneError.value = '';
+  passwordError.value = '';
+  
+  // Валидация телефона
+  const phoneValidationError = validatePhone(form.value.phone_e164);
+  if (phoneValidationError) {
+    phoneError.value = phoneValidationError;
   }
-
-  if (!form.value.password) {
-    // Пожалуйста, введите пароль
-    return;
+  
+  // Валидация пароля
+  const passwordValidationError = validatePassword(form.value.password);
+  if (passwordValidationError) {
+    passwordError.value = passwordValidationError;
   }
-
-  // Валидация формата телефона (+E164)
-  const phoneRegex = /^\+[1-9]\d{1,14}$/;
-  if (!phoneRegex.test(form.value.phone_e164)) {
-    // Неверный формат телефона. Используйте формат +E164 (например, +79001234567)
+  
+  // Если есть ошибки валидации, не отправляем форму
+  if (phoneValidationError || passwordValidationError) {
     return;
   }
 
   isLoading.value = true;
   try {
-    await auth.login({
+    const loginData = {
       phone_e164: form.value.phone_e164,
       password: form.value.password
-    });
+    };
+    
+    // Логируем данные перед отправкой
+    console.log('🔐 Login data:', loginData);
+    console.log('🔐 Formatted phone:', formattedPhone.value);
+    console.log('🔐 Extracted phone:', form.value.phone_e164);
+    
+    await auth.login(loginData);
     router.push('/dashboard');
   } catch (err) {
-    // Не удалось войти в систему
+    // Обработка ошибок авторизации
+    if (err.message && err.message.includes('phone')) {
+      phoneError.value = 'Неверный номер телефона';
+    } else if (err.message && err.message.includes('password')) {
+      passwordError.value = 'Неверный пароль';
+    } else {
+      phoneError.value = 'Не удалось войти в систему';
+    }
   } finally {
     isLoading.value = false;
   }
