@@ -62,29 +62,26 @@ class SlotAbnormalReportHandler:
     async def _save_abnormal_report_to_database(self, station_id: int, abnormal_report: Dict[str, Any]) -> None:
         """Сохраняет отчет об аномалии слота в базу данных и в parsed_packets.json"""
         try:
-            # Сохраняем отчет в таблицу slot_abnormal_reports
-            async with self.db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("""
-                        INSERT INTO slot_abnormal_reports 
-                        (station_id, slot_number, terminal_id, event_type, event_text, 
-                         reported_at, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        station_id,
-                        abnormal_report['SlotNo'],
-                        abnormal_report['TerminalID'],
-                        abnormal_report['Event'],
-                        abnormal_report['EventText'],
-                        abnormal_report['ReceivedAt'],
-                        get_moscow_time()
-                    ))
-                    await conn.commit()
+            # Используем новую модель для сохранения
+            from models.slot_abnormal_report import SlotAbnormalReport
             
-            # Сохраняем в parsed_packets.json
-            await self._save_to_parsed_packets(abnormal_report)
+            report = await SlotAbnormalReport.create(
+                db_pool=self.db_pool,
+                station_id=station_id,
+                slot_number=abnormal_report['SlotNo'],
+                terminal_id=abnormal_report['TerminalID'],
+                event_type=abnormal_report['Event'],
+                event_text=abnormal_report['EventText'],
+                reported_at=abnormal_report['ReceivedAt']
+            )
             
-            print(f"Отчет об аномалии слота сохранен для станции {station_id}, слот {abnormal_report['SlotNo']}")
+            if report:
+                # Сохраняем в parsed_packets.json
+                await self._save_to_parsed_packets(abnormal_report)
+                
+                print(f"Отчет об аномалии слота сохранен для станции {station_id}, слот {abnormal_report['SlotNo']}")
+            else:
+                self.logger.error(f"Не удалось создать отчет об аномалии для станции {station_id}")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

@@ -95,7 +95,7 @@ class SlotAbnormalReportEndpoints:
     async def get_abnormal_reports_by_event_type(self, request: Request) -> Response:
         """GET /api/slot-abnormal-reports/event-type/{event_type} - Получить отчеты об аномалиях по типу события"""
         try:
-            event_type = int(request.match_info['event_type'])
+            event_type = request.match_info['event_type']  # Оставляем как строку
             limit = int(request.query.get('limit', 50))
             
             if limit < 1 or limit > 200:

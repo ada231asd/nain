@@ -383,6 +383,42 @@ export const pythonAPI = {
     return handleResponse(apiClient.post('/powerbank-error-report', payload), 'report powerbank error')
   },
 
+  // ОТЧЕТЫ ОБ АНОМАЛИЯХ СЛОТОВ
+  getSlotAbnormalReports: (params = {}) => {
+    const queryParams = new URLSearchParams()
+    if (params.limit) queryParams.append('limit', params.limit)
+    if (params.start_date) queryParams.append('start_date', params.start_date)
+    if (params.end_date) queryParams.append('end_date', params.end_date)
+    
+    const queryString = queryParams.toString()
+    const url = queryString ? `/slot-abnormal-reports?${queryString}` : '/slot-abnormal-reports'
+    return handleResponse(apiClient.get(url), 'get slot abnormal reports')
+  },
+
+  getStationSlotAbnormalReports: (stationId, limit = 50) => {
+    validateId(stationId, 'station ID')
+    return handleResponse(
+      apiClient.get(`/slot-abnormal-reports/stations/${stationId}?limit=${limit}`),
+      'get station slot abnormal reports'
+    )
+  },
+
+  getSlotAbnormalReportsByEventType: (eventType, limit = 50) => {
+    return handleResponse(
+      apiClient.get(`/slot-abnormal-reports/event-type/${eventType}?limit=${limit}`),
+      'get slot abnormal reports by event type'
+    )
+  },
+
+  getSlotAbnormalReportsStatistics: () => {
+    return handleResponse(apiClient.get('/slot-abnormal-reports/statistics'), 'get slot abnormal reports statistics')
+  },
+
+  deleteSlotAbnormalReport: (reportId) => {
+    validateId(reportId, 'report ID')
+    return handleResponse(apiClient.delete(`/slot-abnormal-reports/${reportId}`), 'delete slot abnormal report')
+  },
+
   // ДРУГОЕ
   getConnections: () => handleResponse(apiClient.get('/connections'), 'get connections')
 }

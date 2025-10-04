@@ -210,6 +210,11 @@ class HTTPServer:
         self.powerbank_error_endpoints.setup_routes(app)
         self.simple_return_endpoints.setup_routes(app)
         
+        # API для отчетов об аномалиях слотов
+        from api.slot_abnormal_report_endpoints import SlotAbnormalReportEndpoints
+        self.slot_abnormal_report_endpoints = SlotAbnormalReportEndpoints(self.db_pool, connection_manager)
+        self.slot_abnormal_report_endpoints.setup_routes(app)
+        
         
     
     async def start_server(self):

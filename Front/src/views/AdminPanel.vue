@@ -343,6 +343,11 @@
               </div>
             </div>
 
+            <!-- Отчеты об аномалиях слотов -->
+            <div v-if="activeTab === 'slot-abnormal-reports'" class="tab-pane">
+              <SlotAbnormalReports :stations="stations" />
+            </div>
+
             <!-- Статистика -->
             <div v-if="activeTab === 'stats'" class="tab-pane">
               <h2>Статистика сервиса</h2>
@@ -520,6 +525,7 @@ import AddOrgUnitModal from '../components/AddOrgUnitModal.vue'
 import OrgUnitCard from '../components/OrgUnitCard.vue'
 import OrgUnitStationsModal from '../components/OrgUnitStationsModal.vue'
 import PowerbankList from '../components/PowerbankList.vue'
+import SlotAbnormalReports from '../components/SlotAbnormalReports.vue'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -597,14 +603,15 @@ const availableTabs = computed(() => {
     { id: 'powerbanks', name: 'Павербанки' },
     { id: 'org-units', name: 'Группы' },
     { id: 'orders', name: 'Все заказы' },
+    { id: 'slot-abnormal-reports', name: 'Аномалии слотов' },
     { id: 'stats', name: 'Статистика' }
   ]
 
   // Ограничиваем доступ в зависимости от роли
   if (userRole.value === 'subgroup_admin') {
-    return tabs.filter(tab => ['users', 'stations', 'org-units', 'stats'].includes(tab.id))
+    return tabs.filter(tab => ['users', 'stations', 'org-units', 'slot-abnormal-reports', 'stats'].includes(tab.id))
   } else if (userRole.value === 'group_admin') {
-    return tabs.filter(tab => tab.id !== 'stats')
+    return tabs.filter(tab => ['slot-abnormal-reports'].includes(tab.id) || tab.id !== 'stats')
   }
 
   return tabs
