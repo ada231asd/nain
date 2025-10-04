@@ -141,11 +141,11 @@ class HTTPServer:
         self.simple_return_endpoints = SimpleReturnEndpoints(self.db_pool, connection_manager)
         
         # Регистрируем маршруты
-        self._setup_routes(app)
+        self._setup_routes(app, connection_manager)
         
         return app
     
-    def _setup_routes(self, app: Application):
+    def _setup_routes(self, app: Application, connection_manager):
         """Настраивает маршруты API"""
         
         # Авторизация и регистрация
