@@ -8,7 +8,7 @@ const getDefaultBaseURL = () => {
   } catch {}
   // Fallbacks for SSR/build tools: prefer common localhost ports
   return import.meta.env.VITE_PY_BACKEND_URL?.replace(/\/?$/, '/api')
-    || 'http://192.168.10.38:8000/api'
+    || 'http://localhost:8000/api'
 }
 
 export const API_CONFIG = {

@@ -136,18 +136,26 @@ export const useAdminStore = defineStore('admin', {
       this.isLoading = true;
       try {
         const res = await pythonAPI.getStations();
+        console.log('Raw API response for stations:', res);
 
         // Обрабатываем ответ в зависимости от структуры
-        this.stations = Array.isArray(res)
-          ? res
-          : (res && Array.isArray(res.data))
-            ? res.data
-            : (res && Array.isArray(res.stations))
-              ? res.stations
-              : [];
+        let stations = [];
+        if (Array.isArray(res)) {
+          stations = res;
+        } else if (res && Array.isArray(res.data)) {
+          stations = res.data;
+        } else if (res && Array.isArray(res.stations)) {
+          stations = res.stations;
+        } else {
+          console.warn('Unexpected API response structure:', res);
+          stations = [];
+        }
 
+        console.log('Processed stations:', stations);
+        this.stations = stations;
         return this.stations;
       } catch (err) {
+        console.error('Error fetching stations:', err);
         this.error = 'Failed to fetch stations';
         return [];
       } finally {
@@ -158,13 +166,14 @@ export const useAdminStore = defineStore('admin', {
     async _refreshStationsSilently() {
       try {
         const fresh = await pythonAPI.getStations();
-        const normalized = Array.isArray(fresh)
-          ? fresh
-          : (fresh && Array.isArray(fresh.data))
-            ? fresh.data
-            : (fresh && Array.isArray(fresh.stations))
-              ? fresh.stations
-              : null;
+        let normalized = [];
+        if (Array.isArray(fresh)) {
+          normalized = fresh;
+        } else if (fresh && Array.isArray(fresh.data)) {
+          normalized = fresh.data;
+        } else if (fresh && Array.isArray(fresh.stations)) {
+          normalized = fresh.stations;
+        }
         if (normalized) {
           this.stations = normalized;
         }

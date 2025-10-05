@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // Импорт страниц
 import Dashboard from '../views/Dashboard.vue'
-
 import AdminPanel from '../views/AdminPanel.vue'
 import UserPage from '../views/admin/UserPage.vue'
 import Profile from '../views/Profile.vue'
@@ -11,6 +10,7 @@ import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import StationInfo from '../views/StationInfo.vue'
 import QRDemo from '../views/QRDemo.vue'
+import TestStationsTable from '../views/TestStationsTable.vue'
 import { useAuthStore } from '../stores/auth';
 
 const routes = [
@@ -63,6 +63,11 @@ const routes = [
     path: '/qr-demo',
     name: 'QRDemo',
     component: QRDemo
+  },
+  {
+    path: '/test-stations-table',
+    name: 'TestStationsTable',
+    component: TestStationsTable
   },
   {
     path: '/:stationName',

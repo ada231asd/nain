@@ -7,40 +7,15 @@
       position="top-center"
       :duration="5000"
     />
-    <!-- Header -->
-    <header class="admin-header">
-      <div class="header-content">
-        <button @click="goBack" class="btn-back">← Назад</button>
-        <h1>Админ панель</h1>
-        <div class="user-info">
-          <div class="auto-refresh-control">
-            <button 
-              @click="toggleAutoRefresh" 
-              :class="['auto-refresh-btn', { active: autoRefreshEnabled }]"
-              :title="autoRefreshEnabled ? 'Отключить автообновление' : 'Включить автообновление'"
-            >
-              {{ autoRefreshEnabled ? '🔄' : '⏸️' }}
-            </button>
-          </div>
-          <span class="user-role">{{ userRoleText }}</span>
-          <span class="user-name">{{ getUserDisplayName(user) }}</span>
-        </div>
-      </div>
-    </header>
 
     <!-- Основной контент -->
     <main class="admin-main">
       <div class="admin-layout">
-        <aside class="admin-sidebar">
-          <button 
-            v-for="tab in availableTabs"
-            :key="tab.id"
-            :class="['sidebar-item', { active: activeTab === tab.id }]"
-            @click="activeTab = tab.id"
-          >
-            {{ tab.name }}
-          </button>
-        </aside>
+        <AdminSidebar 
+          :active-tab="activeTab"
+          @tab-change="activeTab = $event"
+          @go-home="goToHome"
+        />
 
         <div class="admin-content">
           <div class="tab-content">
@@ -114,94 +89,14 @@
 
             <!-- Управление станциями -->
             <div v-if="activeTab === 'stations'" class="tab-pane">
-              <div class="section-header">
-                <h2>Управление станциями</h2>
-                <div class="header-actions">
-                  <input type="text" v-model="stationSearch" placeholder="Поиск станций..." class="search-input" />
-                  <button @click="() => { editingStation = null; showAddStationModal = true }" class="btn-primary">
-                    + Добавить станцию
-                  </button>
-                </div>
-              </div>
-
-              <div class="stations-grid">
-                <div v-for="station in filteredStations" :key="station.station_id || station.id" :class="['station-card', getStationCardClass(station.status)]">
-                  <div class="station-card-header">
-                    <div class="station-status">
-                      <span class="status-indicator" :class="`status-${station.status}`"></span>
-                      <span class="status-text">{{ getStationStatusText(station.status) }}</span>
-                    </div>
-                    <div class="station-actions">
-                      <button @click="openPowerbanks(station)" class="btn-action btn-powerbanks" title="Просмотр павербанков">
-                        🔋
-                      </button>
-                      <button @click="openVoiceVolume(station)" class="btn-action btn-volume" title="Управление громкостью">
-                        🔊
-                      </button>
-                      <button @click="openServerAddress(station)" class="btn-action btn-server" title="Управление адресом сервера">
-                        🌐
-                      </button>
-                      <button @click="restartStation(station)" class="btn-action btn-restart" title="Перезагрузить станцию">
-                        🔄
-                      </button>
-                      <button @click="generateQRCode(station)" class="btn-action btn-qr" title="Генерировать QR-код">
-                        📱
-                      </button>
-                      <button @click="editStation(station)" class="btn-action btn-edit" title="Редактировать">
-                        ✏️
-                      </button>
-                      <button @click="deleteStation(station.station_id || station.id)" class="btn-action btn-delete" title="Удалить">
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div class="station-card-content">
-                    <div class="station-main-info">
-                      <h3 class="station-title">{{ station.box_id || 'N/A' }}</h3>
-                      <p class="station-org" v-if="station.org_unit_name">{{ station.org_unit_name }}</p>
-                    </div>
-                    
-                    <div class="station-details">
-                      <div class="detail-row">
-                        <span class="detail-label">ICCID:</span>
-                        <span class="detail-value">{{ station.iccid || '—' }}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Слотов:</span>
-                        <span class="detail-value">{{ station.slots_declared || station.totalPorts || 0 }}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Свободно:</span>
-                        <span class="detail-value">{{ station.freePorts || station.remain_num || 0 }}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Занято:</span>
-                        <span class="detail-value">{{ station.occupiedPorts || ((station.slots_declared || 0) - (station.remain_num || 0)) }}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Последний сигнал:</span>
-                        <span class="detail-value">{{ station.last_seen ? formatTime(station.last_seen) : '—' }}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Создана:</span>
-                        <span class="detail-value">{{ station.created_at ? formatTime(station.created_at) : '—' }}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Обновлена:</span>
-                        <span class="detail-value">{{ station.updated_at ? formatTime(station.updated_at) : '—' }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                </div>
-              </div>
-              
-              <div v-if="filteredStations.length === 0" class="empty-state">
-                <div class="empty-icon">🏢</div>
-                <h3>Станции не найдены</h3>
-                <p>Попробуйте изменить поисковый запрос или добавьте новую станцию</p>
-              </div>
+              <StationsTable 
+                :stations="stations"
+                @add-station="() => { editingStation = null; showAddStationModal = true }"
+                @view-powerbanks="openPowerbanks"
+                @edit-station="editStation"
+                @restart-station="restartStation"
+                @delete-station="(station) => deleteStation(station.station_id || station.id)"
+              />
             </div>
 
             <!-- Управление павербанками -->
@@ -514,7 +409,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '../stores/admin'
 import { useAuthStore } from '../stores/auth'
@@ -536,6 +431,8 @@ import OrgUnitStationsModal from '../components/OrgUnitStationsModal.vue'
 import PowerbankList from '../components/PowerbankList.vue'
 import SlotAbnormalReports from '../components/SlotAbnormalReports.vue'
 import StationQRModal from '../components/StationQRModal.vue'
+import StationsTable from '../components/AdminComponents/StationsTable.vue'
+import AdminSidebar from '../components/AdminComponents/AdminSidebar.vue'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -581,10 +478,6 @@ const selectedOrgUnit = ref(null)
 const showServerResting = ref(false)
 const serverRestingMessage = ref('')
 
-// Автоматическое обновление данных
-const autoRefreshInterval = ref(null)
-const autoRefreshEnabled = ref(false) // Отключаем автоматическое обновление по таймеру
-const refreshInterval = 30000 // 30 секунд
 
 if (typeof window !== 'undefined') {
   window.addEventListener('api:server-down', (e) => {
@@ -595,39 +488,8 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// Вычисляемые свойства
-const user = computed(() => authStore.user || { phone: 'Администратор' })
-const userRole = computed(() => authStore.user?.role || 'service_admin')
 
-const userRoleText = computed(() => {
-  switch (userRole.value) {
-    case 'service_admin': return 'Администратор сервиса'
-    case 'group_admin': return 'Администратор группы'
-    case 'subgroup_admin': return 'Администратор подгруппы'
-    default: return 'Пользователь'
-  }
-})
 
-const availableTabs = computed(() => {
-  const tabs = [
-    { id: 'users', name: 'Пользователи' },
-    { id: 'stations', name: 'Станции' },
-    { id: 'powerbanks', name: 'Павербанки' },
-    { id: 'org-units', name: 'Группы' },
-    { id: 'orders', name: 'Все заказы' },
-    { id: 'slot-abnormal-reports', name: 'Аномалии слотов' },
-    { id: 'stats', name: 'Статистика' }
-  ]
-
-  // Ограничиваем доступ в зависимости от роли
-  if (userRole.value === 'subgroup_admin') {
-    return tabs.filter(tab => ['users', 'stations', 'org-units', 'slot-abnormal-reports', 'stats'].includes(tab.id))
-  } else if (userRole.value === 'group_admin') {
-    return tabs.filter(tab => ['slot-abnormal-reports'].includes(tab.id) || tab.id !== 'stats')
-  }
-
-  return tabs
-})
 
 // Данные из store
 const users = computed(() => adminStore.users)
@@ -662,7 +524,6 @@ const monthOrders = computed(() => {
 
 const userSearch = ref('')
 const orgUnitSearch = ref('')
-const stationSearch = ref('')
 
 const filteredUsers = computed(() => {
   const list = users.value || []
@@ -704,24 +565,6 @@ const filteredOrgUnits = computed(() => {
   })
 })
 
-const filteredStations = computed(() => {
-  const list = stations.value || []
-  const query = (stationSearch.value || '').toString().trim().toLowerCase()
-  if (!query) return list
-
-  return list.filter(station => {
-    const boxId = (station.box_id || '').toString().toLowerCase()
-    const iccid = (station.iccid || '').toString().toLowerCase()
-    const orgUnitName = (station.org_unit_name || '').toString().toLowerCase()
-    const status = (station.status || '').toString().toLowerCase()
-    return (
-      boxId.includes(query) ||
-      iccid.includes(query) ||
-      orgUnitName.includes(query) ||
-      status.includes(query)
-    )
-  })
-})
 
 const getUserRoleText = (role) => {
   switch(role) {
@@ -748,9 +591,6 @@ const formatDate = (date) => {
 }
 
 // Методы
-const goBack = () => {
-  router.back()
-}
 
 const getUserStatusClass = (status) => {
   switch (status) {
@@ -786,52 +626,7 @@ const getUserGroupName = (orgUnitId) => {
   return group ? group.name : 'Неизвестная группа'
 }
 
-const getUserDisplayName = (user) => {
-  if (!user) return 'Администратор'
-  
-  // Определяем имя пользователя из доступных полей
-  if (user.fio && user.fio.trim()) {
-    return user.fio.trim()
-  } else if (user.first_name && user.last_name) {
-    return `${user.first_name} ${user.last_name}`.trim()
-  } else if (user.name && user.name.trim()) {
-    return user.name.trim()
-  } else if (user.phone_e164) {
-    return user.phone_e164
-  } else {
-    return 'Администратор'
-  }
-}
 
-const getStationStatusClass = (status) => {
-  switch (status) {
-    case 'active': return 'status-active'
-    case 'pending': return 'status-pending'
-    case 'inactive': return 'status-inactive'
-    case 'maintenance': return 'status-maintenance'
-    default: return 'status-unknown'
-  }
-}
-
-const getStationStatusText = (status) => {
-  switch (status) {
-    case 'active': return 'Активна'
-    case 'pending': return 'Ожидает'
-    case 'inactive': return 'Неактивна'
-    case 'maintenance': return 'Сервис'
-    default: return 'Неизвестно'
-  }
-}
-
-const getStationCardClass = (status) => {
-  switch (status) {
-    case 'active': return 'status-active'
-    case 'pending': return 'status-pending'
-    case 'inactive': return 'status-inactive'
-    case 'maintenance': return 'status-maintenance'
-    default: return 'status-unknown'
-  }
-}
 
 const getOrderStatusClass = (status) => {
   switch (status) {
@@ -1240,7 +1035,7 @@ const borrowPowerbank = async (powerbank) => {
 
   isBorrowing.value = true
   try {
-    const userId = user.value?.id || user.value?.user_id
+    const userId = authStore.user?.id || authStore.user?.user_id
 
     if (!userId) {
       alert('Не удалось определить пользователя')
@@ -1281,7 +1076,7 @@ const forceEjectPowerbank = async (powerbank) => {
 
   isBorrowing.value = true
   try {
-    const userId = user.value?.id || user.value?.user_id
+    const userId = authStore.user?.id || authStore.user?.user_id
 
     if (!userId) {
       alert('Не удалось определить пользователя')
@@ -1309,7 +1104,45 @@ const forceEjectPowerbank = async (powerbank) => {
   }
 }
 
-// Методы для работы с группами
+
+const goToHome = () => {
+  router.push('/')
+}
+
+// Простая функция обновления данных после действий
+const refreshAfterAction = async () => {
+  try {
+    // Обновляем данные в зависимости от активной вкладки
+    switch (activeTab.value) {
+      case 'users':
+        await adminStore.fetchUsers()
+        break
+      case 'stations':
+        await adminStore.fetchStations()
+        break
+      case 'powerbanks':
+        await adminStore.fetchPowerbanks()
+        break
+      case 'org-units':
+        await adminStore.fetchOrgUnits()
+        break
+      case 'orders':
+        await adminStore.fetchOrders()
+        break
+      case 'stats':
+        // Для статистики обновляем все данные
+        await Promise.all([
+          adminStore.fetchUsers(),
+          adminStore.fetchStations(),
+          adminStore.fetchOrders(),
+          adminStore.fetchOrgUnits()
+        ])
+        break
+    }
+  } catch (error) {
+    console.warn('Ошибка при обновлении данных после действия:', error)
+  }
+}
 const editOrgUnit = (orgUnit) => {
   editingOrgUnit.value = orgUnit
   showAddOrgUnitModal.value = true
@@ -1362,95 +1195,10 @@ const handleOrgUnitEdited = async (data) => {
   }
 }
 
-// Функции автоматического обновления данных
-const startAutoRefresh = () => {
-  if (autoRefreshInterval.value) {
-    clearInterval(autoRefreshInterval.value)
-  }
-  
-  if (autoRefreshEnabled.value) {
-    autoRefreshInterval.value = setInterval(async () => {
-      try {
-        await refreshCurrentTabData()
-      } catch (error) {
-        console.warn('Ошибка при автоматическом обновлении данных:', error)
-      }
-    }, refreshInterval)
-  }
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshInterval.value) {
-    clearInterval(autoRefreshInterval.value)
-    autoRefreshInterval.value = null
-  }
-}
-
-const refreshCurrentTabData = async () => {
-  try {
-    switch (activeTab.value) {
-      case 'users':
-        await adminStore.fetchUsers()
-        break
-      case 'stations':
-        await adminStore.fetchStations()
-        break
-      case 'powerbanks':
-        await adminStore.fetchPowerbanks()
-        break
-      case 'org-units':
-        await adminStore.fetchOrgUnits()
-        break
-      case 'orders':
-        await adminStore.fetchOrders()
-        break
-      case 'stats':
-        // Для статистики обновляем все данные
-        await Promise.all([
-          adminStore.fetchUsers(),
-          adminStore.fetchStations(),
-          adminStore.fetchOrders(),
-          adminStore.fetchOrgUnits()
-        ])
-        break
-    }
-  } catch (error) {
-    console.warn('Ошибка при обновлении данных для вкладки:', activeTab.value, error)
-  }
-}
-
-// Обновление данных после действий
-const refreshAfterAction = async () => {
-  try {
-    await refreshCurrentTabData()
-    // Обновление конкретных станций происходит в самих функциях действий
-    // Здесь обновляем только общие данные для текущей вкладки
-  } catch (error) {
-    console.warn('Ошибка при обновлении данных после действия:', error)
-  }
-}
-
-// Переключение автоматического обновления
-const toggleAutoRefresh = () => {
-  autoRefreshEnabled.value = !autoRefreshEnabled.value
-  if (autoRefreshEnabled.value) {
-    startAutoRefresh()
-  } else {
-    stopAutoRefresh()
-  }
-}
-
-// Watcher для отслеживания изменений активной вкладки
-watch(activeTab, (newTab, oldTab) => {
-  if (newTab !== oldTab) {
-    // Не перезапускаем автообновление по таймеру
-    // Обновление происходит только после действий
-  }
-})
 
 // Жизненный цикл
 onMounted(async () => {
-  // Загружаем данные без проверки роли
+  // Загружаем данные при монтировании компонента
   try {
     const results = await Promise.all([
       adminStore.fetchUsers(),
@@ -1458,18 +1206,12 @@ onMounted(async () => {
       adminStore.fetchOrders(),
       adminStore.fetchOrgUnits()
     ])
-
-    // Не запускаем автоматическое обновление по таймеру
-    // Обновление происходит только после действий
+    console.log('Данные загружены:', results)
   } catch (error) {
-    // Error handled silently
+    console.error('Ошибка при загрузке данных:', error)
   }
 })
 
-onUnmounted(() => {
-  // Останавливаем автоматическое обновление при размонтировании
-  stopAutoRefresh()
-})
 </script>
 
 <style scoped>
@@ -1478,97 +1220,6 @@ onUnmounted(() => {
   background: #f5f5f5;
 }
 
-.admin-header {
-  background: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.btn-back {
-  padding: 10px 20px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  font-size: 1rem;
-}
-
-.btn-back:hover {
-  background: #5a6268;
-}
-
-.header-content h1 {
-  color: #333;
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin: 0;
-  flex: 1;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
-}
-
-.auto-refresh-control {
-  margin-bottom: 5px;
-}
-
-.auto-refresh-btn {
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  border-radius: 50%;
-  width: 35px;
-  height: 35px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 16px;
-}
-
-.auto-refresh-btn:hover {
-  background: #e9ecef;
-  transform: scale(1.1);
-}
-
-.auto-refresh-btn.active {
-  background: #667eea;
-  border-color: #667eea;
-  color: white;
-}
-
-.auto-refresh-btn.active:hover {
-  background: #5a6fd8;
-  border-color: #5a6fd8;
-}
-
-.user-role {
-  color: #667eea;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.user-name {
-  color: #666;
-  font-size: 0.9rem;
-}
 
 .admin-main {
   max-width: 1400px;
@@ -1581,35 +1232,6 @@ onUnmounted(() => {
   gap: 20px;
 }
 
-.admin-sidebar {
-  width: 250px;
-  background: white;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.sidebar-item {
-  padding: 15px;
-  background: #f8f9fa;
-  border: none;
-  border-radius: 8px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.sidebar-item.active {
-  background: #667eea;
-  color: white;
-}
-
-.sidebar-item:hover {
-  background: #e9ecef;
-}
 
 .admin-content {
   flex: 1;
@@ -1696,197 +1318,6 @@ onUnmounted(() => {
 .user-cell.user-status-blocked { border-left-color: #dc3545; }
 .user-name-text { display: inline-block; }
 
-/* Stations */
-.stations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.station-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.station-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.station-card.status-active {
-  border-color: #28a745;
-}
-
-.station-card.status-pending {
-  border-color: #ffc107;
-}
-
-.station-card.status-inactive {
-  border-color: #dc3545;
-}
-
-.station-card.status-maintenance {
-  border-color: #fd7e14;
-}
-
-.station-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.station-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.status-indicator.status-active {
-  background: #28a745;
-  box-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
-}
-
-.status-indicator.status-pending {
-  background: #ffc107;
-  box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
-}
-
-.status-indicator.status-inactive {
-  background: #dc3545;
-  box-shadow: 0 0 8px rgba(220, 53, 69, 0.5);
-}
-
-.status-indicator.status-maintenance {
-  background: #fd7e14;
-  box-shadow: 0 0 8px rgba(253, 126, 20, 0.5);
-}
-
-.status-text {
-  font-size: 12px;
-  font-weight: 600;
-  color: #333;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.station-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-action {
-  background: none;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-action:hover {
-  background: #e9ecef;
-  transform: scale(1.1);
-}
-
-.btn-powerbanks:hover {
-  background: #d4edda;
-}
-
-.btn-edit:hover {
-  background: #fff3cd;
-}
-
-.btn-delete:hover {
-  background: #f8d7da;
-}
-
-.btn-volume:hover {
-  background: #d1ecf1;
-}
-
-.btn-server:hover {
-  background: #e8f5e8;
-}
-
-.btn-restart:hover {
-  background: #fff3cd;
-}
-
-.station-card-content {
-  padding: 20px;
-}
-
-.station-main-info {
-  margin-bottom: 16px;
-}
-
-.station-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #333;
-  margin: 0 0 4px 0;
-  font-family: 'Courier New', monospace;
-}
-
-.station-org {
-  font-size: 14px;
-  color: #667eea;
-  margin: 0;
-  font-weight: 500;
-}
-
-.station-details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-}
-
-.detail-label {
-  font-size: 13px;
-  color: #666;
-  font-weight: 500;
-}
-
-.detail-value {
-  font-size: 13px;
-  color: #333;
-  font-weight: 600;
-  text-align: right;
-  max-width: 60%;
-  word-break: break-word;
-}
-
-.station-card-footer {
-  padding: 16px 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-}
 
 
 .empty-state {
@@ -2280,17 +1711,6 @@ onUnmounted(() => {
 
 /* Мобильные стили */
 @media (max-width: 768px) {
-  .header-content {
-    padding: 15px;
-    flex-direction: column;
-    gap: 15px;
-    text-align: center;
-  }
-  
-  .header-content h1 {
-    font-size: 1.5rem;
-  }
-  
   .admin-main {
     padding: 15px;
   }
@@ -2300,15 +1720,6 @@ onUnmounted(() => {
     gap: 15px;
   }
 
-  .admin-sidebar {
-    width: 100%;
-    padding: 15px;
-  }
-
-  .sidebar-item {
-    flex: 1;
-    min-width: 120px;
-  }
 
   .admin-content {
     padding: 0;
@@ -2342,31 +1753,6 @@ onUnmounted(() => {
     margin-left: 0;
   }
   
-  .stations-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  
-  .station-card-header {
-    padding: 12px 16px;
-  }
-  
-  .station-card-content {
-    padding: 16px;
-  }
-  
-  .station-card-footer {
-    padding: 12px 16px;
-  }
-  
-  .station-actions {
-    gap: 6px;
-  }
-  
-  .btn-action {
-    padding: 6px;
-    font-size: 14px;
-  }
 }
 
 .modal-overlay {
