@@ -9,6 +9,8 @@ import Profile from '../views/Profile.vue'
 import AddressStations from '../views/AddressStations.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+import StationInfo from '../views/StationInfo.vue'
+import QRDemo from '../views/QRDemo.vue'
 import { useAuthStore } from '../stores/auth';
 
 const routes = [
@@ -50,6 +52,23 @@ const routes = [
     path: '/register',
     name: 'Register',
     component: Register
+  },
+  {
+    path: '/station-info',
+    name: 'StationInfo',
+    component: StationInfo,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/qr-demo',
+    name: 'QRDemo',
+    component: QRDemo
+  },
+  {
+    path: '/:stationId',
+    name: 'StationRedirect',
+    component: () => import('../views/StationRedirect.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -86,15 +105,37 @@ router.beforeEach(async (to, from, next) => {
   }
   
   // Защищаем другие страницы, требующие авторизации
-  const protectedRoutes = ['Dashboard', 'Profile', 'AddressStations'];
+  const protectedRoutes = ['Dashboard', 'Profile', 'AddressStations', 'StationInfo', 'StationRedirect'];
   if (protectedRoutes.includes(to.name) && !authStore.isAuthenticated) {
-    next('/login');
+    // Если это страница станции, сохраняем параметры станции для перенаправления после авторизации
+    if (to.name === 'StationInfo') {
+      next(`/login?station=${to.query.station}&stationName=${to.query.stationName}`);
+    } else if (to.name === 'StationRedirect') {
+      // Для прямых ссылок на станции по имени
+      next(`/login?stationName=${to.params.stationId}`);
+    } else {
+      next('/login');
+    }
+    return;
+  }
+  
+  // Проверяем права администратора для страниц, требующих админских прав
+  if (to.meta?.requiresAdmin && !authStore.isAdmin) {
+    next('/dashboard');
     return;
   }
   
   // Если пользователь авторизован и пытается зайти на страницы входа/регистрации, перенаправляем на дашборд
   if ((to.name === 'Login' || to.name === 'Register') && authStore.isAuthenticated) {
-    next('/dashboard');
+    // Если есть параметры станции, перенаправляем на дашборд с параметром станции
+    if (to.query.station) {
+      next(`/dashboard?station=${to.query.station}&stationName=${to.query.stationName}`);
+    } else if (to.query.stationName) {
+      // Для прямых ссылок на станции по имени
+      next(`/dashboard?stationName=${to.query.stationName}`);
+    } else {
+      next('/dashboard');
+    }
     return;
   }
   

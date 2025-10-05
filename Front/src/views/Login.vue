@@ -1,6 +1,13 @@
 <template>
   <div class="login-container">
     <h2>Вход по паролю</h2>
+    <div v-if="route.query.station || route.query.stationName" class="station-info">
+      <div class="station-badge">
+        <span class="station-icon">📍</span>
+        <span>Станция: {{ route.query.stationName || route.query.station }}</span>
+      </div>
+      <p class="station-description">После входа вы будете перенаправлены к этой станции</p>
+    </div>
     <form @submit.prevent="handleSubmit">
       <BaseInput 
         v-model="formattedPhone" 
@@ -32,14 +39,15 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import BaseInput from '../components/BaseInput.vue';
 import BaseButton from '../components/BaseButton.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const form = ref({ phone_e164: '', password: '' });
 const isLoading = ref(false);
 const phoneError = ref('');
@@ -225,7 +233,16 @@ async function handleSubmit() {
     console.log('🔐 Extracted phone:', form.value.phone_e164);
     
     await auth.login(loginData);
-    router.push('/dashboard');
+    
+    // Проверяем, есть ли параметры станции для перенаправления
+    if (route.query.station) {
+      router.push(`/dashboard?station=${route.query.station}&stationName=${route.query.stationName}`);
+    } else if (route.query.stationName) {
+      // Для прямых ссылок на станции по имени
+      router.push(`/dashboard?stationName=${route.query.stationName}`);
+    } else {
+      router.push('/dashboard');
+    }
   } catch (err) {
     // Обработка ошибок авторизации
     if (err.message && err.message.includes('Неверный номер телефона, пароль или пользователь не подтвержден администратором')) {
@@ -271,5 +288,32 @@ form {
 }
 .auth-switch a:hover {
   text-decoration: underline;
+}
+
+.station-info {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.station-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.station-icon {
+  font-size: 1.2rem;
+}
+
+.station-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 </style>

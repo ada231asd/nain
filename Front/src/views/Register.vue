@@ -1,6 +1,13 @@
 <template>
   <div class="register-container">
     <h2>Регистрация</h2>
+    <div v-if="route.query.station || route.query.stationName" class="station-info">
+      <div class="station-badge">
+        <span class="station-icon">📍</span>
+        <span>Станция: {{ route.query.stationName || route.query.station }}</span>
+      </div>
+      <p class="station-description">После регистрации и входа вы будете перенаправлены к этой станции</p>
+    </div>
     <form @submit.prevent="handleSubmit">
       <BaseInput 
         v-model="formattedPhone" 
@@ -56,14 +63,15 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import BaseInput from '../components/BaseInput.vue';
 import BaseButton from '../components/BaseButton.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const form = ref({
   phone_e164: '',
   email: '',
@@ -321,7 +329,13 @@ async function handleSubmit() {
 
     // Через 3 секунды перенаправляем на страницу входа
     setTimeout(() => {
-      router.push('/login');
+      if (route.query.station) {
+        router.push(`/login?station=${route.query.station}&stationName=${route.query.stationName}`);
+      } else if (route.query.stationName) {
+        router.push(`/login?stationName=${route.query.stationName}`);
+      } else {
+        router.push('/login');
+      }
     }, 3000);
 
   } catch (err) {
@@ -461,5 +475,32 @@ form {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.station-info {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.station-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.station-icon {
+  font-size: 1.2rem;
+}
+
+.station-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 </style>

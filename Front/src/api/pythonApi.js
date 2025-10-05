@@ -419,6 +419,18 @@ export const pythonAPI = {
     return handleResponse(apiClient.delete(`/slot-abnormal-reports/${reportId}`), 'delete slot abnormal report')
   },
 
+  // ПОЛЬЗОВАТЕЛЬСКИЕ ПАУЭРБАНКИ
+  getUserPowerbanks: () => handleResponse(apiClient.get('/user/powerbanks'), 'get user powerbanks'),
+  borrowPowerbank: (stationId) => {
+    validateId(stationId, 'station ID')
+    return handleResponse(apiClient.post(`/borrow/stations/${stationId}/borrow`), 'borrow powerbank')
+  },
+  returnPowerbank: (stationId, powerbankId) => {
+    validateId(stationId, 'station ID')
+    validateId(powerbankId, 'powerbank ID')
+    return handleResponse(apiClient.post(`/return/stations/${stationId}/powerbanks/${powerbankId}`), 'return powerbank')
+  },
+
   // ДРУГОЕ
   getConnections: () => handleResponse(apiClient.get('/connections'), 'get connections')
 }

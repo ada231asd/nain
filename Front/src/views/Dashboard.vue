@@ -1,6 +1,50 @@
 <template>
   <DefaultLayout title="Главная">
     <div class="dashboard-content">
+      <!-- Информация о станции из QR-кода -->
+      <div v-if="qrStationData" class="qr-station-section">
+        <div class="qr-station-card">
+          <div class="qr-station-header">
+            <h2>📍 Отсканированная станция</h2>
+            <button @click="closeQRStation" class="close-qr-btn">×</button>
+          </div>
+          <div class="qr-station-info">
+            <h3>{{ qrStationData.name || qrStationData.station_name || qrStationData.box_id || `Станция ${qrStationData.station_id || qrStationData.id}` }}</h3>
+            <div class="station-meta">
+              <div class="meta-item">
+                <span class="meta-label">ID станции:</span>
+                <span class="meta-value">{{ qrStationData.station_id || qrStationData.id }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Статус:</span>
+                <span class="meta-value status" :class="qrStationData.status">
+                  {{ getStatusText(qrStationData.status) }}
+                </span>
+              </div>
+              <div class="meta-item" v-if="qrStationData.address">
+                <span class="meta-label">Адрес:</span>
+                <span class="meta-value">{{ qrStationData.address }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Доступные слоты:</span>
+                <span class="meta-value">{{ qrStationData.available_slots || 0 }} / {{ qrStationData.total_slots || 0 }}</span>
+              </div>
+            </div>
+            <div class="qr-station-actions">
+              <button @click="borrowPowerbankFromQR" class="action-btn primary" :disabled="!canBorrowFromQR">
+                Взять пауэрбанк
+              </button>
+              <button @click="returnPowerbankFromQR" class="action-btn secondary" :disabled="!canReturnFromQR">
+                Вернуть пауэрбанк
+              </button>
+              <button @click="viewStationDetailsFromQR" class="action-btn tertiary">
+                Подробнее о станции
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Поиск станций -->
       <div class="search-section">
         <div class="search-input-wrapper">
@@ -111,7 +155,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useStationsStore } from '../stores/stations'
 import { useAuthStore } from '../stores/auth'
 import { useAdminStore } from '../stores/admin'
@@ -123,6 +167,7 @@ import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
 
 const router = useRouter()
+const route = useRoute()
 const stationsStore = useStationsStore()
 const auth = useAuthStore()
 const adminStore = useAdminStore()
@@ -133,6 +178,10 @@ const showQRScanner = ref(false)
 const searchTimeout = ref(null)
 const scannedStation = ref(null)
 const isScanning = ref(false)
+
+// QR-станция
+const qrStationData = ref(null)
+const userPowerbanks = ref([])
 const scanningError = ref('')
 const highlightedFavoriteId = ref(null)
 
@@ -152,6 +201,15 @@ const user = computed(() => auth.user)
 const isLoading = computed(() => stationsStore.isLoading)
 const favoriteStations = computed(() => stationsStore.favoriteStations)
 const isAdmin = computed(() => auth.user?.role?.includes('admin') || false)
+
+// QR-станция computed
+const canBorrowFromQR = computed(() => {
+  return qrStationData.value && qrStationData.value.available_slots > 0
+})
+
+const canReturnFromQR = computed(() => {
+  return userPowerbanks.value && userPowerbanks.value.length > 0
+})
 
 // Отладочная информация
 console.log('User в Dashboard:', user.value)
@@ -303,6 +361,81 @@ const handleTakeBattery = async (station) => {
 
 const goToAdmin = () => {
   router.push('/admin')
+}
+
+// QR-станция методы
+const loadQRStation = async () => {
+  const stationName = route.query.stationName
+  if (!stationName) return
+  
+  try {
+    // Загружаем все станции и ищем по имени
+    const stationsResponse = await pythonAPI.getStations()
+    const station = stationsResponse.find(s => 
+      s.name === stationName || 
+      s.station_name === stationName || 
+      s.box_id === stationName ||
+      `Станция ${s.station_id || s.id}` === stationName
+    )
+    
+    if (station) {
+      qrStationData.value = station
+      await loadUserPowerbanks()
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки QR-станции:', error)
+  }
+}
+
+const loadUserPowerbanks = async () => {
+  try {
+    const response = await pythonAPI.getUserPowerbanks()
+    userPowerbanks.value = response.powerbanks || []
+  } catch (error) {
+    console.error('Ошибка загрузки пауэрбанков пользователя:', error)
+    userPowerbanks.value = []
+  }
+}
+
+const closeQRStation = () => {
+  qrStationData.value = null
+  // Очищаем URL параметры
+  router.replace('/dashboard')
+}
+
+const borrowPowerbankFromQR = async () => {
+  if (!canBorrowFromQR.value || !qrStationData.value) return
+  
+  try {
+    const stationId = qrStationData.value.station_id || qrStationData.value.id
+    const response = await pythonAPI.borrowPowerbank(stationId)
+    alert('Пауэрбанк успешно взят!')
+    await loadQRStation() // Обновляем данные
+  } catch (error) {
+    console.error('Ошибка взятия пауэрбанка:', error)
+    alert('Ошибка при взятии пауэрбанка: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+const returnPowerbankFromQR = async () => {
+  if (!canReturnFromQR.value || !qrStationData.value) return
+  
+  try {
+    const stationId = qrStationData.value.station_id || qrStationData.value.id
+    const powerbankId = userPowerbanks.value[0].id
+    const response = await pythonAPI.returnPowerbank(stationId, powerbankId)
+    alert('Пауэрбанк успешно возвращен!')
+    await loadQRStation() // Обновляем данные
+  } catch (error) {
+    console.error('Ошибка возврата пауэрбанка:', error)
+    alert('Ошибка при возврате пауэрбанка: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+const viewStationDetailsFromQR = () => {
+  if (!qrStationData.value) return
+  const stationId = qrStationData.value.station_id || qrStationData.value.id
+  router.push(`/address/${stationId}`)
 }
 
 // Функции для работы с модальным окном банков станции
@@ -676,6 +809,9 @@ onMounted(async () => {
     console.log('onMounted: загружаем избранное для user_id:', user.value?.user_id)
     await stationsStore.fetchFavoriteStations(user.value?.user_id)
     
+    // Загружаем QR-станцию если есть параметры
+    await loadQRStation()
+    
     // Не запускаем автоматическое обновление по таймеру
     // Обновление происходит только после действий
   } catch (err) {
@@ -1027,6 +1163,168 @@ onUnmounted(() => {
 
   .search-input-wrapper {
     flex-direction: column;
+  }
+}
+
+/* QR-станция стили */
+.qr-station-section {
+  margin-bottom: 2rem;
+}
+
+.qr-station-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.qr-station-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.qr-station-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.close-qr-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.close-qr-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.qr-station-info h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.station-meta {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.meta-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  backdrop-filter: blur(10px);
+}
+
+.meta-label {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.meta-value {
+  font-weight: 600;
+}
+
+.status.active {
+  color: #10b981;
+}
+
+.status.inactive {
+  color: #6b7280;
+}
+
+.status.maintenance {
+  color: #f59e0b;
+}
+
+.status.error {
+  color: #ef4444;
+}
+
+.status.pending {
+  color: #8b5cf6;
+}
+
+.qr-station-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn.primary {
+  background-color: #10b981;
+  color: white;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+  background-color: #059669;
+  transform: translateY(-1px);
+}
+
+.action-btn.secondary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.action-btn.secondary:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.action-btn.tertiary {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.action-btn.tertiary:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .qr-station-actions {
+    flex-direction: column;
+  }
+  
+  .action-btn {
+    min-width: auto;
   }
 }
 </style>

@@ -144,6 +144,9 @@
                       <button @click="restartStation(station)" class="btn-action btn-restart" title="Перезагрузить станцию">
                         🔄
                       </button>
+                      <button @click="generateQRCode(station)" class="btn-action btn-qr" title="Генерировать QR-код">
+                        📱
+                      </button>
                       <button @click="editStation(station)" class="btn-action btn-edit" title="Редактировать">
                         ✏️
                       </button>
@@ -467,6 +470,12 @@
       @address-updated="handleServerAddressUpdated"
     />
 
+    <StationQRModal
+      :show="showStationQRModal"
+      :station="selectedStationForQR"
+      @close="() => { showStationQRModal = false; selectedStationForQR = null }"
+    />
+
     <!-- Модальные окна для групп -->
     <AddOrgUnitModal 
       :is-visible="showAddOrgUnitModal"
@@ -526,6 +535,7 @@ import OrgUnitCard from '../components/OrgUnitCard.vue'
 import OrgUnitStationsModal from '../components/OrgUnitStationsModal.vue'
 import PowerbankList from '../components/PowerbankList.vue'
 import SlotAbnormalReports from '../components/SlotAbnormalReports.vue'
+import StationQRModal from '../components/StationQRModal.vue'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -550,6 +560,8 @@ const showPowerbanksModal = ref(false)
 const selectedStation = ref(null)
 const selectedStationPowerbanks = ref([])
 const isBorrowing = ref(false)
+const showStationQRModal = ref(false)
+const selectedStationForQR = ref(null)
 
 // Модальное окно управления громкостью
 const showVoiceVolumeModal = ref(false)
@@ -1216,6 +1228,11 @@ const restartStation = async (station) => {
     console.error('Ошибка при перезагрузке станции:', error)
     alert('Ошибка при перезагрузке станции: ' + (error.message || 'Неизвестная ошибка'))
   }
+}
+
+const generateQRCode = (station) => {
+  selectedStationForQR.value = station
+  showStationQRModal.value = true
 }
 
 const borrowPowerbank = async (powerbank) => {
