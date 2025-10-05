@@ -85,6 +85,8 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   
+  console.log('Router beforeEach:', { to: to.path, name: to.name, matched: to.matched.length });
+  
   // Если есть токен, но нет пользователя, пытаемся загрузить профиль
   if (authStore.token && !authStore.user) {
     try {
@@ -132,25 +134,28 @@ router.beforeEach(async (to, from, next) => {
   
   // Если пользователь авторизован и пытается зайти на страницы входа/регистрации, перенаправляем на дашборд
   if ((to.name === 'Login' || to.name === 'Register') && authStore.isAuthenticated) {
+    console.log('Authenticated user trying to access login/register, redirecting to dashboard');
+    console.log('Query params:', to.query);
     // Если есть параметры станции, перенаправляем на дашборд с параметром станции
     if (to.query.station) {
+      console.log('Redirecting to dashboard with station params');
       next(`/dashboard?station=${to.query.station}&stationName=${to.query.stationName}`);
     } else if (to.query.stationName) {
       // Для прямых ссылок на станции по имени
+      console.log('Redirecting to dashboard with stationName:', to.query.stationName);
       next(`/dashboard?stationName=${to.query.stationName}`);
     } else {
+      console.log('Redirecting to dashboard without station params');
       next('/dashboard');
     }
     return;
   }
   
-  // Если это неизвестный роут (возможно имя станции), перенаправляем на вход
-  if (!to.name && !to.matched.length) {
-    const stationName = to.path.substring(1); // Убираем первый слеш
-    if (stationName && !stationName.includes('/')) { // Проверяем, что это не системный путь
-      next(`/login?stationName=${encodeURIComponent(stationName)}`);
-      return;
-    }
+  // Если это роут станции, но пользователь не авторизован, перенаправляем на вход
+  if (to.name === 'StationRedirect' && !authStore.isAuthenticated) {
+    console.log('StationRedirect without auth, redirecting to login');
+    next(`/login?stationName=${to.params.stationName}`);
+    return;
   }
   
   next();

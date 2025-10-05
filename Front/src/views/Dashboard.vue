@@ -366,21 +366,40 @@ const goToAdmin = () => {
 // QR-станция методы
 const loadQRStation = async () => {
   const stationName = route.query.stationName
+  console.log('loadQRStation called with stationName:', stationName)
   if (!stationName) return
   
   try {
+    console.log('Loading stations to find:', stationName)
     // Загружаем все станции и ищем по имени
     const stationsResponse = await pythonAPI.getStations()
-    const station = stationsResponse.find(s => 
+    console.log('Stations response:', stationsResponse)
+    
+    // Проверяем, что ответ содержит массив станций
+    const stations = Array.isArray(stationsResponse) ? stationsResponse : 
+                    stationsResponse.stations || stationsResponse.data || []
+    console.log('Stations array:', stations)
+    
+    const station = stations.find(s => 
       s.name === stationName || 
       s.station_name === stationName || 
       s.box_id === stationName ||
+      s.station_id === stationName ||
       `Станция ${s.station_id || s.id}` === stationName
     )
     
     if (station) {
+      console.log('Found station:', station)
       qrStationData.value = station
       await loadUserPowerbanks()
+    } else {
+      console.log('Station not found:', stationName)
+      console.log('Available stations:', stations.map(s => ({
+        name: s.name,
+        station_name: s.station_name,
+        box_id: s.box_id,
+        station_id: s.station_id
+      })))
     }
   } catch (error) {
     console.error('Ошибка загрузки QR-станции:', error)
