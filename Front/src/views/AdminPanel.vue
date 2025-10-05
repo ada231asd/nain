@@ -22,75 +22,26 @@
 
             <!-- Управление пользователями -->
             <div v-if="activeTab === 'users'" class="tab-pane">
-              <div class="section-header">
-                <h2>Управление пользователями</h2>
-                <div class="header-actions">
-                  <input type="text" v-model="userSearch" placeholder="Поиск..." class="search-input" />
-                  <button @click="showAddUserModal = true" class="btn-primary">
-                    + Добавить пользователя
-                  </button>
-                </div>
-              </div>
-
-              <table class="users-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>ФИО</th>
-                    <th>Телефон</th>
-                    <th>Email</th>
-                    <th>Роль</th>
-                    <th>Группа</th>
-                    <th>Статус</th>
-                    <th>Создан</th>
-                    <th>Последний вход</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="user in filteredUsers" :key="user.user_id || user.id">
-                    <td class="user-cell" :class="`user-status-${getUserStatusClass(user.статус || user.status)}`">
-                      <span class="user-name-text">{{ user.user_id || user.id || 'N/A' }}</span>
-                    </td>
-                    <td>{{ user.fio || 'N/A' }}</td>
-                    <td>{{ user.phone_e164 || 'N/A' }}</td>
-                    <td>{{ user.email || 'N/A' }}</td>
-                    <td>
-                      <span class="role-badge" :class="getUserRoleClass(user.role)">
-                        {{ getUserRoleText(user.role) }}
-                      </span>
-                    </td>
-                    <td>
-                      <span class="group-badge">
-                        {{ getUserGroupName(user.parent_org_unit_id || user.org_unit_id) }}
-                      </span>
-                    </td>
-                    <td>
-                      <span class="status-badge" :class="getUserStatusClass(user.статус || user.status)">
-                        {{ getUserStatusText(user.статус || user.status) }}
-                      </span>
-                    </td>
-                    <td>{{ user.created_at ? formatTime(user.created_at) : 'N/A' }}</td>
-                    <td>{{ user.last_login_at ? formatTime(user.last_login_at) : 'N/A' }}</td>
-                    <td>
-                      <select class="filter-select" @change="handleUserAction(user, $event)">
-                        <option value="">Выбрать действие</option>
-                        <option value="edit">Редактировать</option>
-                        <option v-if="(user.статус || user.status) === 'ожидает' || (user.статус || user.status) === 'pending'" value="approve">Одобрить</option>
-                        <option v-if="(user.статус || user.status) === 'активный' || (user.статус || user.status) === 'active'" value="block">Заблокировать</option>
-                        <option v-if="(user.статус || user.status) === 'заблокирован' || (user.статус || user.status) === 'blocked'" value="unblock">Разблокировать</option>
-                        <option value="delete">Удалить</option>
-                      </select>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <UsersTable 
+                :users="users"
+                :org-units="orgUnits"
+                @add-user="() => showAddUserModal = true"
+                @edit-user="openEditUser"
+                @approve-user="approveUser"
+                @block-user="blockUser"
+                @unblock-user="unblockUser"
+                @delete-user="deleteUser"
+                @bulk-approve="bulkApproveUsers"
+                @bulk-block="bulkBlockUsers"
+                @bulk-delete="bulkDeleteUsers"
+              />
             </div>
 
             <!-- Управление станциями -->
             <div v-if="activeTab === 'stations'" class="tab-pane">
               <StationsTable 
                 :stations="stations"
+                :org-units="orgUnits"
                 @add-station="() => { editingStation = null; showAddStationModal = true }"
                 @view-powerbanks="openPowerbanks"
                 @edit-station="editStation"
@@ -432,6 +383,7 @@ import PowerbankList from '../components/PowerbankList.vue'
 import SlotAbnormalReports from '../components/SlotAbnormalReports.vue'
 import StationQRModal from '../components/StationQRModal.vue'
 import StationsTable from '../components/AdminComponents/StationsTable.vue'
+import UsersTable from '../components/AdminComponents/UsersTable.vue'
 import AdminSidebar from '../components/AdminComponents/AdminSidebar.vue'
 
 const router = useRouter()
@@ -522,29 +474,7 @@ const monthOrders = computed(() => {
   return orders.value.filter(order => new Date(order.created_at) >= monthAgo)
 })
 
-const userSearch = ref('')
 const orgUnitSearch = ref('')
-
-const filteredUsers = computed(() => {
-  const list = users.value || []
-  const query = (userSearch.value || '').toString().trim().toLowerCase()
-  if (!query) return list
-
-  return list.filter(user => {
-    const phone = (user.phone_e164 || '').toString().toLowerCase()
-    const email = (user.email || '').toString().toLowerCase()
-    const fio = (user.fio || '').toString().toLowerCase()
-    const userId = (user.user_id || user.id || '').toString().toLowerCase()
-    const role = getUserRoleText(user.role).toLowerCase()
-    return (
-      phone.includes(query) ||
-      email.includes(query) ||
-      fio.includes(query) ||
-      userId.includes(query) ||
-      role.includes(query)
-    )
-  })
-})
 
 const filteredOrgUnits = computed(() => {
   const list = orgUnits.value || []
@@ -565,68 +495,11 @@ const filteredOrgUnits = computed(() => {
   })
 })
 
-
-const getUserRoleText = (role) => {
-  switch(role) {
-    case 'service_admin': return 'Сервис-администратор'
-    case 'group_admin': return 'Администратор группы'
-    case 'subgroup_admin': return 'Администратор подгруппы'
-    case 'user': return 'Пользователь'
-    default: return 'Пользователь'
-  }
-}
-
-const getUserRoleClass = (role) => {
-  switch(role) {
-    case 'service_admin': return 'role-service-admin'
-    case 'group_admin': return 'role-group-admin'
-    case 'subgroup_admin': return 'role-subgroup-admin'
-    case 'user': return 'role-user'
-    default: return 'role-user'
-  }
-}
-
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString('ru-RU')
 }
 
 // Методы
-
-const getUserStatusClass = (status) => {
-  switch (status) {
-    case 'active':
-    case 'активный': return 'status-active'
-    case 'pending':
-    case 'ожидает': return 'status-pending'
-    case 'blocked':
-    case 'заблокирован': return 'status-blocked'
-    case 'rejected':
-    case 'отклонен': return 'status-error'
-    default: return 'status-unknown'
-  }
-}
-
-const getUserStatusText = (status) => {
-  switch (status) {
-    case 'active':
-    case 'активный': return 'Активен'
-    case 'pending':
-    case 'ожидает': return 'Ожидает'
-    case 'blocked':
-    case 'заблокирован': return 'Заблокирован'
-    case 'rejected':
-    case 'отклонен': return 'Отклонен'
-    default: return 'Неизвестно'
-  }
-}
-
-const getUserGroupName = (orgUnitId) => {
-  if (!orgUnitId) return 'Без группы'
-  const group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
-  return group ? group.name : 'Неизвестная группа'
-}
-
-
 
 const getOrderStatusClass = (status) => {
   switch (status) {
@@ -678,14 +551,17 @@ const formatTime = (timestamp) => {
   })
 }
 
+// User management methods
 const openEditUser = (user) => {
   selectedUser.value = user
   showEditUserModal.value = true
 }
+
 const closeEditUser = () => {
   showEditUserModal.value = false
   selectedUser.value = null
 }
+
 const saveEditedUser = async (updates) => {
   if (!selectedUser.value) return
   const id = selectedUser.value.user_id || selectedUser.value.id
@@ -693,62 +569,34 @@ const saveEditedUser = async (updates) => {
     console.log('Отправляем данные пользователя:', { id, updates })
     await adminStore.updateUser(id, updates)
     closeEditUser()
-    // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
     console.error('Ошибка при обновлении пользователя:', error)
     alert('Ошибка при обновлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
+
 const approveSelectedUser = async () => {
   if (!selectedUser.value) return
   const id = selectedUser.value.user_id || selectedUser.value.id
   try {
     await adminStore.approveUser(id)
     closeEditUser()
-    // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
-    // Ошибка при одобрении пользователя
+    console.error('Ошибка при одобрении пользователя:', error)
   }
 }
+
 const rejectSelectedUser = async () => {
   if (!selectedUser.value) return
   const id = selectedUser.value.user_id || selectedUser.value.id
   try {
     await adminStore.rejectUser(id)
     closeEditUser()
-    // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
-    // Ошибка при отклонении пользователя
-  }
-}
-
-const handleUserAction = (user, event) => {
-  const action = event?.target?.value
-  if (!action) return
-  switch (action) {
-    case 'edit':
-      openEditUser(user)
-      break
-    case 'approve':
-      approveUser(user)
-      break
-    case 'block':
-      blockUser(user)
-      break
-    case 'unblock':
-      unblockUser(user)
-      break
-    case 'delete':
-      deleteUser(user.user_id || user.id)
-      break
-    default:
-      break
-  }
-  if (event && event.target) {
-    event.target.value = ''
+    console.error('Ошибка при отклонении пользователя:', error)
   }
 }
 
@@ -756,10 +604,9 @@ const deleteUser = async (userId) => {
   if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
     try {
       await adminStore.deleteUser(userId)
-      // Автоматическое обновление данных
       await refreshAfterAction()
     } catch (error) {
-      // Ошибка при удалении пользователя
+      console.error('Ошибка при удалении пользователя:', error)
     }
   }
 }
@@ -768,20 +615,9 @@ const approveUser = async (user) => {
   const id = user.user_id || user.id
   try {
     await adminStore.approveUser(id)
-    // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
-    // Error handled silently
-  }
-}
-const rejectUser = async (user) => {
-  const id = user.user_id || user.id
-  try {
-    await adminStore.rejectUser(id)
-    // Автоматическое обновление данных
-    await refreshAfterAction()
-  } catch (error) {
-    // Error handled silently
+    console.error('Ошибка при одобрении пользователя:', error)
   }
 }
 
@@ -789,10 +625,9 @@ const blockUser = async (user) => {
   const id = user.user_id || user.id
   try {
     await adminStore.blockUser(id)
-    // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
-    // Error handled silently
+    console.error('Ошибка при блокировке пользователя:', error)
   }
 }
 
@@ -800,10 +635,46 @@ const unblockUser = async (user) => {
   const id = user.user_id || user.id
   try {
     await adminStore.unblockUser(id)
-    // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
-    // Error handled silently
+    console.error('Ошибка при разблокировке пользователя:', error)
+  }
+}
+
+// Bulk user operations
+const bulkApproveUsers = async (userIds) => {
+  try {
+    for (const userId of userIds) {
+      await adminStore.approveUser(userId)
+    }
+    await refreshAfterAction()
+  } catch (error) {
+    console.error('Ошибка при массовом одобрении пользователей:', error)
+    alert('Ошибка при одобрении пользователей: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+const bulkBlockUsers = async (userIds) => {
+  try {
+    for (const userId of userIds) {
+      await adminStore.blockUser(userId)
+    }
+    await refreshAfterAction()
+  } catch (error) {
+    console.error('Ошибка при массовой блокировке пользователей:', error)
+    alert('Ошибка при блокировке пользователей: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+const bulkDeleteUsers = async (userIds) => {
+  try {
+    for (const userId of userIds) {
+      await adminStore.deleteUser(userId)
+    }
+    await refreshAfterAction()
+  } catch (error) {
+    console.error('Ошибка при массовом удалении пользователей:', error)
+    alert('Ошибка при удалении пользователей: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -1200,15 +1071,22 @@ const handleOrgUnitEdited = async (data) => {
 onMounted(async () => {
   // Загружаем данные при монтировании компонента
   try {
+    console.log('🚀 AdminPanel: Starting data loading...')
+    console.log('🚀 AdminPanel: Current user:', authStore.user)
+    console.log('🚀 AdminPanel: Current orgUnits:', adminStore.orgUnits)
+    
     const results = await Promise.all([
       adminStore.fetchUsers(),
       adminStore.fetchStations(),
       adminStore.fetchOrders(),
       adminStore.fetchOrgUnits()
     ])
-    console.log('Данные загружены:', results)
+    
+    console.log('🚀 AdminPanel: Data loaded successfully:', results)
+    console.log('🚀 AdminPanel: Final user:', authStore.user)
+    console.log('🚀 AdminPanel: Final orgUnits:', adminStore.orgUnits)
   } catch (error) {
-    console.error('Ошибка при загрузке данных:', error)
+    console.error('🚀 AdminPanel: Error loading data:', error)
   }
 })
 
@@ -1224,12 +1102,12 @@ onMounted(async () => {
 .admin-main {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 20px 20px 20px 5px;
 }
 
 .admin-layout {
   display: flex;
-  gap: 20px;
+  gap: 12px;
 }
 
 
@@ -1285,40 +1163,6 @@ onMounted(async () => {
 .btn-primary:hover {
   background: #5a6fd8;
 }
-
-/* Users */
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.users-table th,
-.users-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #e9ecef;
-  vertical-align: middle;
-  color: #333;
-}
-
-.users-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-}
-
-/* User status strip in name cell */
-.user-cell {
-  position: relative;
-  border-left: 6px solid transparent;
-  padding-left: 10px;
-}
-.user-cell.user-status-active { border-left-color: #28a745; }
-.user-cell.user-status-pending { border-left-color: #ffc107; }
-.user-cell.user-status-blocked { border-left-color: #dc3545; }
-.user-name-text { display: inline-block; }
-
-
 
 .empty-state {
   text-align: center;
@@ -1602,47 +1446,6 @@ onMounted(async () => {
   color: #333;
 }
 
-/* Role badges */
-.role-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.role-service-admin {
-  background: transparent;
-  color: #333;
-}
-
-.role-group-admin {
-  background: transparent;
-  color: #333;
-}
-
-.role-subgroup-admin {
-  background: transparent;
-  color: #333;
-}
-
-.role-user {
-  background: transparent;
-  color: #333;
-}
-
-/* Group badges */
-.group-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: transparent;
-  color: #333;
-  border: none;
-}
-
 /* Stats */
 .stats-grid {
   display: grid;
@@ -1712,12 +1515,12 @@ onMounted(async () => {
 /* Мобильные стили */
 @media (max-width: 768px) {
   .admin-main {
-    padding: 15px;
+    padding: 15px 15px 15px 4px;
   }
   
   .admin-layout {
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
   }
 
 

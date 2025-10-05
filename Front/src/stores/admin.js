@@ -66,7 +66,8 @@ export const useAdminStore = defineStore('admin', {
     async fetchUsers() {
       this.isLoading = true;
       try {
-        const res = await pythonAPI.getUsers();
+        // Запрашиваем всех пользователей с большим лимитом
+        const res = await pythonAPI.getUsers({ limit: 10000 });
 
         // Обрабатываем ответ в зависимости от структуры
         this.users = Array.isArray(res)
@@ -135,7 +136,8 @@ export const useAdminStore = defineStore('admin', {
     async fetchStations() {
       this.isLoading = true;
       try {
-        const res = await pythonAPI.getStations();
+        // Запрашиваем все станции с большим лимитом
+        const res = await pythonAPI.getStations({ limit: 10000 });
         console.log('Raw API response for stations:', res);
 
         // Обрабатываем ответ в зависимости от структуры
@@ -322,7 +324,8 @@ export const useAdminStore = defineStore('admin', {
     async fetchOrders() {
       this.isLoading = true;
       try {
-        const res = await pythonAPI.getOrders();
+        // Запрашиваем все заказы с большим лимитом
+        const res = await pythonAPI.getOrders({ limit: 10000 });
         const orders = (res && Array.isArray(res.data)) ? res.data : [];
         // Normalize timestamp field for UI that expects created_at
         this.orders = orders.map(o => ({ ...o, created_at: o.created_at || o.timestamp }));
@@ -346,10 +349,34 @@ export const useAdminStore = defineStore('admin', {
     async fetchOrgUnits(params = {}) {
       this.isLoading = true;
       try {
-        const res = await pythonAPI.getOrgUnits(params);
-        this.orgUnits = (res && Array.isArray(res.data)) ? res.data : [];
+        console.log('🔍 fetchOrgUnits: Starting fetch with params:', params);
+        // Запрашиваем все org units с большим лимитом
+        const res = await pythonAPI.getOrgUnits({ ...params, limit: 10000 });
+        console.log('🔍 fetchOrgUnits: Raw response:', res);
+        
+        // Обрабатываем ответ в зависимости от структуры
+        let orgUnits = [];
+        if (Array.isArray(res)) {
+          orgUnits = res;
+          console.log('🔍 fetchOrgUnits: Using response as array');
+        } else if (res && Array.isArray(res.data)) {
+          orgUnits = res.data;
+          console.log('🔍 fetchOrgUnits: Using response.data');
+        } else if (res && Array.isArray(res.orgUnits)) {
+          orgUnits = res.orgUnits;
+          console.log('🔍 fetchOrgUnits: Using response.orgUnits');
+        } else {
+          console.warn('🔍 fetchOrgUnits: Unexpected response structure:', res);
+          orgUnits = [];
+        }
+        
+        this.orgUnits = orgUnits;
+        console.log('🔍 fetchOrgUnits: Final orgUnits:', this.orgUnits);
+        return this.orgUnits;
       } catch (err) {
+        console.error('🔍 fetchOrgUnits: Error:', err);
         this.error = 'Failed to fetch org units';
+        return [];
       } finally {
         this.isLoading = false;
       }
@@ -427,7 +454,8 @@ export const useAdminStore = defineStore('admin', {
     async fetchPowerbanks(params = {}) {
       this.isLoading = true;
       try {
-        const res = await pythonAPI.getPowerbanks(params);
+        // Запрашиваем все powerbanks с большим лимитом
+        const res = await pythonAPI.getPowerbanks({ ...params, limit: 10000 });
 
         // Обрабатываем ответ в зависимости от структуры
         this.powerbanks = Array.isArray(res)

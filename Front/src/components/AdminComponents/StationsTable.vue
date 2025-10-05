@@ -15,9 +15,11 @@
           />
           <span class="search-icon">🔍</span>
         </div>
-        <button @click="$emit('filter-stations')" class="btn-filter-stations">
-          🔍 Фильтр
-        </button>
+        <FilterButton 
+          filter-type="stations"
+          :org-units="orgUnits"
+          @filter-change="handleFilterChange"
+        />
       </div>
     </div>
 
@@ -28,7 +30,7 @@
           <tr>
             <th class="col-box-id">
               <div class="th-content">
-                <span>Box ID</span>
+                <span>Box ID/ICCID</span>
               </div>
             </th>
             <th class="col-org-unit">
@@ -314,15 +316,20 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import FilterButton from './FilterButton.vue'
 
 const props = defineProps({
   stations: {
     type: Array,
     default: () => []
   },
+  orgUnits: {
+    type: Array,
+    default: () => []
+  },
   itemsPerPage: {
     type: Number,
-    default: 20
+    default: 50
   }
 })
 
@@ -340,12 +347,32 @@ const searchQuery = ref('')
 const sortField = ref('box_id')
 const sortDirection = ref('asc')
 const currentPage = ref(1)
+const itemsPerPage = ref(props.itemsPerPage)
 const selectedStation = ref(null)
 const isModalOpen = ref(false)
+const activeFilters = ref({
+  orgUnits: [],
+  statuses: [],
+  roles: []
+})
 
 // Вычисляемые свойства
 const filteredStations = computed(() => {
   let filtered = [...props.stations]
+  
+  // Фильтрация по группам/подгруппам
+  if (activeFilters.value.orgUnits.length > 0) {
+    filtered = filtered.filter(station => {
+      return activeFilters.value.orgUnits.includes(station.org_unit_id)
+    })
+  }
+  
+  // Фильтрация по статусу
+  if (activeFilters.value.statuses.length > 0) {
+    filtered = filtered.filter(station => {
+      return activeFilters.value.statuses.includes(station.status)
+    })
+  }
   
   // Фильтрация по поисковому запросу
   if (searchQuery.value.trim()) {
@@ -428,6 +455,11 @@ const visiblePages = computed(() => {
 })
 
 // Методы
+const handleFilterChange = (filters) => {
+  activeFilters.value = filters
+  currentPage.value = 1 // Сбрасываем на первую страницу при изменении фильтров
+}
+
 const openStationModal = (station) => {
   selectedStation.value = station
   isModalOpen.value = true

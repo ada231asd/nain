@@ -7,7 +7,9 @@
       </div>
       <div class="group-info">
         <h3 class="group-name">{{ getCurrentGroupName() }}</h3>
-        <p class="group-type">{{ getCurrentGroupType() }}</p>
+        <div class="group-stats" v-if="getGroupStats()">
+          <span class="group-users-count">{{ getGroupStats() }}</span>
+        </div>
       </div>
     </div>
 
@@ -70,25 +72,146 @@ const availableTabs = computed(() => {
 // Methods
 const getCurrentGroupName = () => {
   const user = authStore.user
+  console.log('🔍 DEBUG - Current user:', user)
+  console.log('🔍 DEBUG - User keys:', user ? Object.keys(user) : 'No user')
+  console.log('🔍 DEBUG - User org_unit_id:', user?.org_unit_id)
+  console.log('🔍 DEBUG - User parent_org_unit_id:', user?.parent_org_unit_id)
+  console.log('🔍 DEBUG - User role:', user?.role)
+  console.log('🔍 DEBUG - Available orgUnits:', adminStore.orgUnits)
+  console.log('🔍 DEBUG - OrgUnits structure:', adminStore.orgUnits.map(ou => ({
+    id: ou.org_unit_id,
+    name: ou.name,
+    type: ou.unit_type,
+    parent: ou.parent_org_unit_id,
+    admin_user_id: ou.admin_user_id,
+    user_id: ou.user_id,
+    allKeys: Object.keys(ou)
+  })))
+  
   if (!user) return 'Администратор'
   
-  // Получаем название группы пользователя
-  const orgUnitId = user.parent_org_unit_id || user.org_unit_id
-  if (!orgUnitId) return 'Без группы'
+  // Проверяем все возможные поля для ID группы
+  const orgUnitId = user.parent_org_unit_id || user.org_unit_id || user.group_id || user.organization_id
+  console.log('🔍 DEBUG - Selected orgUnitId:', orgUnitId)
   
-  const group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
-  return group ? group.name : 'Неизвестная группа'
+  // Если нет прямого ID группы, пытаемся найти группу по user_id
+  let group = null
+  if (!orgUnitId) {
+    console.log('🔍 DEBUG - No direct orgUnitId, searching by user_id')
+    // Ищем группу, где user_id совпадает с текущим пользователем
+    group = adminStore.orgUnits.find(ou => ou.user_id === user.user_id)
+    console.log('🔍 DEBUG - Found group by user_id:', group)
+    
+    // Если не нашли, ищем в списке пользователей
+    if (!group) {
+      console.log('🔍 DEBUG - Searching in users list for group info')
+      const userInList = adminStore.users.find(u => u.user_id === user.user_id)
+      console.log('🔍 DEBUG - User in list:', userInList)
+      if (userInList) {
+        const userOrgUnitId = userInList.parent_org_unit_id || userInList.org_unit_id
+        console.log('🔍 DEBUG - User orgUnitId from list:', userOrgUnitId)
+        if (userOrgUnitId) {
+          group = adminStore.orgUnits.find(ou => ou.org_unit_id === userOrgUnitId)
+          console.log('🔍 DEBUG - Found group from user list:', group)
+        }
+      }
+    }
+  }
+  
+  if (!orgUnitId && !group) {
+    console.log('🔍 DEBUG - No orgUnitId found, trying to find group by role')
+    // Если пользователь subgroup_admin, ищем подгруппу где он админ
+    if (user.role === 'subgroup_admin') {
+      group = adminStore.orgUnits.find(ou => 
+        ou.unit_type === 'subgroup' && 
+        (ou.admin_user_id === user.user_id || ou.user_id === user.user_id)
+      )
+      console.log('🔍 DEBUG - Found subgroup for subgroup_admin:', group)
+    }
+    // Если пользователь group_admin, ищем группу где он админ
+    else if (user.role === 'group_admin') {
+      group = adminStore.orgUnits.find(ou => 
+        ou.unit_type === 'group' && 
+        (ou.admin_user_id === user.user_id || ou.user_id === user.user_id)
+      )
+      console.log('🔍 DEBUG - Found group for group_admin:', group)
+    }
+    
+    // Если все еще не нашли группу, показываем роль
+    if (!group) {
+      console.log('🔍 DEBUG - Still no group found, showing role')
+      switch (user.role) {
+        case 'service_admin': return 'Сервис-админ'
+        case 'group_admin': return 'Админ группы'
+        case 'subgroup_admin': return 'Админ подгруппы'
+        default: return 'Администратор'
+      }
+    }
+  }
+  
+  // Если данные о группах еще не загружены, показываем загрузку
+  if (!adminStore.orgUnits || adminStore.orgUnits.length === 0) {
+    console.log('🔍 DEBUG - OrgUnits not loaded yet, returning "Загрузка..."')
+    return 'Загрузка...'
+  }
+  
+  // Если не нашли группу по user_id, ищем по orgUnitId
+  if (!group && orgUnitId) {
+    group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
+    console.log('🔍 DEBUG - Found group by orgUnitId:', group)
+  }
+  
+  if (!group) {
+    console.log('🔍 DEBUG - Group not found, returning "Неизвестная группа"')
+    return 'Неизвестная группа'
+  }
+  
+  // Показываем только название найденной группы/подгруппы
+  console.log('🔍 DEBUG - Returning group name:', group.name)
+  return group.name
 }
 
 const getCurrentGroupType = () => {
   const user = authStore.user
   if (!user) return ''
   
-  // Получаем название группы пользователя
-  const orgUnitId = user.parent_org_unit_id || user.org_unit_id
-  if (!orgUnitId) return ''
+  // Используем ту же логику поиска группы, что и в getCurrentGroupName
+  const orgUnitId = user.parent_org_unit_id || user.org_unit_id || user.group_id || user.organization_id
   
-  const group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
+  let group = null
+  if (!orgUnitId) {
+    // Ищем группу по user_id
+    group = adminStore.orgUnits.find(ou => ou.user_id === user.user_id)
+    
+    // Если не нашли, ищем в списке пользователей
+    if (!group) {
+      const userInList = adminStore.users.find(u => u.user_id === user.user_id)
+      if (userInList) {
+        const userOrgUnitId = userInList.parent_org_unit_id || userInList.org_unit_id
+        if (userOrgUnitId) {
+          group = adminStore.orgUnits.find(ou => ou.org_unit_id === userOrgUnitId)
+        }
+      }
+    }
+    
+    // Если не нашли, ищем по роли
+    if (!group) {
+      if (user.role === 'subgroup_admin') {
+        group = adminStore.orgUnits.find(ou => 
+          ou.unit_type === 'subgroup' && 
+          (ou.admin_user_id === user.user_id || ou.user_id === user.user_id)
+        )
+      } else if (user.role === 'group_admin') {
+        group = adminStore.orgUnits.find(ou => 
+          ou.unit_type === 'group' && 
+          (ou.admin_user_id === user.user_id || ou.user_id === user.user_id)
+        )
+      }
+    }
+  } else {
+    group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
+  }
+  
   if (!group) return ''
   
   // Возвращаем тип группы (группа или подгруппа)
@@ -98,6 +221,28 @@ const getCurrentGroupType = () => {
     default: return group.unit_type || ''
   }
 }
+
+
+const getGroupStats = () => {
+  const user = authStore.user
+  if (!user) return null
+  
+  const orgUnitId = user.parent_org_unit_id || user.org_unit_id
+  if (!orgUnitId) return null
+  
+  // Подсчитываем количество пользователей в группе
+  const groupUsers = adminStore.users.filter(u => 
+    (u.parent_org_unit_id || u.org_unit_id) === orgUnitId
+  )
+  
+  if (groupUsers.length === 0) return null
+  
+  const activeUsers = groupUsers.filter(u => 
+    (u.статус || u.status) === 'активный' || (u.статус || u.status) === 'active'
+  ).length
+  
+  return `${activeUsers}/${groupUsers.length} пользователей`
+}
 </script>
 
 <style scoped>
@@ -105,7 +250,7 @@ const getCurrentGroupType = () => {
   width: 250px;
   background: white;
   border-radius: 15px;
-  padding: 20px;
+  padding: 20px 20px 20px 12px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -149,13 +294,19 @@ const getCurrentGroupType = () => {
   line-height: 1.2;
 }
 
-.group-type {
-  color: #667eea;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.group-stats {
+  margin-top: 8px;
+}
+
+.group-users-count {
+  color: #495057;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(73, 80, 87, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  display: block;
 }
 
 .sidebar-menu {
@@ -218,7 +369,7 @@ const getCurrentGroupType = () => {
 @media (max-width: 768px) {
   .admin-sidebar {
     width: 100%;
-    padding: 15px;
+    padding: 15px 15px 15px 8px;
   }
 
   .group-header {
@@ -233,8 +384,9 @@ const getCurrentGroupType = () => {
     font-size: 1rem;
   }
 
-  .group-type {
-    font-size: 0.8rem;
+  .group-users-count {
+    font-size: 0.65rem;
+    padding: 1px 4px;
   }
 
   .sidebar-item {
