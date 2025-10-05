@@ -65,7 +65,7 @@ const routes = [
     component: QRDemo
   },
   {
-    path: '/:stationId',
+    path: '/:stationName',
     name: 'StationRedirect',
     component: () => import('../views/StationRedirect.vue'),
     meta: { requiresAuth: true }
@@ -112,7 +112,7 @@ router.beforeEach(async (to, from, next) => {
       next(`/login?station=${to.query.station}&stationName=${to.query.stationName}`);
     } else if (to.name === 'StationRedirect') {
       // Для прямых ссылок на станции по имени
-      next(`/login?stationName=${to.params.stationId}`);
+      next(`/login?stationName=${to.params.stationName}`);
     } else {
       next('/login');
     }
@@ -137,6 +137,15 @@ router.beforeEach(async (to, from, next) => {
       next('/dashboard');
     }
     return;
+  }
+  
+  // Если это неизвестный роут (возможно имя станции), перенаправляем на вход
+  if (!to.name && !to.matched.length) {
+    const stationName = to.path.substring(1); // Убираем первый слеш
+    if (stationName && !stationName.includes('/')) { // Проверяем, что это не системный путь
+      next(`/login?stationName=${encodeURIComponent(stationName)}`);
+      return;
+    }
   }
   
   next();

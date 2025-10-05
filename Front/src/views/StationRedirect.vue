@@ -67,7 +67,7 @@ import { pythonAPI } from '../api/pythonApi';
 const route = useRoute();
 const router = useRouter();
 
-const stationName = decodeURIComponent(route.params.stationId);
+const stationName = decodeURIComponent(route.params.stationName);
 const stationData = ref(null);
 const loading = ref(true);
 const error = ref('');
