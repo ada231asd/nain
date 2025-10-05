@@ -89,8 +89,10 @@ class StationHandler:
             await self.status_monitor.initialize_station(station.station_id)
             
             # Автоматически запрашиваем инвентарь после успешного логина
-          
-            await self._request_inventory_after_login(connection)
+            # Только если это первое подключение станции или инвентарь не загружен
+            if not hasattr(connection, 'inventory_requested') or not connection.inventory_requested:
+                await self._request_inventory_after_login(connection)
+                connection.inventory_requested = True
             
             # Автоматически запрашиваем ICCID после успешного логина
             await self._request_iccid_after_login(connection)

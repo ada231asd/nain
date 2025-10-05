@@ -83,7 +83,7 @@ class EjectPowerbankHandler:
                     
                     print(f"Успешно извлечено {removed_count} повербанков из станции {station_id}")
                     
-                    # Автоматически запрашиваем инвентарь после успешного извлечения
+                    # Запрашиваем инвентарь только при успешном извлечении для обновления данных
                     await self._request_inventory_after_operation(station_id)
                 else:
                     print(f"Не найдены повербанки в станции {station_id} для извлечения")

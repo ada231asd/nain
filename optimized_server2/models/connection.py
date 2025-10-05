@@ -25,6 +25,7 @@ class StationConnection:
         self.station_status = "pending"
         self.borrow_sent = False
         self.suspicious_packets = 0  # Счетчик подозрительных пакетов
+        self.inventory_requested = False  # Флаг запроса инвентаря при логине
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует соединение в словарь"""
@@ -52,6 +53,7 @@ class StationConnection:
         self.token = token
         self.secret_key = secret_key
         self.station_status = "active"
+        self.inventory_requested = False  # Сбрасываем флаг при новом логине
         self.update_heartbeat()
     
     def increment_suspicious_packets(self):

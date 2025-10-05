@@ -73,9 +73,9 @@ class ReturnPowerbankHandler:
                 
                 logger.info(f"Возврат повербанка обработан для станции {station_id} (успех: {success})")
                 
-                # Автоматически запрашиваем инвентарь после возврата
-                # Инвентарь сам определит, какой повербанк вставлен и обновит БД
-                await self._request_inventory_after_operation(station_id)
+                # Запрашиваем инвентарь только при успешном возврате для обновления данных
+                if success:
+                    await self._request_inventory_after_operation(station_id)
                 
             else:
                 # Нет TerminalID - повербанк не вставлен
