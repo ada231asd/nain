@@ -602,19 +602,19 @@ const handleQRScan = async (payload) => {
           // Проверяем доступ через API (пробуем получить повербанки станции)
           const powerbanksResponse = await pythonAPI.getStationPowerbanks(stationId)
           
-          // Если получили ошибку доступа, показываем соответствующее сообщение
+          // Если получили ошибку доступа, показываем требуемое сообщение
           if (powerbanksResponse && powerbanksResponse.error) {
             if (powerbanksResponse.error.includes('недоступна вашему подразделению') || 
                 powerbanksResponse.error.includes('не привязана к организационной единице')) {
-              scanningError.value = `❌ Доступ запрещен: ${powerbanksResponse.error}`
+              scanningError.value = 'Ограничения доступа: Вы можете сканировать и использовать только станции, принадлежащие вашему подразделению.'
               return
             }
           }
         } catch (accessError) {
           console.log('Ошибка проверки доступа к станции:', accessError)
-          // Если ошибка не связана с доступом, продолжаем обычную обработку
+          // Если ошибка связана с доступом, показываем требуемое сообщение
           if (accessError.status === 403 || (accessError.message && accessError.message.includes('недоступна вашему подразделению'))) {
-            scanningError.value = `❌ Доступ запрещен: ${accessError.message}`
+            scanningError.value = 'Ограничения доступа: Вы можете сканировать и использовать только станции, принадлежащие вашему подразделению.'
             return
           }
         }
