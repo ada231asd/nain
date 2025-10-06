@@ -95,6 +95,19 @@ class BorrowPowerbankAPI:
             if station.status != 'active':
                 return {"error": "Станция неактивна", "success": False}
             
+            # Проверяем, онлайн ли станция
+            from utils.station_utils import validate_station_for_operation
+            station_valid, station_message = await validate_station_for_operation(
+                self.db_pool, self.connection_manager, station_id, "выдача powerbank'а", 30
+            )
+            
+            if not station_valid:
+                # Станция офлайн - добавляем запрос в очередь
+                from utils.station_status_monitor import StationStatusMonitor
+                # Получаем экземпляр мониторинга из сервера 
+                
+                return {"error": f"Станция офлайн: {station_message}. Запрос будет выполнен при восстановлении связи.", "success": False, "queued": True}
+            
             # Проверяем права доступа пользователя к станции
             from utils.org_unit_utils import can_user_access_station, log_access_denied_event
             

@@ -521,7 +521,9 @@ const refreshOrders = async () => {
 
 const formatTime = (timestamp) => {
   const date = new Date(timestamp)
-  return date.toLocaleString('ru-RU', {
+  // Московское время (UTC+3)
+  const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000))
+  return moscowTime.toLocaleString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',

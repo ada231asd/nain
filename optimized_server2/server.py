@@ -27,6 +27,7 @@ from handlers.query_server_address import QueryServerAddressHandler
 from http_server import HTTPServer
 from utils.packet_utils import parse_packet, validate_packet, log_suspicious_packet
 from utils.station_resolver import StationResolver
+from utils.station_status_monitor import StationStatusMonitor
 from utils.centralized_logger import get_logger, close_logger, get_logger_stats
 from utils.tcp_packet_logger import close_tcp_logger, get_tcp_logger_stats
 
@@ -51,6 +52,7 @@ class OptimizedServer:
         self.set_voice_volume_handler: Optional[SetVoiceVolumeHandler] = None
         self.set_server_address_handler: Optional[SetServerAddressHandler] = None
         self.query_server_address_handler: Optional[QueryServerAddressHandler] = None
+        self.station_status_monitor: Optional[StationStatusMonitor] = None
         self.tcp_server: Optional[asyncio.Server] = None
         self.http_server: Optional[HTTPServer] = None
         self.running = False
@@ -311,6 +313,10 @@ class OptimizedServer:
             self.set_voice_volume_handler = SetVoiceVolumeHandler(self.db_pool, self.connection_manager)
             self.set_server_address_handler = SetServerAddressHandler(self.db_pool, self.connection_manager)
             self.query_server_address_handler = QueryServerAddressHandler(self.db_pool, self.connection_manager)
+            
+            # Создаем мониторинг статуса станций
+            self.station_status_monitor = StationStatusMonitor(self.db_pool, self.connection_manager)
+            await self.station_status_monitor.start_monitoring()
             
             # Создаем HTTP сервер
             self.http_server = HTTPServer()

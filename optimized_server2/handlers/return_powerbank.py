@@ -94,6 +94,117 @@ class ReturnPowerbankHandler:
             logger = get_logger('return_powerbank')
             logger.error(f"Ошибка обработки возврата: {e}")
     
+    async def handle_powerbank_insertion(self, data: bytes, connection) -> None:
+        """
+        Обрабатывает вставку повербанка в станцию (когда станция неактивна)
+        """
+        try:
+            # Парсим данные о вставленном повербанке
+            insertion_data = parse_return_response(data)
+            logger = get_logger('return_powerbank')
+            logger.info(f"Обработана вставка повербанка: {insertion_data}")
+            
+            station_id = connection.station_id
+            if not station_id:
+                return
+            
+            slot_number = insertion_data.get('Slot', 0)
+            terminal_id = insertion_data.get('TerminalID', '')
+            level = insertion_data.get('Level', 100)
+            voltage = insertion_data.get('Voltage', 4200)
+            temperature = insertion_data.get('Temperature', 25)
+            
+            if not terminal_id:
+                logger.warning(f"Нет TerminalID в данных вставки для станции {station_id}")
+                return
+            
+            # Проверяем, есть ли повербанк с таким terminal_id в системе
+            from models.powerbank import Powerbank
+            powerbank = await Powerbank.get_by_terminal_id(self.db_pool, terminal_id)
+            
+            if not powerbank:
+                logger.warning(f"Повербанк с terminal_id {terminal_id} не найден в системе")
+                # Создаем новый повербанк с неизвестным статусом
+                powerbank = await self._create_unknown_powerbank(terminal_id)
+                if not powerbank:
+                    logger.error(f"Не удалось создать повербанк для terminal_id {terminal_id}")
+                    return
+            
+            # Проверяем, не занят ли слот
+            from models.station_powerbank import StationPowerbank
+            existing_powerbank = await StationPowerbank.get_by_station_and_slot(self.db_pool, station_id, slot_number)
+            
+            if existing_powerbank:
+                logger.warning(f"Слот {slot_number} уже занят повербанком {existing_powerbank.powerbank_id}")
+                # Если это тот же повербанк, обновляем данные
+                if existing_powerbank.powerbank_id == powerbank.powerbank_id:
+                    await StationPowerbank.update_powerbank_data(
+                        self.db_pool, 
+                        station_id, 
+                        slot_number, 
+                        level, 
+                        voltage, 
+                        temperature
+                    )
+                    logger.info(f"Обновлены данные повербанка {powerbank.powerbank_id} в слоте {slot_number}")
+                else:
+                    logger.warning(f"Слот {slot_number} занят другим повербанком")
+                return
+            
+            # Добавляем повербанк в станцию
+            await StationPowerbank.add_powerbank(
+                self.db_pool, 
+                station_id, 
+                powerbank.powerbank_id, 
+                slot_number, 
+                level, 
+                voltage, 
+                temperature
+            )
+            
+            logger.info(f"Повербанк {powerbank.powerbank_id} (terminal_id: {terminal_id}) добавлен в станцию {station_id}, слот {slot_number}")
+            
+            # Обновляем last_seen станции
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if station:
+                await station.update_last_seen(self.db_pool)
+                # Обновляем remain_num станции (уменьшаем на 1 при добавлении)
+                await station.update_remain_num(self.db_pool, max(0, int(station.remain_num) - 1))
+            
+            # Запрашиваем полный инвентарь для обновления данных
+            await self._request_inventory_after_operation(station_id)
+            
+        except Exception as e:
+            logger = get_logger('return_powerbank')
+            logger.error(f"Ошибка обработки вставки повербанка: {e}")
+    
+    async def _create_unknown_powerbank(self, terminal_id: str):
+        """
+        Создает повербанк с неизвестным статусом для terminal_id
+        """
+        try:
+            from models.powerbank import Powerbank
+            
+            # Создаем новый повербанк
+            powerbank = await Powerbank.create(
+                self.db_pool,
+                terminal_id=terminal_id,
+                serial_number=f"UNKNOWN_{terminal_id}",
+                status='unknown',
+                org_unit_id=1  # По умолчанию в первую группу
+            )
+            
+            logger = get_logger('return_powerbank')
+            logger.info(f"Создан новый повербанк {powerbank.powerbank_id} для terminal_id {terminal_id}")
+            
+            return powerbank
+            
+        except Exception as e:
+            logger = get_logger('return_powerbank')
+            logger.error(f"Ошибка создания повербанка для terminal_id {terminal_id}: {e}")
+            return None
+    
     async def _update_or_add_powerbank_to_station(self, station_id: int, powerbank_id: int, slot_number: int) -> None:
         """
         Обновляет или добавляет повербанк в станцию

@@ -1097,7 +1097,9 @@ const getStationRowClass = (status) => {
 const formatTime = (timestamp) => {
   if (!timestamp) return '—'
   const date = new Date(timestamp)
-  return date.toLocaleString('ru-RU', {
+  // Московское время (UTC+3)
+  const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000))
+  return moscowTime.toLocaleString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -1110,7 +1112,12 @@ const getRelativeTime = (timestamp) => {
   if (!timestamp) return ''
   const now = new Date()
   const date = new Date(timestamp)
-  const diffMs = now - date
+  
+  // Учитываем московское время
+  const moscowNow = new Date(now.getTime() + (3 * 60 * 60 * 1000))
+  const moscowDate = new Date(date.getTime() + (3 * 60 * 60 * 1000))
+  
+  const diffMs = moscowNow - moscowDate
   const diffMinutes = Math.floor(diffMs / (1000 * 60))
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))

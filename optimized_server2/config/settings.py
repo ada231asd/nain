@@ -13,11 +13,12 @@ HTTP_PORT = 8000
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "root",
-    "password": "",
-    "db": "DB",
+    "user": "appuser",
+    "password": "MyPassw0rd!",
+    "db": "zaryd",
     "autocommit": True
 }
+    
 
 
 

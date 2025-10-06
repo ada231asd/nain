@@ -12,10 +12,41 @@
         <select v-model="selectedEventType" @change="loadReports" class="form-select">
           <option value="">Все типы событий</option>
           <option v-for="eventType in eventTypes" :key="eventType" :value="eventType">
-            {{ eventType }}
+            {{ getEventTypeText(eventType) }}
           </option>
         </select>
         <button @click="loadReports" class="btn btn-primary">Обновить</button>
+      </div>
+    </div>
+
+    <!-- Массовые действия -->
+    <div v-if="reports.length > 0" class="bulk-actions">
+      <div class="bulk-controls">
+        <label class="checkbox-container">
+          <input 
+            type="checkbox" 
+            :checked="isAllSelected" 
+            @change="toggleSelectAll"
+          >
+          <span class="checkmark"></span>
+          Выбрать все ({{ selectedReports.length }}/{{ reports.length }})
+        </label>
+        
+        <div class="bulk-buttons" v-if="selectedReports.length > 0">
+          <button 
+            @click="deleteSelected" 
+            class="btn btn-danger"
+            :disabled="selectedReports.length === 0"
+          >
+            🗑️ Удалить выбранные ({{ selectedReports.length }})
+          </button>
+          <button 
+            @click="clearSelection" 
+            class="btn btn-secondary"
+          >
+            Очистить выбор
+          </button>
+        </div>
       </div>
     </div>
 
@@ -47,6 +78,14 @@
         <table>
           <thead>
             <tr>
+              <th class="col-checkbox">
+                <input 
+                  type="checkbox" 
+                  :checked="isAllSelected" 
+                  @change="toggleSelectAll"
+                  class="header-checkbox"
+                >
+              </th>
               <th>ID</th>
               <th>Станция</th>
               <th>Слот</th>
@@ -57,7 +96,15 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="report in reports" :key="report.report_id" class="report-row">
+            <tr v-for="report in reports" :key="report.report_id" class="report-row" :class="{ selected: selectedReports.includes(report.report_id) }">
+              <td class="col-checkbox">
+                <input 
+                  type="checkbox" 
+                  :checked="selectedReports.includes(report.report_id)"
+                  @change="toggleReportSelection(report.report_id)"
+                  class="row-checkbox"
+                >
+              </td>
               <td>{{ report.report_id }}</td>
               <td>
                 <span v-if="report.box_id">{{ report.box_id }}</span>
@@ -70,12 +117,14 @@
                 </span>
               </td>
               <td class="event-text">
-                <span v-if="report.event_text">{{ report.event_text }}</span>
-                <span v-else class="text-muted">-</span>
+                <span>{{ getEventTypeText(report.event_type) }}</span>
               </td>
               <td>
-                <span v-if="report.reported_at">{{ formatDateTime(report.reported_at) }}</span>
-                <span v-else class="text-muted">-</span>
+                <div class="time-info">
+                  <span v-if="report.reported_at">{{ formatMoscowTime(report.reported_at) }}</span>
+                  <span v-else class="text-muted">-</span>
+                  <span v-if="report.reported_at" class="relative-time">{{ getRelativeTime(report.reported_at) }}</span>
+                </div>
               </td>
               <td>
                 <button 
@@ -117,6 +166,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { pythonAPI } from '../api/pythonApi'
+import { formatMoscowTime, getRelativeTime } from '../utils/timeUtils'
 
 const props = defineProps({
   stations: {
@@ -133,6 +183,13 @@ const selectedEventType = ref('')
 const eventTypes = ref([])
 const currentPage = ref(1)
 const limit = 20
+const selectedReports = ref([])
+
+// Маппинг типов событий
+const eventTypeMap = {
+  1: "No unlock command",
+  2: "Return detected but no power bank"
+}
 
 const totalPages = computed(() => {
   return Math.ceil(reports.value.length / limit)
@@ -142,6 +199,10 @@ const paginatedReports = computed(() => {
   const start = (currentPage.value - 1) * limit
   const end = start + limit
   return reports.value.slice(start, end)
+})
+
+const isAllSelected = computed(() => {
+  return reports.value.length > 0 && selectedReports.value.length === reports.value.length
 })
 
 onMounted(() => {
@@ -220,10 +281,57 @@ const getEventTypeClass = (eventType) => {
   return 'event-default'
 }
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleString('ru-RU')
+// Методы для работы с чекбоксами
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedReports.value = []
+  } else {
+    selectedReports.value = reports.value.map(r => r.report_id)
+  }
+}
+
+const toggleReportSelection = (reportId) => {
+  const index = selectedReports.value.indexOf(reportId)
+  if (index > -1) {
+    selectedReports.value.splice(index, 1)
+  } else {
+    selectedReports.value.push(reportId)
+  }
+}
+
+const clearSelection = () => {
+  selectedReports.value = []
+}
+
+const deleteSelected = async () => {
+  if (selectedReports.value.length === 0) return
+  
+  if (!confirm(`Вы уверены, что хотите удалить ${selectedReports.value.length} выбранных отчетов?`)) {
+    return
+  }
+  
+  try {
+    // Удаляем по одному (можно оптимизировать, добавив bulk delete API)
+    for (const reportId of selectedReports.value) {
+      const response = await pythonAPI.deleteSlotAbnormalReport(reportId)
+      if (!response.success) {
+        console.error(`Ошибка удаления отчета ${reportId}:`, response.message)
+      }
+    }
+    
+    // Удаляем из локального списка
+    reports.value = reports.value.filter(r => !selectedReports.value.includes(r.report_id))
+    selectedReports.value = []
+    alert('Выбранные отчеты удалены успешно')
+  } catch (error) {
+    console.error('Ошибка удаления выбранных отчетов:', error)
+    alert('Ошибка удаления выбранных отчетов: ' + error.message)
+  }
+}
+
+// Получение текста типа события
+const getEventTypeText = (eventType) => {
+  return eventTypeMap[eventType] || `Неизвестный тип (${eventType})`
 }
 
 const changePage = (page) => {
@@ -404,6 +512,102 @@ th {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Стили для массовых действий */
+.bulk-actions {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.bulk-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.bulk-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Стили для чекбоксов */
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+}
+
+.checkbox-container input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  margin-right: 8px;
+  position: relative;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark {
+  background: #007bff;
+  border-color: #007bff;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.header-checkbox, .row-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.col-checkbox {
+  width: 50px;
+  text-align: center;
+  padding: 8px !important;
+}
+
+.report-row.selected {
+  background-color: #e3f2fd !important;
+}
+
+.report-row.selected:hover {
+  background-color: #bbdefb !important;
+}
+
+/* Стили для времени */
+.time-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.relative-time {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
 }
 
 @media (max-width: 768px) {
