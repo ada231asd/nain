@@ -330,9 +330,19 @@ class OptimizedServer:
             http_site = web.TCPSite(http_runner, '0.0.0.0', HTTP_PORT)
             await http_site.start()
             
+            # Запускаем WebSocket сервер
+            from websocket_server import WebSocketServer
+            websocket_server = WebSocketServer(self.db_pool, self.connection_manager)
+            ws_app = websocket_server.create_app()
+            ws_runner = web.AppRunner(ws_app)
+            await ws_runner.setup()
+            ws_site = web.TCPSite(ws_runner, '0.0.0.0', 8001)
+            await ws_site.start()
+            
             self.running = True
             print(f"TCP сервер запущен на {SERVER_IP}:{TCP_PORT}")
             print(f"HTTP сервер запущен на 0.0.0.0:{HTTP_PORT}")
+            print(f"WebSocket сервер запущен на 0.0.0.0:8001")
             
             
             # Запускаем мониторинг соединений

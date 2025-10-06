@@ -71,13 +71,19 @@ class SlotAbnormalReportHandler:
                 slot_number=abnormal_report['SlotNo'],
                 terminal_id=abnormal_report['TerminalID'],
                 event_type=abnormal_report['Event'],
-                event_text=abnormal_report['EventText'],
                 reported_at=abnormal_report['ReceivedAt']
             )
             
             if report:
+                # Загружаем полную информацию о отчете с box_id
+                full_report = await SlotAbnormalReport.get_by_id(self.db_pool, report.report_id)
+                
                 # Сохраняем в parsed_packets.json
                 await self._save_to_parsed_packets(abnormal_report)
+                
+                # Отправляем уведомление через WebSocket с полной информацией
+                if full_report:
+                    await self._notify_websocket_clients(full_report)
                 
                 print(f"Отчет об аномалии слота сохранен для станции {station_id}, слот {abnormal_report['SlotNo']}")
             else:
@@ -85,6 +91,20 @@ class SlotAbnormalReportHandler:
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
+    
+    async def _notify_websocket_clients(self, report) -> None:
+        """Отправляет уведомление о новой аномалии через WebSocket"""
+        try:
+            from websocket_server import notify_slot_abnormal_report
+            
+            # Преобразуем отчет в словарь для отправки
+            report_data = report.to_dict()
+            
+            # Отправляем уведомление
+            await notify_slot_abnormal_report(report_data)
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка отправки WebSocket уведомления: {e}")
     
     async def _save_to_parsed_packets(self, abnormal_report: Dict[str, Any]) -> None:
         """Сохраняет разобранные данные в parsed_packets.json"""

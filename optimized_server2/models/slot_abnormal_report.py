@@ -10,8 +10,8 @@ class SlotAbnormalReport:
     """Модель отчета об аномалии слота"""
     
     def __init__(self, report_id: int, station_id: int, slot_number: int, 
-                 terminal_id: Optional[str], event_type: str, event_text: Optional[str],
-                 reported_at: Optional[str], created_at: Optional[str]):
+                 terminal_id: Optional[str], event_type: str, event_text: Optional[str] = None,
+                 reported_at: Optional[Any] = None, created_at: Optional[Any] = None, box_id: Optional[str] = None):
         self.report_id = report_id
         self.station_id = station_id
         self.slot_number = slot_number
@@ -20,10 +20,11 @@ class SlotAbnormalReport:
         self.event_text = event_text
         self.reported_at = reported_at
         self.created_at = created_at
+        self.box_id = box_id
     
     @classmethod
     async def create(cls, db_pool, station_id: int, slot_number: int, 
-                    terminal_id: Optional[str], event_type: str, event_text: Optional[str],
+                    terminal_id: Optional[str], event_type: str,
                     reported_at: Optional[str] = None) -> Optional['SlotAbnormalReport']:
         """
         Создает новый отчет об аномалии слота
@@ -33,15 +34,13 @@ class SlotAbnormalReport:
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         INSERT INTO slot_abnormal_reports 
-                        (station_id, slot_number, terminal_id, event_type, event_text, 
-                         reported_at, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        (station_id, slot_number, terminal_id, event_type, reported_at, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                     """, (
                         station_id,
                         slot_number,
                         terminal_id,
                         event_type,
-                        event_text,
                         reported_at,
                         get_moscow_time()
                     ))
@@ -64,10 +63,11 @@ class SlotAbnormalReport:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
                     await cur.execute("""
-                        SELECT report_id, station_id, slot_number, terminal_id, 
-                               event_type, event_text, reported_at, created_at
-                        FROM slot_abnormal_reports 
-                        WHERE report_id = %s
+                        SELECT sar.report_id, sar.station_id, sar.slot_number, sar.terminal_id, 
+                               sar.event_type, NULL as event_text, sar.reported_at, sar.created_at, s.box_id
+                        FROM slot_abnormal_reports sar
+                        LEFT JOIN station s ON sar.station_id = s.station_id
+                        WHERE sar.report_id = %s
                     """, (report_id,))
                     
                     result = await cur.fetchone()
@@ -88,11 +88,12 @@ class SlotAbnormalReport:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
                     await cur.execute("""
-                        SELECT report_id, station_id, slot_number, terminal_id, 
-                               event_type, event_text, reported_at, created_at
-                        FROM slot_abnormal_reports 
-                        WHERE station_id = %s
-                        ORDER BY reported_at DESC
+                        SELECT sar.report_id, sar.station_id, sar.slot_number, sar.terminal_id, 
+                               sar.event_type, NULL as event_text, sar.reported_at, sar.created_at, s.box_id
+                        FROM slot_abnormal_reports sar
+                        LEFT JOIN station s ON sar.station_id = s.station_id
+                        WHERE sar.station_id = %s
+                        ORDER BY sar.reported_at DESC
                         LIMIT %s
                     """, (station_id, limit))
                     
@@ -113,9 +114,11 @@ class SlotAbnormalReport:
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         SELECT sar.report_id, sar.station_id, sar.slot_number, 
-                               sar.terminal_id, sar.event_type, sar.event_text, 
-                               sar.reported_at, sar.created_at
+                               sar.terminal_id, sar.event_type, NULL as event_text,
+                               sar.reported_at, sar.created_at,
+                               s.box_id
                         FROM slot_abnormal_reports sar
+                        LEFT JOIN station s ON sar.station_id = s.station_id
                         ORDER BY sar.reported_at DESC
                         LIMIT %s
                     """, (limit,))
@@ -137,9 +140,10 @@ class SlotAbnormalReport:
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         SELECT sar.report_id, sar.station_id, sar.slot_number, 
-                               sar.terminal_id, sar.event_type, sar.event_text, 
-                               sar.reported_at, sar.created_at
+                               sar.terminal_id, sar.event_type, 
+                               sar.reported_at, sar.created_at, s.box_id
                         FROM slot_abnormal_reports sar
+                        LEFT JOIN station s ON sar.station_id = s.station_id
                         WHERE sar.event_type = %s
                         ORDER BY sar.reported_at DESC
                         LIMIT %s
@@ -162,9 +166,10 @@ class SlotAbnormalReport:
                 async with conn.cursor() as cur:
                     await cur.execute("""
                         SELECT sar.report_id, sar.station_id, sar.slot_number, 
-                               sar.terminal_id, sar.event_type, sar.event_text, 
-                               sar.reported_at, sar.created_at
+                               sar.terminal_id, sar.event_type, 
+                               sar.reported_at, sar.created_at, s.box_id
                         FROM slot_abnormal_reports sar
+                        LEFT JOIN station s ON sar.station_id = s.station_id
                         WHERE sar.reported_at BETWEEN %s AND %s
                         ORDER BY sar.reported_at DESC
                         LIMIT %s
@@ -220,10 +225,9 @@ class SlotAbnormalReport:
                     await cur.execute("""
                         SELECT 
                             event_type,
-                            event_text,
                             COUNT(*) as count
                         FROM slot_abnormal_reports 
-                        GROUP BY event_type, event_text
+                        GROUP BY event_type
                         ORDER BY count DESC
                     """)
                     event_stats = await cur.fetchall()
@@ -251,8 +255,7 @@ class SlotAbnormalReport:
                 "event_statistics": [
                     {
                         "event_type": row[0],
-                        "event_text": row[1],
-                        "count": row[2]
+                        "count": row[1]
                     } 
                     for row in event_stats
                 ],
@@ -274,13 +277,21 @@ class SlotAbnormalReport:
         """
         Преобразует объект в словарь
         """
+        def format_datetime(dt):
+            """Безопасно форматирует datetime в ISO строку"""
+            if dt is None:
+                return None
+            if hasattr(dt, 'isoformat'):
+                return dt.isoformat()
+            return str(dt)  # Если это уже строка, возвращаем как есть
+        
         return {
             "report_id": self.report_id,
             "station_id": self.station_id,
             "slot_number": self.slot_number,
             "terminal_id": self.terminal_id,
             "event_type": self.event_type,
-            "event_text": self.event_text,
-            "reported_at": self.reported_at.isoformat() if self.reported_at else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "reported_at": format_datetime(self.reported_at),
+            "created_at": format_datetime(self.created_at),
+            "box_id": self.box_id
         }

@@ -612,10 +612,7 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
     # Определяем тип события
     event_types = {
         1: "No unlock command",
-        2: "Return detected but no power bank",
-        3: "Power bank malfunction",
-        4: "Slot jammed",
-        5: "Communication error"
+        2: "Return detected but no power bank"
     }
     
     event_text = event_types.get(event, f"Unknown event type {event}")

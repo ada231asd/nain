@@ -9,12 +9,6 @@
             {{ station.box_id }} ({{ station.org_unit_name || 'Без группы' }})
           </option>
         </select>
-        <select v-model="selectedEventType" @change="loadReports" class="form-select">
-          <option value="">Все типы событий</option>
-          <option v-for="eventType in eventTypes" :key="eventType" :value="eventType">
-            {{ getEventTypeText(eventType) }}
-          </option>
-        </select>
         <button @click="loadReports" class="btn btn-primary">Обновить</button>
       </div>
     </div>
@@ -89,7 +83,6 @@
               <th>ID</th>
               <th>Станция</th>
               <th>Слот</th>
-              <th>Тип события</th>
               <th>Описание</th>
               <th>Время события</th>
               <th>Действия</th>
@@ -107,15 +100,14 @@
               </td>
               <td>{{ report.report_id }}</td>
               <td>
-                <span v-if="report.box_id">{{ report.box_id }}</span>
-                <span v-else>ID: {{ report.station_id }}</span>
+                <div class="station-info">
+                  <span class="station-name">{{ report.box_id || `ID: ${report.station_id}` }}</span>
+                  <span v-if="getStationOrgUnit(report.station_id)" class="station-org">
+                    ({{ getStationOrgUnit(report.station_id) }})
+                  </span>
+                </div>
               </td>
               <td>{{ report.slot_number }}</td>
-              <td>
-                <span class="event-type" :class="getEventTypeClass(report.event_type)">
-                  {{ report.event_type }}
-                </span>
-              </td>
               <td class="event-text">
                 <span>{{ getEventTypeText(report.event_type) }}</span>
               </td>
@@ -164,14 +156,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue'
 import { pythonAPI } from '../api/pythonApi'
 import { formatMoscowTime, getRelativeTime } from '../utils/timeUtils'
+import websocketClient from '../utils/websocketClient'
 
 const props = defineProps({
   stations: {
     type: Array,
     default: () => []
+  },
+  activeTab: {
+    type: String,
+    default: ''
   }
 })
 
@@ -179,13 +176,11 @@ const loading = ref(false)
 const reports = ref([])
 const statistics = ref(null)
 const selectedStation = ref('')
-const selectedEventType = ref('')
-const eventTypes = ref([])
 const currentPage = ref(1)
 const limit = 20
 const selectedReports = ref([])
 
-// Маппинг типов событий
+// Маппинг типов событий (соответствует packet_utils.py строки 612-616)
 const eventTypeMap = {
   1: "No unlock command",
   2: "Return detected but no power bank"
@@ -208,6 +203,26 @@ const isAllSelected = computed(() => {
 onMounted(() => {
   loadReports()
   loadStatistics()
+  setupWebSocket()
+})
+
+onUnmounted(() => {
+  // Отключаем WebSocket при размонтировании компонента
+  websocketClient.disconnect()
+})
+
+// Отслеживаем изменение активной вкладки
+watch(() => props.activeTab, (newTab, oldTab) => {
+  // Если уходим с вкладки аномалий слотов, отключаем WebSocket
+  if (oldTab === 'slot-abnormal-reports' && newTab !== 'slot-abnormal-reports') {
+    websocketClient.disconnect()
+    console.log('WebSocket отключен при уходе с раздела аномалий слотов')
+  }
+  // Если заходим на вкладку аномалий слотов, подключаем WebSocket
+  else if (newTab === 'slot-abnormal-reports' && oldTab !== 'slot-abnormal-reports') {
+    setupWebSocket()
+    console.log('WebSocket подключен при входе в раздел аномалий слотов')
+  }
 })
 
 const loadReports = async () => {
@@ -223,15 +238,6 @@ const loadReports = async () => {
     
     if (response.success) {
       reports.value = response.reports || []
-      
-      // Извлекаем уникальные типы событий
-      const types = [...new Set(reports.value.map(r => r.event_type).filter(Boolean))]
-      eventTypes.value = types
-      
-      // Фильтруем по типу события, если выбран
-      if (selectedEventType.value) {
-        reports.value = reports.value.filter(r => r.event_type === selectedEventType.value)
-      }
     } else {
       console.error('Ошибка загрузки отчетов:', response.message)
     }
@@ -258,11 +264,14 @@ const deleteReport = async (reportId) => {
     return
   }
   
+  loading.value = true
   try {
     const response = await pythonAPI.deleteSlotAbnormalReport(reportId)
     if (response.success) {
-      // Удаляем из локального списка
-      reports.value = reports.value.filter(r => r.report_id !== reportId)
+      // Перезагружаем данные с сервера
+      await loadReports()
+      await loadStatistics()
+      
       alert('Отчет удален успешно')
     } else {
       alert('Ошибка удаления отчета: ' + response.message)
@@ -270,6 +279,8 @@ const deleteReport = async (reportId) => {
   } catch (error) {
     console.error('Ошибка удаления отчета:', error)
     alert('Ошибка удаления отчета: ' + error.message)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -310,6 +321,7 @@ const deleteSelected = async () => {
     return
   }
   
+  loading.value = true
   try {
     // Удаляем по одному (можно оптимизировать, добавив bulk delete API)
     for (const reportId of selectedReports.value) {
@@ -319,13 +331,19 @@ const deleteSelected = async () => {
       }
     }
     
-    // Удаляем из локального списка
-    reports.value = reports.value.filter(r => !selectedReports.value.includes(r.report_id))
+    // Очищаем выбранные отчеты
     selectedReports.value = []
+    
+    // Перезагружаем данные с сервера
+    await loadReports()
+    await loadStatistics()
+    
     alert('Выбранные отчеты удалены успешно')
   } catch (error) {
     console.error('Ошибка удаления выбранных отчетов:', error)
     alert('Ошибка удаления выбранных отчетов: ' + error.message)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -338,6 +356,70 @@ const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
   }
+}
+
+// WebSocket методы
+const setupWebSocket = async () => {
+  // Проверяем, нужно ли подключаться
+  if (!websocketClient.shouldConnect()) {
+    console.log('WebSocket уже подключен или подключается')
+    return
+  }
+
+  // Подписываемся на события
+  websocketClient.on('new_abnormal_report', (reportData) => {
+    // Добавляем новый отчет в начало списка
+    reports.value.unshift(reportData)
+    
+    // Показываем уведомление
+    showNewReportNotification(reportData)
+    
+    // Обновляем статистику
+    loadStatistics()
+  })
+  
+  websocketClient.on('recent_reports', (data) => {
+    if (data.success) {
+      reports.value = data.reports || []
+    }
+  })
+  
+  websocketClient.on('abnormal_report_deleted', (data) => {
+    // Удаляем отчет из локального списка
+    reports.value = reports.value.filter(r => r.report_id !== data.report_id)
+    console.log(`Отчет ${data.report_id} удален другим пользователем`)
+  })
+  
+  // Подключаемся к WebSocket
+  websocketClient.connect()
+  
+  // Ждем подключения и запрашиваем последние отчеты
+  try {
+    await websocketClient.waitForConnection()
+    websocketClient.getRecentReports(100)
+  } catch (error) {
+    console.warn('WebSocket недоступен, работаем без real-time обновлений:', error.message)
+    // Загружаем данные обычным способом, если WebSocket недоступен
+    loadReports()
+  }
+}
+
+const showNewReportNotification = (reportData) => {
+  // Простое уведомление в консоли (можно заменить на toast)
+  const stationInfo = reportData.box_id || `ID: ${reportData.station_id}`
+  const orgUnit = getStationOrgUnit(reportData.station_id)
+  const stationDisplay = orgUnit ? `${stationInfo} (${orgUnit})` : stationInfo
+  const eventText = getEventTypeText(reportData.event_type)
+  console.log(`🔔 Новая аномалия слота: ${stationDisplay}, слот ${reportData.slot_number}, ${eventText}`)
+  
+  // Можно добавить toast уведомление здесь
+  // toast.info(`Новая аномалия: ${stationDisplay}, слот ${reportData.slot_number}`)
+}
+
+// Получение информации о станции
+const getStationOrgUnit = (stationId) => {
+  const station = props.stations.find(s => s.station_id === stationId)
+  return station?.org_unit_name || null
 }
 </script>
 
@@ -492,6 +574,23 @@ th {
   word-wrap: break-word;
 }
 
+.station-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.station-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.station-org {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
 .text-muted {
   color: #6c757d;
   font-style: italic;
@@ -610,6 +709,7 @@ th {
   font-style: italic;
 }
 
+
 @media (max-width: 768px) {
   .reports-header {
     flex-direction: column;
@@ -629,5 +729,6 @@ th {
     flex-direction: row;
     justify-content: space-between;
   }
+  
 }
 </style>

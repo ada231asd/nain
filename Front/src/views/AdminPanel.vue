@@ -185,7 +185,7 @@
 
             <!-- Отчеты об аномалиях слотов -->
             <div v-if="activeTab === 'slot-abnormal-reports'" class="tab-pane">
-              <SlotAbnormalReports :stations="stations" />
+              <SlotAbnormalReports :stations="stations" :active-tab="activeTab" />
             </div>
 
             <!-- Статистика -->
@@ -292,19 +292,6 @@
       @force-eject-powerbank="forceEjectPowerbank"
     />
 
-    <VoiceVolumeModal
-      :is-visible="showVoiceVolumeModal"
-      :station="selectedStationForVolume"
-      @close="closeVoiceVolume"
-      @volume-updated="handleVolumeUpdated"
-    />
-
-    <ServerAddressModal
-      :is-visible="showServerAddressModal"
-      :station="selectedStationForServerAddress"
-      @close="closeServerAddress"
-      @address-updated="handleServerAddressUpdated"
-    />
 
     <StationQRModal
       :show="showStationQRModal"
@@ -363,8 +350,6 @@ import AddUserModal from '../components/AddUserModal.vue'
 import AddStationModal from '../components/AddStationModal.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import StationActivationModal from '../components/StationActivationModal.vue'
-import VoiceVolumeModal from '../components/VoiceVolumeModal.vue'
-import ServerAddressModal from '../components/ServerAddressModal.vue'
  
 import AddOrgUnitModal from '../components/AddOrgUnitModal.vue'
 import OrgUnitCard from '../components/OrgUnitCard.vue'
@@ -401,13 +386,6 @@ const isBorrowing = ref(false)
 const showStationQRModal = ref(false)
 const selectedStationForQR = ref(null)
 
-// Модальное окно управления громкостью
-const showVoiceVolumeModal = ref(false)
-const selectedStationForVolume = ref(null)
-
-// Модальное окно управления адресом сервера
-const showServerAddressModal = ref(false)
-const selectedStationForServerAddress = ref(null)
 
 // Модальные окна для групп
 const showAddOrgUnitModal = ref(false)
@@ -801,35 +779,6 @@ const closePowerbanks = () => {
   selectedStationPowerbanks.value = []
 }
 
-const openVoiceVolume = (station) => {
-  selectedStationForVolume.value = station
-  showVoiceVolumeModal.value = true
-}
-
-const closeVoiceVolume = () => {
-  showVoiceVolumeModal.value = false
-  selectedStationForVolume.value = null
-}
-
-const handleVolumeUpdated = (data) => {
-  // Можно добавить уведомление об успешном обновлении громкости
-  console.log('Громкость обновлена:', data)
-}
-
-const openServerAddress = (station) => {
-  selectedStationForServerAddress.value = station
-  showServerAddressModal.value = true
-}
-
-const closeServerAddress = () => {
-  showServerAddressModal.value = false
-  selectedStationForServerAddress.value = null
-}
-
-const handleServerAddressUpdated = (data) => {
-  // Можно добавить уведомление об успешном обновлении адреса сервера
-  console.log('Адрес сервера обновлен:', data)
-}
 
 const restartStation = async (station) => {
   const stationId = station.station_id || station.id

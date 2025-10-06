@@ -19,3 +19,4 @@ optimized_server2/config/settings.py/
 /logs/**/**/**/*
 /logs/**/**/**/**/*
 /logs/**/**/**/**/**/*
+/zaryd.sql
