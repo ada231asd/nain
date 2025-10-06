@@ -99,7 +99,7 @@
             <td class="col-slots">
               <div class="slots-info">
                 <div class="slots-summary">
-                  <span class="slots-used">{{ station.occupiedPorts || ((station.slots_declared || 0) - (station.remain_num || 0)) }}</span>
+                  <span class="slots-used">{{ Math.max(0, (station.slots_declared || 0) - (station.remain_num || 0)) }}</span>
                   <span class="slots-separator">/</span>
                   <span class="slots-total">{{ station.slots_declared || station.totalPorts || 0 }}</span>
                 </div>
@@ -225,11 +225,11 @@
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Занято слотов:</span>
-                  <span class="detail-value">{{ selectedStation.occupiedPorts || ((selectedStation.slots_declared || 0) - (selectedStation.remain_num || 0)) }}</span>
+                  <span class="detail-value">{{ Math.max(0, (selectedStation.slots_declared || 0) - (selectedStation.remain_num || 0)) }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Свободно слотов:</span>
-                  <span class="detail-value">{{ selectedStation.remain_num || 0 }}</span>
+                  <span class="detail-value">{{ Math.min(selectedStation.remain_num || 0, selectedStation.slots_declared || selectedStation.totalPorts || 0) }}</span>
                 </div>
               </div>
             </div>
@@ -262,20 +262,41 @@
               <div class="detail-rows">
                 <div class="detail-row">
                   <span class="detail-label">Текущая громкость:</span>
-                  <span class="detail-value">{{ voiceVolumeData.volume_level || 'N/A' }}</span>
+                  <span class="detail-value">{{ currentVoiceVolume }}</span>
                 </div>
                 <div class="detail-row volume-control-row">
                   <span class="detail-label">Регулировка громкости:</span>
                   <div class="volume-control">
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="15" 
-                      :value="voiceVolumeData.volume_level || 1"
-                      @change="updateVoiceVolume"
-                      class="volume-slider"
-                    />
-                    <span class="volume-value">{{ voiceVolumeData.volume_level || 1 }}</span>
+                    <div class="volume-slider-container">
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="10" 
+                        step="1"
+                        v-model.number="voiceVolumeLevel"
+                        @change="updateVoiceVolume"
+                        class="volume-slider"
+                        :disabled="isVoiceVolumeLoading"
+                      />
+                      <div class="volume-labels">
+                        <span>0</span>
+                        <span>5</span>
+                        <span>10</span>
+                      </div>
+                    </div>
+                    <div class="volume-description">
+                      <span v-if="voiceVolumeLevel <= 2" class="volume-desc">🔇 Очень тихо</span>
+                      <span v-else-if="voiceVolumeLevel <= 4" class="volume-desc">🔉 Тихо</span>
+                      <span v-else-if="voiceVolumeLevel <= 6" class="volume-desc">🔊 Средне</span>
+                      <span v-else-if="voiceVolumeLevel <= 8" class="volume-desc">🔊 Громко</span>
+                      <span v-else class="volume-desc">🔊 Очень громко</span>
+                    </div>
+                    <div v-if="voiceVolumeError" class="error-message">
+                      {{ voiceVolumeError }}
+                    </div>
+                    <div v-if="isVoiceVolumeLoading" class="loading-indicator">
+                      <span>Обновление громкости...</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -345,6 +366,9 @@
             <button @click="$emit('restart-station', selectedStation)" class="btn-action">
               🔄 Перезагрузить
             </button>
+            <button @click="showDeleteConfirmation" class="btn-action btn-delete">
+              🗑️ Удалить
+            </button>
           </div>
         </div>
       </div>
@@ -408,6 +432,46 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div v-if="isDeleteModalOpen" class="modal-overlay" @click="closeDeleteModal">
+      <div class="modal-content delete-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Подтверждение удаления</h3>
+          <button @click="closeDeleteModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="delete-warning">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-content">
+              <h4>Вы уверены, что хотите удалить станцию?</h4>
+              <p><strong>Box ID:</strong> {{ selectedStation?.box_id || 'N/A' }}</p>
+              <p><strong>ICCID:</strong> {{ selectedStation?.iccid || 'N/A' }}</p>
+              <p><strong>Группа:</strong> {{ selectedStation?.org_unit_name || 'Без группы' }}</p>
+              <div class="warning-text">
+                <p>⚠️ Это действие нельзя отменить!</p>
+                <p>Все данные о станции будут безвозвратно удалены.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="closeDeleteModal" class="btn-action btn-cancel">
+            ❌ Отменить
+          </button>
+          <button 
+            @click="confirmDeleteStation" 
+            class="btn-action btn-delete-confirm"
+            :disabled="isDeleting"
+          >
+            <span v-if="isDeleting" class="spinner-small"></span>
+            🗑️ Удалить станцию
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -415,6 +479,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import FilterButton from './FilterButton.vue'
 import QRCode from 'qrcode'
+import { getCurrentConfig } from '../../api/config.js'
 
 const props = defineProps({
   stations: {
@@ -457,6 +522,10 @@ const activeFilters = ref({
 // Новые переменные для модального окна
 const serverAddressData = ref({})
 const voiceVolumeData = ref({})
+const currentVoiceVolume = ref(0)
+const voiceVolumeLevel = ref(0)
+const isVoiceVolumeLoading = ref(false)
+const voiceVolumeError = ref('')
 const qrCodeUrl = ref('')
 const qrLink = ref('')
 const groupAddressData = ref({})
@@ -477,6 +546,10 @@ const isActivating = ref(false)
 const activationForm = ref({
   secretKey: ''
 })
+
+// Состояние удаления станции
+const isDeleteModalOpen = ref(false)
+const isDeleting = ref(false)
 
 // Вычисляемые свойства
 const filteredStations = computed(() => {
@@ -602,6 +675,10 @@ const closeStationModal = () => {
   // Очищаем данные
   serverAddressData.value = {}
   voiceVolumeData.value = {}
+  currentVoiceVolume.value = 0
+  voiceVolumeLevel.value = 0
+  isVoiceVolumeLoading.value = false
+  voiceVolumeError.value = ''
   qrCodeUrl.value = ''
   qrLink.value = ''
   groupAddressData.value = {}
@@ -642,11 +719,12 @@ const loadStationData = async (station) => {
 // Загрузка данных сервера
 const loadServerAddressData = async (stationId) => {
   try {
-    const response = await fetch(`/api/query-server-address/station/${stationId}`)
+    const config = getCurrentConfig()
+    const response = await fetch(`${config.baseURL}/query-server-address/station/${stationId}`)
     if (response.ok) {
       const data = await response.json()
       if (data.success) {
-        serverAddressData.value = data.data || {}
+        serverAddressData.value = data.server_address || {}
       }
     }
   } catch (error) {
@@ -657,15 +735,56 @@ const loadServerAddressData = async (stationId) => {
 // Загрузка данных громкости
 const loadVoiceVolumeData = async (stationId) => {
   try {
-    const response = await fetch(`/api/query-voice-volume/station/${stationId}`)
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        voiceVolumeData.value = data.data || {}
+    isVoiceVolumeLoading.value = true
+    voiceVolumeError.value = ''
+    
+    // Сначала триггерим запрос уровня громкости через TCP
+    const config = getCurrentConfig()
+    await fetch(`${config.baseURL}/query-voice-volume`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        station_id: stationId
+      })
+    })
+
+    // Затем пробуем получить данные (может потребоваться время)
+    // Делаем до 15 попыток c интервалом ~1000мс
+    let lastError = ''
+    for (let attempt = 0; attempt < 15; attempt++) {
+      try {
+        const response = await fetch(`${config.baseURL}/query-voice-volume/station/${stationId}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            const volumeLevel = data.voice_volume?.volume_level || 0
+            currentVoiceVolume.value = volumeLevel
+            voiceVolumeLevel.value = volumeLevel
+            voiceVolumeData.value = data.voice_volume || {}
+            lastError = ''
+            break
+          } else {
+            lastError = data.error || 'Не удалось получить текущую громкость'
+          }
+        } else {
+          lastError = 'Не удалось получить текущую громкость'
+        }
+      } catch (e) {
+        lastError = e?.message || 'Не удалось получить текущую громкость'
       }
+      // подождать перед следующей попыткой
+      await new Promise(r => setTimeout(r, 1000))
     }
-  } catch (error) {
-    console.error('Ошибка загрузки данных громкости:', error)
+    if (lastError) {
+      voiceVolumeError.value = lastError
+    }
+  } catch (err) {
+    console.error('Ошибка при загрузке громкости:', err)
+    voiceVolumeError.value = 'Ошибка при загрузке громкости: ' + (err.message || 'Неизвестная ошибка')
+  } finally {
+    isVoiceVolumeLoading.value = false
   }
 }
 
@@ -678,7 +797,8 @@ const loadGroupAddressData = async (station) => {
       return
     }
 
-    const response = await fetch(`/api/org-units/${orgUnitId}`)
+    const config = getCurrentConfig()
+    const response = await fetch(`${config.baseURL}/org-units/${orgUnitId}`)
     if (response.ok) {
       const data = await response.json()
       if (data.success && data.data) {
@@ -747,7 +867,8 @@ const saveChanges = async () => {
     }
     
     // Отправляем обновление станции
-    const stationResponse = await fetch(`/api/stations/${stationId}`, {
+    const config = getCurrentConfig()
+    const stationResponse = await fetch(`${config.baseURL}/stations/${stationId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -866,14 +987,12 @@ const updateVoiceVolume = async (event) => {
   
   if (!stationId) return
   
-  // Проверяем корректность уровня громкости (1-15)
-  if (volumeLevel < 1 || volumeLevel > 15) {
-    console.error('Уровень громкости должен быть от 1 до 15')
-    return
-  }
-  
   try {
-    const response = await fetch('/api/set-voice-volume', {
+    isVoiceVolumeLoading.value = true
+    voiceVolumeError.value = ''
+    
+    const config = getCurrentConfig()
+    const response = await fetch(`${config.baseURL}/set-voice-volume`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -887,11 +1006,21 @@ const updateVoiceVolume = async (event) => {
     if (response.ok) {
       const data = await response.json()
       if (data.success) {
+        currentVoiceVolume.value = volumeLevel
         voiceVolumeData.value.volume_level = volumeLevel
+        // Показываем уведомление об успехе
+        console.log('Громкость успешно обновлена')
+      } else {
+        voiceVolumeError.value = 'Не удалось установить громкость'
       }
+    } else {
+      voiceVolumeError.value = 'Ошибка сервера при установке громкости'
     }
   } catch (error) {
     console.error('Ошибка обновления громкости:', error)
+    voiceVolumeError.value = 'Ошибка при сохранении громкости: ' + (error.message || 'Неизвестная ошибка')
+  } finally {
+    isVoiceVolumeLoading.value = false
   }
 }
 
@@ -929,7 +1058,8 @@ const refreshInventory = async () => {
   }
   
   try {
-    const response = await fetch(`/api/query-inventory/station/${stationId}`, {
+    const config = getCurrentConfig()
+    const response = await fetch(`${config.baseURL}/query-inventory/station/${stationId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1016,9 +1146,61 @@ const getRelativeTime = (timestamp) => {
 
 const getSlotsPercentage = (station) => {
   const total = station.slots_declared || station.totalPorts || 0
-  const used = station.occupiedPorts || ((station.slots_declared || 0) - (station.remain_num || 0))
+  const used = Math.max(0, (station.slots_declared || 0) - (station.remain_num || 0))
   if (total === 0) return 0
   return Math.round((used / total) * 100)
+}
+
+// Функции для работы с удалением станции
+const showDeleteConfirmation = () => {
+  isDeleteModalOpen.value = true
+}
+
+const closeDeleteModal = () => {
+  isDeleteModalOpen.value = false
+}
+
+const confirmDeleteStation = async () => {
+  if (!selectedStation.value) return
+  
+  const stationId = selectedStation.value.station_id || selectedStation.value.id
+  if (!stationId) {
+    alert('Не удалось определить ID станции')
+    return
+  }
+  
+  isDeleting.value = true
+  
+  try {
+    const config = getCurrentConfig()
+    const response = await fetch(`${config.baseURL}/stations/${stationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        alert('Станция успешно удалена')
+        closeDeleteModal()
+        closeStationModal()
+        // Эмитим событие для обновления списка станций
+        emit('delete-station', stationId)
+      } else {
+        alert('Ошибка удаления станции: ' + (data.error || 'Неизвестная ошибка'))
+      }
+    } else {
+      const errorData = await response.json().catch(() => ({}))
+      alert('Ошибка удаления станции: ' + (errorData.error || 'Неизвестная ошибка'))
+    }
+  } catch (error) {
+    console.error('Ошибка удаления станции:', error)
+    alert('Ошибка удаления станции: ' + error.message)
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 // Сброс страницы при изменении поиска
@@ -1645,45 +1827,89 @@ watch(searchQuery, () => {
 
 .volume-control {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
   width: 100%;
 }
 
+.volume-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .volume-slider {
-  flex: 1;
-  height: 6px;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
   background: #e9ecef;
-  border-radius: 3px;
   outline: none;
   -webkit-appearance: none;
   appearance: none;
+  cursor: pointer;
 }
 
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
-  background: #667eea;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
+  background: #667eea;
   cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .volume-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  background: #667eea;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
+  background: #667eea;
   cursor: pointer;
-  border: none;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.volume-value {
-  font-weight: 600;
-  color: #667eea;
-  min-width: 20px;
+.volume-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.volume-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.volume-description {
   text-align: center;
+  margin-top: 8px;
+}
+
+.volume-desc {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #f5c6cb;
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+.loading-indicator {
+  text-align: center;
+  color: #667eea;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 8px;
 }
 
 .qr-section {
@@ -1998,18 +2224,102 @@ watch(searchQuery, () => {
     padding: 6px 10px;
     font-size: 0.75rem;
   }
+}
 
-  .edit-actions {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
+/* Стили для кнопки удаления */
+.btn-delete {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+  border: none;
+  transition: all 0.3s ease;
+}
 
-  .view-actions {
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-  }
+.btn-delete:hover {
+  background: linear-gradient(135deg, #ff5252, #e53e3e);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
 
+.btn-delete:active {
+  transform: translateY(0);
+}
+
+/* Стили для модального окна удаления */
+.delete-modal {
+  max-width: 500px;
+}
+
+.delete-warning {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.warning-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.warning-content {
+  flex: 1;
+}
+
+.warning-content h4 {
+  margin: 0 0 12px 0;
+  color: #e53e3e;
+  font-size: 1.1rem;
+}
+
+.warning-content p {
+  margin: 8px 0;
+  color: #4a5568;
+}
+
+.warning-text {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fef5e7;
+  border: 1px solid #f6ad55;
+  border-radius: 8px;
+}
+
+.warning-text p {
+  margin: 4px 0;
+  color: #c05621;
+  font-weight: 500;
+}
+
+/* Стили для кнопки подтверждения удаления */
+.btn-delete-confirm {
+  background: linear-gradient(135deg, #e53e3e, #c53030);
+  color: white;
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-delete-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c53030, #9c2626);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4);
+}
+
+.btn-delete-confirm:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.edit-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.view-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
 }
 
 @media (max-width: 480px) {

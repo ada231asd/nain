@@ -123,7 +123,6 @@ const onInit = async (promise) => {
     isLoading.value = true
     lastError.value = ''
     await promise
-    console.log('Камера успешно инициализирована')
     hasCamera.value = true
   } catch (error) {
     console.error('Ошибка инициализации камеры:', error)
@@ -142,10 +141,6 @@ const onError = (error) => {
 
 // Обработка сканирования QR-кода
 const onDecode = (result) => {
-  console.log('QR-код отсканирован:', result)
-  console.log('Тип результата:', typeof result)
-  console.log('Длина результата:', result ? result.length : 'undefined')
-  
   lastError.value = '' // Очищаем ошибки при успешном сканировании
   paused.value = true
   
@@ -160,28 +155,16 @@ const onDecode = (result) => {
 
 // Функция для отрисовки рамки обнаружения
 const paintBoundingBox = (detectedCodes, ctx) => {
-  console.log('paintBoundingBox вызвана с:', detectedCodes)
-  console.log('Тип detectedCodes:', typeof detectedCodes)
-  console.log('Является ли массивом:', Array.isArray(detectedCodes))
-  
   // Проверяем, что detectedCodes существует и является массивом
   if (!detectedCodes || !Array.isArray(detectedCodes)) {
     return
   }
   
-  console.log('Количество обнаруженных кодов:', detectedCodes.length)
-  
   for (const detectedCode of detectedCodes) {
-    console.log('Обрабатываем код:', detectedCode)
-    console.log('Есть ли location:', !!detectedCode.location)
-    console.log('rawValue:', detectedCode.rawValue)
-    
     if (!detectedCode || !detectedCode.location) {
-      console.log('Пропускаем код без location:', detectedCode)
       // НО! Мы все равно должны обработать этот код, даже без location
       // Попробуем вызвать onDecode для кодов без location
       if (detectedCode && detectedCode.rawValue) {
-        console.log('Обрабатываем код без location через onDecode:', detectedCode.rawValue)
         onDecode(detectedCode.rawValue)
       }
       continue
@@ -203,7 +186,6 @@ const paintBoundingBox = (detectedCodes, ctx) => {
 
 // Управление камерой
 const startCamera = () => {
-  console.log('Запуск камеры...')
   // Не пытаемся запускать камеру, если API не поддерживается
   if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     lastError.value = 'Невозможно включить камеру: не поддерживается в этом окружении'
