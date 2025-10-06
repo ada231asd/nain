@@ -10,20 +10,6 @@
       </div>
 
       <div class="modal-body">
-        <div class="powerbanks-summary">
-          <div class="summary-item">
-            <span class="summary-label">Всего слотов:</span>
-            <span class="summary-value">{{ powerbanks.length }}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Доступно:</span>
-            <span class="summary-value available">{{ availablePowerbanks }}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">С ошибками:</span>
-            <span class="summary-value error">{{ errorPowerbanks }}</span>
-          </div>
-        </div>
         
         <div class="table-wrapper">
           <table class="pb-table">
