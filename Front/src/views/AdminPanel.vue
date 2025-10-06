@@ -940,7 +940,7 @@ const forceEjectPowerbank = async (powerbank) => {
 
 
 const goToHome = () => {
-  router.push('/')
+  router.push('/dashboard')
 }
 
 // Простая функция обновления данных после действий

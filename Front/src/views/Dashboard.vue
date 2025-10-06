@@ -58,14 +58,6 @@
         </div>
       </div>
 
-      <!-- Информационное сообщение для пользователей -->
-      <div v-if="user?.role === 'user'" class="user-info-message">
-        <div class="info-icon">ℹ️</div>
-        <div class="info-text">
-          <strong>Ограничения доступа:</strong> Вы можете сканировать и использовать только станции, принадлежащие вашему подразделению.
-        </div>
-      </div>
-
       <!-- Избранные станции -->
       <section class="favorites-section">
         <div class="section-header">
