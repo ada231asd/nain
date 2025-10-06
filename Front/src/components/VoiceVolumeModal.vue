@@ -22,7 +22,7 @@
               v-model.number="volumeLevel"
               type="range"
               min="0"
-              max="10"
+              max="15"
               step="1"
               class="volume-slider"
               :disabled="isLoading"
@@ -31,6 +31,7 @@
               <span>0</span>
               <span>5</span>
               <span>10</span>
+              <span>15</span>
             </div>
           </div>
           <div class="volume-description">
@@ -38,7 +39,8 @@
             <span v-else-if="volumeLevel <= 4" class="volume-desc">🔉 Тихо</span>
             <span v-else-if="volumeLevel <= 6" class="volume-desc">🔊 Средне</span>
             <span v-else-if="volumeLevel <= 8" class="volume-desc">🔊 Громко</span>
-            <span v-else class="volume-desc">🔊 Очень громко</span>
+            <span v-else-if="volumeLevel <= 12" class="volume-desc">🔊 Очень громко</span>
+            <span v-else class="volume-desc">🔊 Максимально</span>
           </div>
         </div>
 
