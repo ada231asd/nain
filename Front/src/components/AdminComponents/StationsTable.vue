@@ -53,11 +53,6 @@
                 <span>Слоты</span>
               </div>
             </th>
-            <th class="col-actions">
-              <div class="th-content">
-                <span>Действия</span>
-              </div>
-            </th>
           </tr>
         </thead>
         <tbody>
@@ -116,40 +111,6 @@
                 </div>
               </div>
             </td>
-
-            <!-- Действия -->
-            <td class="col-actions">
-              <div class="actions-container">
-                <button 
-                  @click="$emit('view-powerbanks', station)" 
-                  class="action-btn action-powerbanks"
-                  title="Просмотр павербанков"
-                >
-                  🔋
-                </button>
-                <button 
-                  @click="$emit('edit-station', station)" 
-                  class="action-btn action-edit"
-                  title="Редактировать"
-                >
-                  ✏️
-                </button>
-                <button 
-                  @click="$emit('restart-station', station)" 
-                  class="action-btn action-restart"
-                  title="Перезагрузить"
-                >
-                  🔄
-                </button>
-                <button 
-                  @click="$emit('delete-station', station)" 
-                  class="action-btn action-delete"
-                  title="Удалить"
-                >
-                  🗑️
-                </button>
-              </div>
-            </td>
           </tr>
         </tbody>
       </table>
@@ -206,24 +167,29 @@
             <!-- Основная информация -->
             <div class="detail-section">
               <h4>Основная информация</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>Box ID:</label>
-                  <span>{{ selectedStation.box_id || 'N/A' }}</span>
+              <div class="detail-rows">
+                <div class="detail-row">
+                  <span class="detail-label">Box ID:</span>
+                  <span class="detail-value">{{ selectedStation.box_id || 'N/A' }}</span>
                 </div>
-                <div class="detail-item">
-                  <label>ICCID:</label>
-                  <span>{{ selectedStation.iccid || 'N/A' }}</span>
+                <div class="detail-row">
+                  <span class="detail-label">ICCID:</span>
+                  <span class="detail-value">{{ selectedStation.iccid || 'N/A' }}</span>
                 </div>
-                <div class="detail-item">
-                  <label>Статус:</label>
-                  <span class="status-badge" :class="`status-${selectedStation.status}`">
-                    {{ getStationStatusText(selectedStation.status) }}
-                  </span>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Статус:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ getStationStatusText(selectedStation.status) }}</span>
+                  <div v-else class="status-edit-container">
+                    <select v-model="editForm.status" class="edit-input" :disabled="selectedStation.status === 'pending'">
+                      <option value="inactive">Неактивна</option>
+                      <option v-if="selectedStation.status === 'active'" value="active" disabled>Активна (только через активацию)</option>
+                    </select>
+                    
+                  </div>
                 </div>
-                <div class="detail-item">
-                  <label>Последний сигнал:</label>
-                  <span>{{ formatTime(selectedStation.last_seen) }}</span>
+                <div class="detail-row">
+                  <span class="detail-label">Последний сигнал:</span>
+                  <span class="detail-value">{{ formatTime(selectedStation.last_seen) }}</span>
                 </div>
               </div>
             </div>
@@ -231,14 +197,20 @@
             <!-- Информация о группе -->
             <div class="detail-section">
               <h4>Группа и адрес</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>Группа:</label>
-                  <span>{{ selectedStation.org_unit_name || 'Без группы' }}</span>
+              <div class="detail-rows">
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Группа:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ selectedStation.org_unit_name || 'Без группы' }}</span>
+                  <select v-else v-model="editForm.org_unit_id" class="edit-input">
+                    <option value="">Без группы</option>
+                    <option v-for="orgUnit in orgUnits" :key="orgUnit.org_unit_id" :value="orgUnit.org_unit_id">
+                      {{ orgUnit.name }}
+                    </option>
+                  </select>
                 </div>
-                <div class="detail-item">
-                  <label>Адрес:</label>
-                  <span>{{ selectedStation.address || 'N/A' }}</span>
+                <div class="detail-row" v-if="groupAddressData.adress || groupAddressData.address">
+                  <span class="detail-label">Адрес группы:</span>
+                  <span class="detail-value">{{ groupAddressData.adress || groupAddressData.address }}</span>
                 </div>
               </div>
             </div>
@@ -246,30 +218,83 @@
             <!-- Информация о слотах -->
             <div class="detail-section">
               <h4>Слоты и павербанки</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>Всего слотов:</label>
-                  <span>{{ selectedStation.slots_declared || selectedStation.totalPorts || 0 }}</span>
+              <div class="detail-rows">
+                <div class="detail-row">
+                  <span class="detail-label">Всего слотов:</span>
+                  <span class="detail-value">{{ selectedStation.slots_declared || selectedStation.totalPorts || 0 }}</span>
                 </div>
-                <div class="detail-item">
-                  <label>Занято слотов:</label>
-                  <span>{{ selectedStation.occupiedPorts || ((selectedStation.slots_declared || 0) - (selectedStation.remain_num || 0)) }}</span>
+                <div class="detail-row">
+                  <span class="detail-label">Занято слотов:</span>
+                  <span class="detail-value">{{ selectedStation.occupiedPorts || ((selectedStation.slots_declared || 0) - (selectedStation.remain_num || 0)) }}</span>
                 </div>
-                <div class="detail-item">
-                  <label>Свободно слотов:</label>
-                  <span>{{ selectedStation.remain_num || 0 }}</span>
-                </div>
-                <div class="detail-item">
-                  <label>Заполненность:</label>
-                  <span>{{ getSlotsPercentage(selectedStation) }}%</span>
+                <div class="detail-row">
+                  <span class="detail-label">Свободно слотов:</span>
+                  <span class="detail-value">{{ selectedStation.remain_num || 0 }}</span>
                 </div>
               </div>
-              <div class="slots-visual">
-                <div class="slots-bar-large">
-                  <div 
-                    class="slots-progress-large" 
-                    :style="{ width: getSlotsPercentage(selectedStation) + '%' }"
-                  ></div>
+            </div>
+
+            <!-- Информация о сервере -->
+            <div class="detail-section">
+              <h4>Настройки сервера</h4>
+              <div class="detail-rows">
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Имя сервера:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ serverAddressData.address || 'N/A' }}</span>
+                  <input v-else v-model="editForm.server_address" class="edit-input" type="text" placeholder="Введите адрес сервера" />
+                </div>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Порт:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ serverAddressData.port || 'N/A' }}</span>
+                  <input v-else v-model="editForm.server_port" class="edit-input" type="number" placeholder="Введите порт" />
+                </div>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Интервал heartbeat:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ serverAddressData.heartbeat_interval || 'N/A' }}</span>
+                  <input v-else v-model="editForm.heartbeat_interval" class="edit-input" type="number" placeholder="Введите интервал" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Настройки громкости -->
+            <div class="detail-section">
+              <h4>Настройки громкости</h4>
+              <div class="detail-rows">
+                <div class="detail-row">
+                  <span class="detail-label">Текущая громкость:</span>
+                  <span class="detail-value">{{ voiceVolumeData.volume_level || 'N/A' }}</span>
+                </div>
+                <div class="detail-row volume-control-row">
+                  <span class="detail-label">Регулировка громкости:</span>
+                  <div class="volume-control">
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="15" 
+                      :value="voiceVolumeData.volume_level || 1"
+                      @change="updateVoiceVolume"
+                      class="volume-slider"
+                    />
+                    <span class="volume-value">{{ voiceVolumeData.volume_level || 1 }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- QR код -->
+            <div class="detail-section">
+              <h4>QR код станции</h4>
+              <div class="qr-section">
+                <div v-if="qrCodeUrl" class="qr-display">
+                  <img :src="qrCodeUrl" alt="QR Code" class="qr-image-small" />
+                  <div class="qr-info">
+                    <p class="qr-link">{{ qrLink }}</p>
+                    <button @click="copyQRUrl" class="copy-qr-btn">Копировать ссылку</button>
+                  </div>
+                </div>
+                <div v-else class="qr-loading">
+                  <div class="spinner-small"></div>
+                  <span>Генерация QR-кода...</span>
                 </div>
               </div>
             </div>
@@ -277,18 +302,18 @@
             <!-- Дополнительная информация -->
             <div class="detail-section" v-if="selectedStation.station_id || selectedStation.id">
               <h4>Дополнительная информация</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>ID станции:</label>
-                  <span>{{ selectedStation.station_id || selectedStation.id }}</span>
+              <div class="detail-rows">
+                <div class="detail-row">
+                  <span class="detail-label">ID станции:</span>
+                  <span class="detail-value">{{ selectedStation.station_id || selectedStation.id }}</span>
                 </div>
-                <div class="detail-item" v-if="selectedStation.created_at">
-                  <label>Дата создания:</label>
-                  <span>{{ formatTime(selectedStation.created_at) }}</span>
+                <div class="detail-row" v-if="selectedStation.created_at">
+                  <span class="detail-label">Дата создания:</span>
+                  <span class="detail-value">{{ formatTime(selectedStation.created_at) }}</span>
                 </div>
-                <div class="detail-item" v-if="selectedStation.updated_at">
-                  <label>Последнее обновление:</label>
-                  <span>{{ formatTime(selectedStation.updated_at) }}</span>
+                <div class="detail-row" v-if="selectedStation.updated_at">
+                  <span class="detail-label">Последнее обновление:</span>
+                  <span class="detail-value">{{ formatTime(selectedStation.updated_at) }}</span>
                 </div>
               </div>
             </div>
@@ -296,17 +321,89 @@
         </div>
 
         <div class="modal-footer">
-          <button @click="$emit('view-powerbanks', selectedStation)" class="btn-action">
-            🔋 Павербанки
+          <div v-if="isEditing" class="edit-actions">
+            <button @click="saveChanges" class="btn-action btn-save">
+              💾 Сохранить
+            </button>
+            <button @click="cancelEdit" class="btn-action btn-cancel">
+              ❌ Отменить
+            </button>
+          </div>
+          <div v-else class="view-actions">
+            <button @click="$emit('view-powerbanks', selectedStation)" class="btn-action">
+              🔋 Павербанки
+            </button>
+            <button @click="refreshInventory" class="btn-action">
+              📦 Обновить инвентарь
+            </button>
+            <button @click="toggleEditMode" class="btn-action">
+              ✏️ Редактировать
+            </button>
+            <button v-if="selectedStation.status === 'pending'" @click="showActivationModal" class="btn-action btn-activate">
+              🚀 Активировать
+            </button>
+            <button @click="$emit('restart-station', selectedStation)" class="btn-action">
+              🔄 Перезагрузить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно активации станции -->
+    <div v-if="isActivationModalOpen" class="modal-overlay" @click="closeActivationModal">
+      <div class="modal-content activation-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Активация станции</h3>
+          <button @click="closeActivationModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="activation-form">
+            <div class="form-group">
+              <label for="secretKey">Секретный ключ станции *</label>
+              <input 
+                id="secretKey"
+                v-model="activationForm.secretKey" 
+                type="password" 
+                placeholder="Введите секретный ключ"
+                class="form-input"
+                @keyup.enter="activateStation"
+              />
+              <small class="form-hint">
+                Секретный ключ необходим для активации станции и обеспечения безопасности
+              </small>
+            </div>
+            
+            <div class="station-info">
+              <h4>Информация о станции:</h4>
+              <div class="info-row">
+                <span class="info-label">Box ID:</span>
+                <span class="info-value">{{ selectedStation?.box_id || 'N/A' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">ICCID:</span>
+                <span class="info-value">{{ selectedStation?.iccid || 'N/A' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Группа:</span>
+                <span class="info-value">{{ selectedStation?.org_unit_name || 'Без группы' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="closeActivationModal" class="btn-action btn-cancel">
+            ❌ Отменить
           </button>
-          <button @click="$emit('edit-station', selectedStation)" class="btn-action">
-            ✏️ Редактировать
-          </button>
-          <button @click="$emit('restart-station', selectedStation)" class="btn-action">
-            🔄 Перезагрузить
-          </button>
-          <button @click="closeStationModal" class="btn-close">
-            Закрыть
+          <button 
+            @click="activateStation" 
+            class="btn-action btn-activate"
+            :disabled="!activationForm.secretKey.trim() || isActivating"
+          >
+            <span v-if="isActivating" class="spinner-small"></span>
+            🚀 Активировать станцию
           </button>
         </div>
       </div>
@@ -315,8 +412,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import FilterButton from './FilterButton.vue'
+import QRCode from 'qrcode'
 
 const props = defineProps({
   stations: {
@@ -336,10 +434,10 @@ const props = defineProps({
 const emit = defineEmits([
   'filter-stations',
   'view-powerbanks', 
-  'edit-station',
   'restart-station',
   'delete-station',
-  'station-clicked'
+  'station-clicked',
+  'station-updated'
 ])
 
 // Состояние компонента
@@ -354,6 +452,30 @@ const activeFilters = ref({
   orgUnits: [],
   statuses: [],
   roles: []
+})
+
+// Новые переменные для модального окна
+const serverAddressData = ref({})
+const voiceVolumeData = ref({})
+const qrCodeUrl = ref('')
+const qrLink = ref('')
+const groupAddressData = ref({})
+
+// Состояние редактирования
+const isEditing = ref(false)
+const editForm = ref({
+  status: '',
+  org_unit_id: '',
+  server_address: '',
+  server_port: '',
+  heartbeat_interval: ''
+})
+
+// Состояние активации станции
+const isActivationModalOpen = ref(false)
+const isActivating = ref(false)
+const activationForm = ref({
+  secretKey: ''
 })
 
 // Вычисляемые свойства
@@ -460,15 +582,394 @@ const handleFilterChange = (filters) => {
   currentPage.value = 1 // Сбрасываем на первую страницу при изменении фильтров
 }
 
-const openStationModal = (station) => {
+const openStationModal = async (station) => {
   selectedStation.value = station
   isModalOpen.value = true
+  isEditing.value = false
   emit('station-clicked', station)
+  
+  // Инициализируем форму редактирования
+  initEditForm(station)
+  
+  // Загружаем дополнительные данные
+  await loadStationData(station)
 }
 
 const closeStationModal = () => {
   isModalOpen.value = false
   selectedStation.value = null
+  isEditing.value = false
+  // Очищаем данные
+  serverAddressData.value = {}
+  voiceVolumeData.value = {}
+  qrCodeUrl.value = ''
+  qrLink.value = ''
+  groupAddressData.value = {}
+  editForm.value = {
+    status: '',
+    org_unit_id: '',
+    server_address: '',
+    server_port: '',
+    heartbeat_interval: ''
+  }
+}
+
+// Загрузка дополнительных данных станции
+const loadStationData = async (station) => {
+  const stationId = station.station_id || station.id
+  if (!stationId) return
+  
+  try {
+    // Загружаем данные сервера
+    await loadServerAddressData(stationId)
+    
+    // Загружаем данные громкости
+    await loadVoiceVolumeData(stationId)
+    
+    // Загружаем адрес группы
+    await loadGroupAddressData(station)
+    
+    // Генерируем QR код
+    await generateQRCode(station)
+    
+    // Обновляем форму редактирования с актуальными данными
+    initEditForm(station)
+  } catch (error) {
+    console.error('Ошибка загрузки данных станции:', error)
+  }
+}
+
+// Загрузка данных сервера
+const loadServerAddressData = async (stationId) => {
+  try {
+    const response = await fetch(`/api/query-server-address/station/${stationId}`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        serverAddressData.value = data.data || {}
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки данных сервера:', error)
+  }
+}
+
+// Загрузка данных громкости
+const loadVoiceVolumeData = async (stationId) => {
+  try {
+    const response = await fetch(`/api/query-voice-volume/station/${stationId}`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        voiceVolumeData.value = data.data || {}
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки данных громкости:', error)
+  }
+}
+
+// Загрузка адреса группы
+const loadGroupAddressData = async (station) => {
+  try {
+    const orgUnitId = station.org_unit_id
+    if (!orgUnitId) {
+      groupAddressData.value = {}
+      return
+    }
+
+    const response = await fetch(`/api/org-units/${orgUnitId}`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.data) {
+        // Проверяем, является ли data.data массивом или объектом
+        if (Array.isArray(data.data) && data.data.length > 0) {
+          groupAddressData.value = data.data[0] || {}
+        } else if (data.data && typeof data.data === 'object') {
+          groupAddressData.value = data.data
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки адреса группы:', error)
+  }
+}
+
+// Методы для редактирования
+const initEditForm = (station) => {
+  editForm.value = {
+    status: station.status || '',
+    org_unit_id: station.org_unit_id || '',
+    server_address: serverAddressData.value?.address || '',
+    server_port: serverAddressData.value?.port || '',
+    heartbeat_interval: serverAddressData.value?.heartbeat_interval || ''
+  }
+}
+
+const toggleEditMode = () => {
+  if (!isEditing.value) {
+    // Включаем режим редактирования
+    initEditForm(selectedStation.value)
+  }
+  isEditing.value = !isEditing.value
+}
+
+const cancelEdit = () => {
+  isEditing.value = false
+  initEditForm(selectedStation.value)
+}
+
+const saveChanges = async () => {
+  const stationId = selectedStation.value?.station_id || selectedStation.value?.id
+  if (!stationId) return
+  
+  // Валидация статуса
+  if (selectedStation.value.status === 'pending') {
+    alert('❌ Станция в статусе "Ожидает" не может быть изменена через редактирование. Используйте кнопку "🚀 Активировать" для активации.')
+    return
+  }
+  
+  if (editForm.value.status === 'active' && selectedStation.value.status !== 'active') {
+    alert('❌ Нельзя активировать станцию через редактирование. Используйте кнопку "🚀 Активировать" для ввода секретного ключа.')
+    return
+  }
+  
+  if (selectedStation.value.status === 'active' && editForm.value.status === 'pending') {
+    alert('❌ Нельзя перевести активную станцию в статус "Ожидает".')
+    return
+  }
+  
+  try {
+    // Обновляем данные станции
+    const stationUpdateData = {
+      status: editForm.value.status,
+      org_unit_id: editForm.value.org_unit_id || null
+    }
+    
+    // Отправляем обновление станции
+    const stationResponse = await fetch(`/api/stations/${stationId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(stationUpdateData)
+    })
+    
+    if (!stationResponse.ok) {
+      throw new Error('Ошибка обновления станции')
+    }
+    
+    // Обновляем настройки сервера, если они изменились
+    if (editForm.value.server_address || editForm.value.server_port || editForm.value.heartbeat_interval) {
+      const serverUpdateData = {
+        station_id: stationId,
+        address: editForm.value.server_address,
+        port: editForm.value.server_port ? parseInt(editForm.value.server_port) : null,
+        heartbeat_interval: editForm.value.heartbeat_interval ? parseInt(editForm.value.heartbeat_interval) : null
+      }
+      
+      const serverResponse = await fetch('/api/set-server-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(serverUpdateData)
+      })
+      
+      if (!serverResponse.ok) {
+        throw new Error('Ошибка обновления настроек сервера')
+      }
+    }
+    
+    // Обновляем локальные данные
+    selectedStation.value.status = editForm.value.status
+    selectedStation.value.org_unit_id = editForm.value.org_unit_id
+    
+    // Обновляем данные сервера
+    if (editForm.value.server_address) serverAddressData.value.address = editForm.value.server_address
+    if (editForm.value.server_port) serverAddressData.value.port = editForm.value.server_port
+    if (editForm.value.heartbeat_interval) serverAddressData.value.heartbeat_interval = editForm.value.heartbeat_interval
+    
+    isEditing.value = false
+    alert('Изменения сохранены успешно')
+    
+    // Обновляем список станций
+    emit('station-updated', selectedStation.value)
+    
+  } catch (error) {
+    console.error('Ошибка сохранения изменений:', error)
+    alert('Ошибка сохранения: ' + error.message)
+  }
+}
+
+// Методы для активации станции
+const showActivationModal = () => {
+  isActivationModalOpen.value = true
+  activationForm.value.secretKey = ''
+}
+
+const closeActivationModal = () => {
+  isActivationModalOpen.value = false
+  activationForm.value.secretKey = ''
+  isActivating.value = false
+}
+
+const activateStation = async () => {
+  const stationId = selectedStation.value?.station_id || selectedStation.value?.id
+  if (!stationId || !activationForm.value.secretKey.trim()) return
+  
+  isActivating.value = true
+  
+  try {
+    const response = await fetch('/api/station-secret-keys', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        station_id: stationId,
+        key_value: activationForm.value.secretKey.trim()
+      })
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        // Обновляем статус станции на активную
+        selectedStation.value.status = 'active'
+        
+        // Закрываем модальное окно активации
+        closeActivationModal()
+        
+        alert('Станция успешно активирована!')
+        
+        // Обновляем список станций
+        emit('station-updated', selectedStation.value)
+      } else {
+        throw new Error(data.error || 'Ошибка активации станции')
+      }
+    } else {
+      throw new Error('Ошибка сервера при активации станции')
+    }
+  } catch (error) {
+    console.error('Ошибка активации станции:', error)
+    alert('Ошибка активации: ' + error.message)
+  } finally {
+    isActivating.value = false
+  }
+}
+
+// Обновление громкости
+const updateVoiceVolume = async (event) => {
+  const volumeLevel = parseInt(event.target.value)
+  const stationId = selectedStation.value?.station_id || selectedStation.value?.id
+  
+  if (!stationId) return
+  
+  // Проверяем корректность уровня громкости (1-15)
+  if (volumeLevel < 1 || volumeLevel > 15) {
+    console.error('Уровень громкости должен быть от 1 до 15')
+    return
+  }
+  
+  try {
+    const response = await fetch('/api/set-voice-volume', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        station_id: stationId,
+        volume_level: volumeLevel
+      })
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        voiceVolumeData.value.volume_level = volumeLevel
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка обновления громкости:', error)
+  }
+}
+
+// Генерация QR кода
+const generateQRCode = async (station) => {
+  try {
+    const stationName = station.name || station.station_name || station.box_id || `Станция ${station.station_id || station.id}`
+    const baseUrl = window.location.origin
+    const authUrl = `${baseUrl}/${encodeURIComponent(stationName)}`
+    
+    qrLink.value = authUrl
+    
+    const qrCodeDataURL = await QRCode.toDataURL(authUrl, {
+      width: 150,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
+    
+    qrCodeUrl.value = qrCodeDataURL
+  } catch (error) {
+    console.error('Ошибка генерации QR-кода:', error)
+  }
+}
+
+// Обновление инвентаря
+const refreshInventory = async () => {
+  const stationId = selectedStation.value?.station_id || selectedStation.value?.id
+  
+  if (!stationId) {
+    alert('Не удалось определить ID станции')
+    return
+  }
+  
+  try {
+    const response = await fetch(`/api/query-inventory/station/${stationId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        alert('Инвентарь успешно обновлен')
+        // Можно добавить обновление данных станции
+        await loadStationData(selectedStation.value)
+      } else {
+        alert('Ошибка обновления инвентаря: ' + (data.error || 'Неизвестная ошибка'))
+      }
+    } else {
+      alert('Ошибка обновления инвентаря')
+    }
+  } catch (error) {
+    console.error('Ошибка обновления инвентаря:', error)
+    alert('Ошибка обновления инвентаря: ' + error.message)
+  }
+}
+
+// Копирование QR ссылки
+const copyQRUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(qrLink.value)
+    alert('Ссылка скопирована в буфер обмена')
+  } catch (error) {
+    console.error('Ошибка копирования:', error)
+    // Fallback для старых браузеров
+    const textArea = document.createElement('textarea')
+    textArea.value = qrLink.value
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    alert('Ссылка скопирована в буфер обмена')
+  }
 }
 
 const getStationStatusText = (status) => {
@@ -711,12 +1212,7 @@ watch(searchQuery, () => {
 }
 
 .col-slots {
-  width: 15%;
-  min-width: 100px;
-}
-
-.col-actions {
-  width: 10%;
+  width: 20%;
   min-width: 120px;
 }
 
@@ -850,45 +1346,6 @@ watch(searchQuery, () => {
   transition: width 0.3s ease;
 }
 
-.actions-container {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.action-btn {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-btn:hover {
-  transform: scale(1.1);
-}
-
-.action-powerbanks:hover {
-  background: #d4edda;
-}
-
-.action-edit:hover {
-  background: #fff3cd;
-}
-
-.action-restart:hover {
-  background: #d1ecf1;
-}
-
-.action-delete:hover {
-  background: #f8d7da;
-}
-
 /* Пагинация */
 .pagination {
   padding: 20px 24px;
@@ -1003,16 +1460,6 @@ watch(searchQuery, () => {
   .stations-table td {
     padding: 12px 8px;
   }
-
-  .actions-container {
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .action-btn {
-    padding: 4px;
-    font-size: 14px;
-  }
 }
 
 /* Модальное окно */
@@ -1034,11 +1481,13 @@ watch(searchQuery, () => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  max-width: 600px;
+  max-width: 630px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
   animation: modalSlideIn 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes modalSlideIn {
@@ -1092,6 +1541,8 @@ watch(searchQuery, () => {
 
 .modal-body {
   padding: 24px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .station-details {
@@ -1114,75 +1565,198 @@ watch(searchQuery, () => {
   font-weight: 600;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+.detail-rows {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.detail-item {
+.detail-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.detail-item label {
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
   font-weight: 600;
   color: #666;
   font-size: 0.9rem;
+  min-width: 140px;
 }
 
-.detail-item span {
+.detail-value {
   color: #333;
   font-size: 1rem;
+  text-align: right;
+  flex: 1;
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-align: center;
-  min-width: 80px;
+.editable-field {
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 6px;
+  padding: 8px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
 }
 
-.status-badge.status-active {
-  background: #d4edda;
-  color: #155724;
+.editable-field:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
 }
 
-.status-badge.status-pending {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status-badge.status-inactive {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.status-badge.status-maintenance {
-  background: #ffeaa7;
-  color: #6c5ce7;
-}
-
-.slots-visual {
-  margin-top: 16px;
-}
-
-.slots-bar-large {
+.edit-input {
   width: 100%;
-  height: 8px;
-  background: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  transition: border-color 0.3s ease;
 }
 
-.slots-progress-large {
-  height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
-  transition: width 0.3s ease;
+.edit-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.edit-input[type="number"] {
+  text-align: right;
+}
+
+.edit-input:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.volume-control-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #667eea;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #667eea;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.volume-value {
+  font-weight: 600;
+  color: #667eea;
+  min-width: 20px;
+  text-align: center;
+}
+
+.qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.qr-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.qr-image-small {
+  width: 150px;
+  height: 150px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+}
+
+.qr-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-link {
+  font-size: 0.8rem;
+  color: #666;
+  word-break: break-all;
+  text-align: center;
+  margin: 0;
+}
+
+.copy-qr-btn {
+  padding: 6px 12px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.3s ease;
+}
+
+.copy-qr-btn:hover {
+  background: #5a6fd8;
+}
+
+.qr-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .modal-footer {
@@ -1193,10 +1767,11 @@ watch(searchQuery, () => {
   justify-content: flex-end;
   background: #f8f9fa;
   border-radius: 0 0 12px 12px;
+  flex-shrink: 0;
 }
 
 .btn-action {
-  padding: 10px 16px;
+  padding: 8px 12px;
   background: #667eea;
   color: white;
   border: none;
@@ -1204,26 +1779,156 @@ watch(searchQuery, () => {
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.3s ease;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-action:hover {
   background: #5a6fd8;
 }
 
-.btn-close {
-  padding: 10px 20px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
+.btn-save {
+  background: #28a745;
 }
 
-.btn-close:hover {
-  background: #5a6268;
+.btn-save:hover {
+  background: #218838;
+}
+
+.btn-cancel {
+  background: #dc3545;
+}
+
+.btn-cancel:hover {
+  background: #c82333;
+}
+
+.btn-activate {
+  background: #28a745;
+}
+
+.btn-activate:hover:not(:disabled) {
+  background: #218838;
+}
+
+.btn-activate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.activation-modal {
+  max-width: 500px;
+}
+
+.activation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.form-input {
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  transition: border-color 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: #666;
+  font-style: italic;
+}
+
+.station-info {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #28a745;
+}
+
+.station-info h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.status-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.status-hint {
+  font-size: 0.8rem;
+  color: #666;
+  font-style: italic;
+  padding: 6px 8px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #667eea;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.view-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 /* Курсор для кликабельных строк */
@@ -1258,19 +1963,53 @@ watch(searchQuery, () => {
     padding: 20px;
   }
 
-  .detail-grid {
-    grid-template-columns: 1fr;
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .detail-label {
+    min-width: auto;
+  }
+
+  .detail-value {
+    text-align: left;
+  }
+
+  .volume-control {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .qr-image-small {
+    width: 120px;
+    height: 120px;
   }
 
   .modal-footer {
     padding: 16px 20px;
     flex-direction: column;
+    flex-shrink: 0;
   }
 
-  .btn-action,
-  .btn-close {
-    width: 100%;
+  .btn-action {
+    padding: 6px 10px;
+    font-size: 0.75rem;
   }
+
+  .edit-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .view-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+
 }
 
 @media (max-width: 480px) {

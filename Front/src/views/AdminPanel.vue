@@ -34,9 +34,8 @@
               <StationsTable 
                 :stations="stations"
                 :org-units="orgUnits"
-                @add-station="() => { editingStation = null; showAddStationModal = true }"
+                @add-station="() => { showAddStationModal = true }"
                 @view-powerbanks="openPowerbanks"
-                @edit-station="editStation"
                 @restart-station="restartStation"
                 @delete-station="(station) => deleteStation(station.station_id || station.id)"
               />
@@ -269,7 +268,6 @@
     
     <AddStationModal 
       :is-visible="showAddStationModal"
-      :station="editingStation"
       @close="closeStationModal"
       @station-added="handleStationAdded"
       @station-edited="handleStationEdited"
@@ -392,7 +390,6 @@ const ordersViewMode = ref('cards') // 'cards' или 'table'
 // Модальные окна
 const showAddUserModal = ref(false)
 const showAddStationModal = ref(false)
-const editingStation = ref(null)
 const showEditUserModal = ref(false)
 const showStationActivationModal = ref(false)
 const stationToActivate = ref(null)
@@ -717,7 +714,6 @@ const handleStationAdded = async (stationData) => {
   try {
     await adminStore.createStation(stationData)
     showAddStationModal.value = false
-    editingStation.value = null
     // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
@@ -729,7 +725,6 @@ const handleStationEdited = async ({ id, data }) => {
   try {
     await adminStore.updateStation(id, data)
     showAddStationModal.value = false
-    editingStation.value = null
     // Автоматическое обновление данных
     await refreshAfterAction()
   } catch (error) {
@@ -745,7 +740,6 @@ const handleStationActivated = async ({ stationId, secretKey, orgUnitId }) => {
 
     // Закрываем модальное окно редактирования станции
     showAddStationModal.value = false
-    editingStation.value = null
     
     // Автоматическое обновление данных
     await refreshAfterAction()
@@ -757,28 +751,16 @@ const handleStationActivated = async ({ stationId, secretKey, orgUnitId }) => {
 const handleStationActivationRequired = (station) => {
   // Закрываем модальное окно редактирования
   showAddStationModal.value = false
-  editingStation.value = null
   
   // Показываем модальное окно активации
   stationToActivate.value = station
   showStationActivationModal.value = true
 }
 
-const openEditStation = (station) => {
-  editingStation.value = station
-  showAddStationModal.value = true
-}
-
-const editStation = (station) => {
-  editingStation.value = station
-  showAddStationModal.value = true
-}
-
-
 const closeStationModal = () => {
   showAddStationModal.value = false
-  editingStation.value = null
 }
+
 
 
 const showUserHistoryModal = ref(false)
