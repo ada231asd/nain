@@ -128,10 +128,46 @@ export const useAdminStore = defineStore('admin', {
       }
     },
     async blockUser(id) {
-      await this.updateUser(id, { статус: 'заблокирован' });
+      try {
+        // Получаем данные пользователя
+        const user = this.users.find(u => u.user_id === id);
+        if (!user) {
+          throw new Error('Пользователь не найден');
+        }
+        
+        // Обновляем только статус, сохраняя остальные данные
+        await this.updateUser(id, {
+          fio: user.fio,
+          phone_e164: user.phone_e164,
+          email: user.email,
+          role: user.role,
+          статус: 'blocked',
+          parent_org_unit_id: user.parent_org_unit_id || ''
+        });
+      } catch (err) {
+        throw err;
+      }
     },
     async unblockUser(id) {
-      await this.updateUser(id, { статус: 'активный' });
+      try {
+        // Получаем данные пользователя
+        const user = this.users.find(u => u.user_id === id);
+        if (!user) {
+          throw new Error('Пользователь не найден');
+        }
+        
+        // Обновляем только статус, сохраняя остальные данные
+        await this.updateUser(id, {
+          fio: user.fio,
+          phone_e164: user.phone_e164,
+          email: user.email,
+          role: user.role,
+          статус: 'active',
+          parent_org_unit_id: user.parent_org_unit_id || ''
+        });
+      } catch (err) {
+        throw err;
+      }
     },
     async fetchStations() {
       this.isLoading = true;

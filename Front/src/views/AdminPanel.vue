@@ -1,13 +1,5 @@
 <template>
   <div class="admin-panel">
-    <NotificationToast
-      v-if="showServerResting"
-      :message="serverRestingMessage"
-      type="warning"
-      position="top-center"
-      :duration="5000"
-    />
-
     <!-- Основной контент -->
     <main class="admin-main">
       <div class="admin-layout">
@@ -427,18 +419,7 @@ const showOrgUnitStationsModal = ref(false)
 const selectedOrgUnit = ref(null)
 
 // Глобальное уведомление, если сервер не отвечает
-const showServerResting = ref(false)
-const serverRestingMessage = ref('')
-
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('api:server-down', (e) => {
-    serverRestingMessage.value = (e && e.detail && e.detail.message) || 'Подождите, сервер отдыхает'
-    showServerResting.value = true
-    // Скрыть через 5 секунд
-    setTimeout(() => { showServerResting.value = false }, 5000)
-  })
-}
+// Удалено - больше не используется
 
 
 

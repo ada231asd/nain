@@ -276,13 +276,49 @@ export const pythonAPI = {
 
   // АДМИНИСТРАТИВНЫЕ ФУНКЦИИ
   getPendingUsers: () => handleResponse(apiClient.get('/admin/pending-users'), 'get pending users'),
-  approveUser: (userId) => {
+  approveUser: async (userId) => {
     validateId(userId, 'user ID')
-    return handleResponse(apiClient.post('/admin/approve-user', { user_id: userId }), 'approve user')
+    try {
+      // Сначала получаем данные пользователя
+      const response = await handleResponse(apiClient.get(`/users/${userId}`), 'get user data')
+      const userData = response.data || response
+      
+      // Обновляем только статус, сохраняя остальные данные
+      const updateData = {
+        fio: userData.fio || '',
+        phone_e164: userData.phone_e164 || '',
+        email: userData.email || '',
+        role: userData.role || 'user',
+        parent_org_unit_id: userData.parent_org_unit_id || '',
+        статус: 'active' // Меняем статус на активный
+      }
+      
+      return handleResponse(apiClient.put(`/users/${userId}`, updateData), 'approve user')
+    } catch (error) {
+      throw new Error(`Failed to approve user: ${error.message}`)
+    }
   },
-  rejectUser: (userId) => {
+  rejectUser: async (userId) => {
     validateId(userId, 'user ID')
-    return handleResponse(apiClient.post('/admin/reject-user', { user_id: userId }), 'reject user')
+    try {
+      // Сначала получаем данные пользователя
+      const response = await handleResponse(apiClient.get(`/users/${userId}`), 'get user data')
+      const userData = response.data || response
+      
+      // Обновляем только статус, сохраняя остальные данные
+      const updateData = {
+        fio: userData.fio || '',
+        phone_e164: userData.phone_e164 || '',
+        email: userData.email || '',
+        role: userData.role || 'user',
+        parent_org_unit_id: userData.parent_org_unit_id || '',
+        статус: 'blocked' // Меняем статус на заблокированный
+      }
+      
+      return handleResponse(apiClient.put(`/users/${userId}`, updateData), 'reject user')
+    } catch (error) {
+      throw new Error(`Failed to reject user: ${error.message}`)
+    }
   },
   forceEjectPowerbank: (data) => {
     validateData(data, 'force eject data')
