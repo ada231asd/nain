@@ -3,7 +3,9 @@
     <!-- Логотип и название группы -->
     <div class="group-header">
       <div class="group-logo">
-        <img src="../../../10064.jpg" alt="Логотип группы" class="logo-image" />
+        <div class="logo-placeholder">
+          <span class="logo-text">🏢</span>
+        </div>
       </div>
       <div class="group-info">
         <h3 class="group-name">{{ getCurrentGroupName() }}</h3>
@@ -240,16 +242,22 @@ const getGroupStats = () => {
   margin-bottom: 10px;
 }
 
-.logo-image {
-  max-width: 100%;
-  width: auto;
-  height: auto;
-  max-height: 80px;
-  object-fit: contain;
+.logo-placeholder {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 8px;
   border: 2px solid #667eea;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  background: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.logo-text {
+  font-size: 2.5rem;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .group-info {
@@ -346,8 +354,13 @@ const getGroupStats = () => {
     padding: 10px 0 15px 0;
   }
 
-  .logo-image {
-    max-height: 60px;
+  .logo-placeholder {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .logo-text {
+    font-size: 2rem;
   }
 
   .group-name {

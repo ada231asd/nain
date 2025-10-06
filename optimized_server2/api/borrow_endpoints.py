@@ -92,6 +92,10 @@ class BorrowEndpoints:
                 if result.get('success'):
                     return web.json_response(result)
                 else:
+                    # Добавляем детальное логирование ошибки
+                    from utils.centralized_logger import get_logger
+                    logger = get_logger('borrow_endpoints')
+                    logger.error(f"Ошибка выдачи повербанка: станция {station_id}, слот {slot_number}, пользователь {user_id}, ошибка: {result.get('error', 'Неизвестная ошибка')}")
                     return web.json_response(result, status=400)
                     
             except Exception as e:

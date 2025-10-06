@@ -384,6 +384,16 @@ export const pythonAPI = {
     return handleResponse(apiClient.post('/set-server-address', normalizedPayload), 'set server address')
   },
 
+  // ИНВЕНТАРЬ СТАНЦИИ
+  queryInventory: (stationId) => {
+    validateId(stationId, 'station ID')
+    return handleResponse(apiClient.post('/query-inventory', { station_id: stationId }), 'query inventory')
+  },
+  getStationInventory: (stationId) => {
+    validateId(stationId, 'station ID')
+    return handleResponse(apiClient.get(`/query-inventory/station/${stationId}`), 'get station inventory')
+  },
+
   // ПЕРЕЗАГРУЗКА СТАНЦИИ
   restartCabinet: (data) => {
     validateData(data, 'restart cabinet data')

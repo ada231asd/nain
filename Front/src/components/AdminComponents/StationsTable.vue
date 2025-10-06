@@ -482,6 +482,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import FilterButton from './FilterButton.vue'
 import QRCode from 'qrcode'
 import { getCurrentConfig } from '../../api/config.js'
+import { pythonAPI } from '../../api/pythonApi.js'
 
 const props = defineProps({
   stations: {
@@ -721,13 +722,18 @@ const loadStationData = async (station) => {
 // Загрузка данных сервера
 const loadServerAddressData = async (stationId) => {
   try {
-    const config = getCurrentConfig()
-    const response = await fetch(`${config.baseURL}/query-server-address/station/${stationId}`)
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        serverAddressData.value = data.server_address || {}
-      }
+    // Сначала запрашиваем адрес сервера
+    await pythonAPI.queryServerAddress(stationId)
+    
+    // Ждем немного для обработки запроса
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // Затем получаем данные
+    const response = await pythonAPI.getServerAddress(stationId)
+    if (response.success) {
+      serverAddressData.value = response.server_address || {}
+    } else {
+      console.warn('Данные о сервере не найдены:', response.error)
     }
   } catch (error) {
     console.error('Ошибка загрузки данных сервера:', error)
@@ -741,37 +747,23 @@ const loadVoiceVolumeData = async (stationId) => {
     voiceVolumeError.value = ''
     
     // Сначала триггерим запрос уровня громкости через TCP
-    const config = getCurrentConfig()
-    await fetch(`${config.baseURL}/query-voice-volume`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        station_id: stationId
-      })
-    })
+    await pythonAPI.queryVoiceVolume(stationId)
 
     // Затем пробуем получить данные (может потребоваться время)
     // Делаем до 15 попыток c интервалом ~1000мс
     let lastError = ''
     for (let attempt = 0; attempt < 15; attempt++) {
       try {
-        const response = await fetch(`${config.baseURL}/query-voice-volume/station/${stationId}`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            const volumeLevel = data.voice_volume?.volume_level || 0
-            currentVoiceVolume.value = volumeLevel
-            voiceVolumeLevel.value = volumeLevel
-            voiceVolumeData.value = data.voice_volume || {}
-            lastError = ''
-            break
-          } else {
-            lastError = data.error || 'Не удалось получить текущую громкость'
-          }
+        const data = await pythonAPI.getVoiceVolume(stationId)
+        if (data.success) {
+          const volumeLevel = data.voice_volume?.volume_level || 0
+          currentVoiceVolume.value = volumeLevel
+          voiceVolumeLevel.value = volumeLevel
+          voiceVolumeData.value = data.voice_volume || {}
+          lastError = ''
+          break
         } else {
-          lastError = 'Не удалось получить текущую громкость'
+          lastError = data.error || 'Не удалось получить текущую громкость'
         }
       } catch (e) {
         lastError = e?.message || 'Не удалось получить текущую громкость'
@@ -993,30 +985,18 @@ const updateVoiceVolume = async (event) => {
     isVoiceVolumeLoading.value = true
     voiceVolumeError.value = ''
     
-    const config = getCurrentConfig()
-    const response = await fetch(`${config.baseURL}/set-voice-volume`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        station_id: stationId,
-        volume_level: volumeLevel
-      })
+    const data = await pythonAPI.setVoiceVolume({
+      station_id: stationId,
+      volume_level: volumeLevel
     })
     
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        currentVoiceVolume.value = volumeLevel
-        voiceVolumeData.value.volume_level = volumeLevel
-        // Показываем уведомление об успехе
-        console.log('Громкость успешно обновлена')
-      } else {
-        voiceVolumeError.value = 'Не удалось установить громкость'
-      }
+    if (data.success) {
+      currentVoiceVolume.value = volumeLevel
+      voiceVolumeData.value.volume_level = volumeLevel
+      // Показываем уведомление об успехе
+      console.log('Громкость успешно обновлена')
     } else {
-      voiceVolumeError.value = 'Ошибка сервера при установке громкости'
+      voiceVolumeError.value = 'Не удалось установить громкость'
     }
   } catch (error) {
     console.error('Ошибка обновления громкости:', error)
@@ -1060,25 +1040,21 @@ const refreshInventory = async () => {
   }
   
   try {
-    const config = getCurrentConfig()
-    const response = await fetch(`${config.baseURL}/query-inventory/station/${stationId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
+    // Сначала запрашиваем обновление инвентаря
+    await pythonAPI.queryInventory(stationId)
     
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        alert('Инвентарь успешно обновлен')
-        // Можно добавить обновление данных станции
-        await loadStationData(selectedStation.value)
-      } else {
-        alert('Ошибка обновления инвентаря: ' + (data.error || 'Неизвестная ошибка'))
-      }
+    // Ждем немного для обработки запроса
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // Затем получаем обновленные данные
+    const data = await pythonAPI.getStationInventory(stationId)
+    
+    if (data.success) {
+      alert('Инвентарь успешно обновлен')
+      // Можно добавить обновление данных станции
+      await loadStationData(selectedStation.value)
     } else {
-      alert('Ошибка обновления инвентаря')
+      alert('Ошибка обновления инвентаря: ' + (data.error || 'Неизвестная ошибка'))
     }
   } catch (error) {
     console.error('Ошибка обновления инвентаря:', error)

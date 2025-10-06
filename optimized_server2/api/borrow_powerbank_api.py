@@ -134,6 +134,23 @@ class BorrowPowerbankAPI:
             if not station_valid:
                 return {"error": station_message, "success": False}
             
+            # Запрашиваем актуальный инвентарь станции для синхронизации данных
+            await self._request_inventory_before_operation(station_id)
+            import asyncio
+            await asyncio.sleep(2)  # Даем время на обновление данных
+            
+            # Повторно проверяем наличие повербанка в слоте после синхронизации
+            station_powerbank_updated = await StationPowerbank.get_by_slot(
+                self.db_pool, station_id, slot_number
+            )
+            
+            if not station_powerbank_updated:
+                return {"error": "Повербанк больше не находится в слоте после синхронизации", "success": False}
+            
+            # Проверяем, что это тот же повербанк
+            if station_powerbank_updated.powerbank_id != station_powerbank.powerbank_id:
+                return {"error": "В слоте находится другой повербанк", "success": False}
+            
             # Получаем соединение (уже проверенное в validate_station_for_operation)
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             
@@ -379,6 +396,24 @@ class BorrowPowerbankAPI:
         except Exception as e:
             return {"error": f"Ошибка выбора повербанка: {str(e)}", "success": False}
     
+    async def _request_inventory_before_operation(self, station_id: int) -> None:
+        """
+        Запрашивает актуальный инвентарь станции перед операцией
+        """
+        try:
+            from handlers.query_inventory import QueryInventoryHandler
+            inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
+            await inventory_handler.send_inventory_request(station_id)
+            
+            from utils.centralized_logger import get_logger
+            logger = get_logger('borrow_powerbank_api')
+            logger.info(f"Запрос инвентаря отправлен перед операцией выдачи на станцию {station_id}")
+            
+        except Exception as e:
+            from utils.centralized_logger import get_logger
+            logger = get_logger('borrow_powerbank_api')
+            logger.error(f"Ошибка запроса инвентаря перед операцией: {e}")
+    
     async def _request_inventory_after_operation(self, station_id: int) -> None:
         """
         Запрашивает инвентарь после операции с повербанком
@@ -423,6 +458,23 @@ class BorrowPowerbankAPI:
             selected = selection_result['selected_powerbank']
             slot_number = selected['slot_number']
             powerbank_id = selected['powerbank_id']
+            
+            # Запрашиваем актуальный инвентарь станции для синхронизации данных
+            await self._request_inventory_before_operation(station_id)
+            import asyncio
+            await asyncio.sleep(2)  # Даем время на обновление данных
+            
+            # Повторно проверяем наличие повербанка в слоте после синхронизации
+            station_powerbank_updated = await StationPowerbank.get_by_slot(
+                self.db_pool, station_id, slot_number
+            )
+            
+            if not station_powerbank_updated:
+                return {"error": "Повербанк больше не находится в слоте после синхронизации", "success": False}
+            
+            # Проверяем, что это тот же повербанк
+            if station_powerbank_updated.powerbank_id != powerbank_id:
+                return {"error": "В слоте находится другой повербанк", "success": False}
             
             # Проверяем, что повербанк не находится в активном заказе
             existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)

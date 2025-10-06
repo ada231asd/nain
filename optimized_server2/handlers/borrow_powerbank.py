@@ -152,10 +152,11 @@ class BorrowPowerbankHandler:
                     5: "Повербанк поврежден",
                     6: "Слот пуст",
                     7: "Ошибка механизма",
-                    8: "Превышено время ожидания"
+                    8: "Превышено время ожидания",
+                    68: "Повербанк не найден в слоте"
                 }
                 error_msg = error_messages.get(result_code, f"Неизвестная ошибка (код: {result_code})")
-                print(f"Выдача повербанка не удалась для станции {station_id}: {error_msg}")
+                self.logger.error(f"Выдача повербанка не удалась для станции {station_id}, слот {slot_number}: {error_msg} (код: {result_code})")
                 
                 # Уведомляем ожидающий запрос об ошибке
                 if pending_order_id and pending_order_id in self.pending_requests:
@@ -301,15 +302,18 @@ class BorrowPowerbankHandler:
                 await connection.writer.drain()
                 print(f" Команда на выдачу повербанка отправлена станции {station_id}, слот {slot_number}")
                 
-                # Ждем ответа от станции (максимум 30 секунд)
+                # Ждем ответа от станции (максимум 60 секунд)
                 try:
-                    result = await asyncio.wait_for(future, timeout=30.0)
+                    result = await asyncio.wait_for(future, timeout=60.0)
                     return result
                 except asyncio.TimeoutError:
                     # Убираем из pending_requests при таймауте
                     if order_id in self.pending_requests:
                         del self.pending_requests[order_id]
-                    return {"success": False, "message": "Таймаут ожидания ответа от станции"}
+                    
+                    # Логируем таймаут с деталями
+                    self.logger.error(f"Таймаут ожидания ответа от станции {station_id} для слота {slot_number}, заказ {order_id}")
+                    return {"success": False, "message": "Таймаут ожидания ответа от станции (60 секунд)"}
                 
             else:
                 # Убираем из pending_requests если соединение недоступно
