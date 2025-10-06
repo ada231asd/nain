@@ -18,7 +18,7 @@ DB_CONFIG = {
     "db": "zaryd",
     "autocommit": True
 }
-    
+
 
 
 

@@ -27,7 +27,6 @@ from api.query_server_address_api import QueryServerAddressAPI
 from api.user_powerbank_api import UserPowerbankAPI
 from api.powerbank_error_endpoints import PowerbankErrorEndpoints
 from api.simple_return_endpoints import SimpleReturnEndpoints
-from api.websocket_endpoints import WebSocketEndpoints
 
 
 
@@ -54,7 +53,6 @@ class HTTPServer:
         self.query_server_address_api: QueryServerAddressAPI = None
         self.user_powerbank_api: UserPowerbankAPI = None
         self.powerbank_error_endpoints: PowerbankErrorEndpoints = None
-        self.websocket_endpoints: WebSocketEndpoints = None
         self.simple_return_endpoints: SimpleReturnEndpoints = None
         
     
@@ -141,13 +139,9 @@ class HTTPServer:
         self.user_powerbank_api = UserPowerbankAPI(self.db_pool, connection_manager)
         self.powerbank_error_endpoints = PowerbankErrorEndpoints(self.db_pool)
         self.simple_return_endpoints = SimpleReturnEndpoints(self.db_pool, connection_manager)
-        self.websocket_endpoints = WebSocketEndpoints(self.db_pool, connection_manager)
         
         # Регистрируем маршруты
         self._setup_routes(app, connection_manager)
-        
-        # Регистрируем WebSocket маршруты
-        self.websocket_endpoints.setup_routes(app)
         
         return app
     

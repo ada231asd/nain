@@ -1,0 +1,40 @@
+[
+  {
+    "timestamp": "2025-10-06T14:58:01.053810+03:00",
+    "command": "0x83",
+    "type": "Slot Status Abnormal Report",
+    "data": {
+      "Type": "SlotAbnormalReportRequest",
+      "PacketLen": 17,
+      "Command": "0x83",
+      "VSN": 2,
+      "CheckSum": "0x56",
+      "Token": "0x43B8E1B4",
+      "Event": 1,
+      "EventText": "No unlock command",
+      "SlotNo": 4,
+      "TerminalID": "4443484154000009",
+      "CheckSumValid": true,
+      "ReceivedAt": "2025-10-06T14:58:01.048310+03:00"
+    }
+  },
+  {
+    "timestamp": "2025-10-06T15:25:41.019922+03:00",
+    "command": "0x83",
+    "type": "Slot Status Abnormal Report",
+    "data": {
+      "Type": "SlotAbnormalReportRequest",
+      "PacketLen": 17,
+      "Command": "0x83",
+      "VSN": 2,
+      "CheckSum": "0x56",
+      "Token": "0x43B8E1B4",
+      "Event": 1,
+      "EventText": "No unlock command",
+      "SlotNo": 4,
+      "TerminalID": "4443484154000009",
+      "CheckSumValid": true,
+      "ReceivedAt": "2025-10-06T15:25:41.014271+03:00"
+    }
+  }
+]
