@@ -1,7 +1,7 @@
 """
 Модель станции
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 import aiomysql
 from utils.time_utils import get_moscow_time
@@ -179,6 +179,36 @@ class Station:
                 await cursor.execute(
                     "SELECT station_id, box_id, iccid, slots_declared, remain_num, status, last_seen, org_unit_id, created_at, updated_at "
                     "FROM station WHERE status = 'active' ORDER BY created_at DESC"
+                )
+                results = await cursor.fetchall()
+                
+                stations = []
+                for result in results:
+                    # Нормализуем datetime поля к московскому времени
+                    from utils.time_utils import normalize_datetime_to_moscow
+                    
+                    stations.append(cls(
+                        station_id=int(result[0]),
+                        box_id=str(result[1]),
+                        iccid=str(result[2]) if result[2] else None,
+                        slots_declared=int(result[3]) if result[3] else 0,
+                        remain_num=int(result[4]) if result[4] else 0,
+                        status=str(result[5]),
+                        last_seen=normalize_datetime_to_moscow(result[6]),
+                        org_unit_id=int(result[7]) if result[7] else None,
+                        created_at=normalize_datetime_to_moscow(result[8]),
+                        updated_at=normalize_datetime_to_moscow(result[9])
+                    ))
+                return stations
+    
+    @classmethod
+    async def get_all(cls, db_pool) -> List['Station']:
+        """Получает все станции"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "SELECT station_id, box_id, iccid, slots_declared, remain_num, status, last_seen, org_unit_id, created_at, updated_at "
+                    "FROM station ORDER BY created_at DESC"
                 )
                 results = await cursor.fetchall()
                 

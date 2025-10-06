@@ -279,7 +279,8 @@ class VerificationCode:
         if stored_code['is_used']:
             return False
         
-        if get_moscow_time() > datetime.fromisoformat(stored_code['expires_at']):
+        from utils.time_utils import MOSCOW_TZ
+        if get_moscow_time() > datetime.fromisoformat(stored_code['expires_at']).replace(tzinfo=MOSCOW_TZ):
             return False
         
         # Помечаем код как использованный

@@ -476,3 +476,30 @@ class Order:
                     """, (new_status, order_id))
                 
                 return cursor.rowcount > 0
+    
+    @classmethod
+    async def get_all_active(cls, db_pool) -> List['Order']:
+        """Получает все активные заказы"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
+                    FROM orders 
+                    WHERE status IN ('borrow', 'pending', 'return_damage')
+                    ORDER BY timestamp DESC
+                """)
+                
+                results = await cursor.fetchall()
+                
+                orders = []
+                for result in results:
+                    orders.append(cls(
+                        order_id=result[0],
+                        station_id=result[1],
+                        user_id=result[2],
+                        powerbank_id=result[3],
+                        status=result[4],
+                        timestamp=result[5]
+                    ))
+                
+                return orders

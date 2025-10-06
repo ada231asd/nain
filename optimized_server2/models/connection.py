@@ -1,7 +1,7 @@
 """
 Модель соединения со станцией
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 import asyncio
 from utils.time_utils import get_moscow_time
@@ -26,6 +26,8 @@ class StationConnection:
         self.borrow_sent = False
         self.suspicious_packets = 0  # Счетчик подозрительных пакетов
         self.inventory_requested = False  # Флаг запроса инвентаря при логине
+        self.connected_at = get_moscow_time()  # Время подключения
+        self.last_db_update = None  # Время последнего обновления БД
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует соединение в словарь"""
@@ -43,8 +45,18 @@ class StationConnection:
     
     def update_heartbeat(self):
         """Обновляет время последнего heartbeat"""
-        self.last_heartbeat = get_moscow_time()
-        self.last_seen = get_moscow_time()
+        current_time = get_moscow_time()
+        
+        # Проверяем пропуски heartbeat'ов
+        if self.last_heartbeat:
+            time_since_last = (current_time - self.last_heartbeat).total_seconds()
+            if time_since_last > 30:
+                print(f"ПРОПУСК HEARTBEAT: Станция {self.box_id} - пропуск {time_since_last:.1f} секунд")
+            elif time_since_last > 60:
+                print(f"КРИТИЧЕСКИЙ ПРОПУСК: Станция {self.box_id} - пропуск {time_since_last:.1f} секунд")
+        
+        self.last_heartbeat = current_time
+        self.last_seen = current_time
     
     def update_login(self, box_id: str, station_id: int, token: int, secret_key: bytes):
         """Обновляет данные после логина"""
@@ -54,6 +66,7 @@ class StationConnection:
         self.secret_key = secret_key
         self.station_status = "active"
         self.inventory_requested = False  # Сбрасываем флаг при новом логине
+        self.last_db_update = None  # Сбрасываем время последнего обновления БД
         self.update_heartbeat()
     
     def increment_suspicious_packets(self):
@@ -111,16 +124,24 @@ class ConnectionManager:
                 return conn
         return None
     
-    def cleanup_inactive_connections(self, timeout_seconds: int = 300):
-        """Очищает неактивные соединения"""
+    def cleanup_inactive_connections(self, timeout_seconds: int = 30):
+        """Очищает неактивные соединения - закрывает соединения без heartbeat > 30 секунд"""
         current_time = get_moscow_time()
         inactive_fds = []
         
         for fd, connection in self.connections.items():
-            if (current_time - connection.last_heartbeat).seconds > timeout_seconds:
+            if (current_time - connection.last_heartbeat).total_seconds() > timeout_seconds:
                 inactive_fds.append(fd)
         
+        # Физически закрываем неактивные соединения
         for fd in inactive_fds:
+            connection = self.connections.get(fd)
+            if connection and connection.writer and not connection.writer.is_closing():
+                try:
+                    connection.writer.close()
+                    print(f"СЕРВЕР ЗАКРЫЛ СОЕДИНЕНИЕ: {connection.box_id} (fd={fd}) - нет heartbeat {timeout_seconds} сек")
+                except Exception as e:
+                    print(f"Ошибка закрытия соединения {fd}: {e}")
             self.remove_connection(fd)
         
         return len(inactive_fds)
@@ -154,3 +175,8 @@ class ConnectionManager:
         """Очищает все соединения из менеджера"""
         self.connections.clear()
         print(f"Очищено {len(self.connections)} соединений из менеджера")
+    
+    def get_connections_by_station_id(self, station_id: int) -> List[StationConnection]:
+        """Получает все соединения по ID станции"""
+        return [conn for conn in self.connections.values() 
+                if conn.station_id == station_id]

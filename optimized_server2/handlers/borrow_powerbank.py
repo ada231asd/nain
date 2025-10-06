@@ -137,26 +137,26 @@ class BorrowPowerbankHandler:
                         future.set_result({"success": True, "message": "Повербанк успешно выдан"})
                     del self.pending_requests[pending_order_id]
                 
-                # Не запрашиваем инвентарь автоматически - станция сама отправит обновленный инвентарь
-                # после физической выдачи повербанка, что избежит race condition
-                # Запрос инвентаря будет отправлен только при необходимости через API
+                
             else:
-                # Обрабатываем различные коды ошибок
-                result_code = borrow_response.get('ResultCode', 0)
-                error_messages = {
-                    0: "Неизвестная ошибка",
-                    1: "Слот заблокирован",
-                    2: "Повербанк уже выдан",
-                    3: "Ошибка связи со станцией",
-                    4: "Неверный слот",
-                    5: "Повербанк поврежден",
-                    6: "Слот пуст",
-                    7: "Ошибка механизма",
-                    8: "Превышено время ожидания",
-                    68: "Повербанк не найден в слоте"
-                }
-                error_msg = error_messages.get(result_code, f"Неизвестная ошибка (код: {result_code})")
-                self.logger.error(f"Выдача повербанка не удалась для станции {station_id}, слот {slot_number}: {error_msg} (код: {result_code})")
+                
+                # Дополнительная информация о причине неудачи не предоставляется
+                error_msg = "Станция отклонила выдачу повербанка"
+                
+                # Получаем дополнительную информацию из ответа
+                terminal_id = borrow_response.get('TerminalID', 'unknown')
+                current_slot_locked = borrow_response.get('CurrentSlotLockStatus', 0)
+                adjacent_slot_locked = borrow_response.get('AdjacentSlotLockStatus', 0)
+                
+                # Формируем более детальное сообщение об ошибке
+                if current_slot_locked:
+                    error_msg = "Слот заблокирован"
+                elif terminal_id == '0000000000000000':
+                    error_msg = "Слот пуст"
+                else:
+                    error_msg = "Ошибка выдачи повербанка"
+                
+                self.logger.error(f"Выдача повербанка не удалась для станции {station_id}, слот {slot_number}: {error_msg}")
                 
                 # Уведомляем ожидающий запрос об ошибке
                 if pending_order_id and pending_order_id in self.pending_requests:
@@ -257,6 +257,7 @@ class BorrowPowerbankHandler:
         Отправляет запрос на выдачу повербанка на станцию и ждет ответа
         """
         import asyncio
+        from datetime import datetime, timedelta
         
         try:
             # Получаем соединение со станцией
@@ -266,6 +267,15 @@ class BorrowPowerbankHandler:
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
                 return {"success": False, "message": "Станция не подключена"}
+            
+            # Проверяем онлайн статус станции (последний heartbeat должен быть не более 30 секунд назад)
+            if connection.last_heartbeat:
+                from utils.time_utils import get_moscow_time
+                time_since_heartbeat = (get_moscow_time() - connection.last_heartbeat).total_seconds()
+                if time_since_heartbeat > 30:
+                    return {"success": False, "message": f"Станция офлайн (последний heartbeat {time_since_heartbeat:.0f} секунд назад)"}
+            else:
+                return {"success": False, "message": "Станция не отправляла heartbeat"}
             
             # Получаем информацию о повербанке и его слоте
             station_powerbank = await StationPowerbank.get_by_powerbank_id(self.db_pool, powerbank_id)
@@ -302,9 +312,9 @@ class BorrowPowerbankHandler:
                 await connection.writer.drain()
                 print(f" Команда на выдачу повербанка отправлена станции {station_id}, слот {slot_number}")
                 
-                # Ждем ответа от станции (максимум 60 секунд)
+                # Ждем ответа от станции (максимум 15 секунд)
                 try:
-                    result = await asyncio.wait_for(future, timeout=60.0)
+                    result = await asyncio.wait_for(future, timeout=15.0)
                     return result
                 except asyncio.TimeoutError:
                     # Убираем из pending_requests при таймауте
@@ -313,7 +323,7 @@ class BorrowPowerbankHandler:
                     
                     # Логируем таймаут с деталями
                     self.logger.error(f"Таймаут ожидания ответа от станции {station_id} для слота {slot_number}, заказ {order_id}")
-                    return {"success": False, "message": "Таймаут ожидания ответа от станции (60 секунд)"}
+                    return {"success": False, "message": "Таймаут ожидания ответа от станции (15 секунд)"}
                 
             else:
                 # Убираем из pending_requests если соединение недоступно

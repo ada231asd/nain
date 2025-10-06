@@ -411,3 +411,52 @@ class StationPowerbank:
         except Exception as e:
             print(f"Ошибка получения занятых слотов: {e}")
             return []
+    
+    @classmethod
+    async def get_all_active(cls, db_pool) -> List['StationPowerbank']:
+        """Получает все активные повербанки в станциях"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("""
+                    SELECT sp.* FROM station_powerbank sp
+                    INNER JOIN powerbank p ON sp.powerbank_id = p.id
+                    WHERE p.status = 'active'
+                    ORDER BY sp.station_id, sp.slot_number
+                """)
+                results = await cur.fetchall()
+                
+                return [cls(
+                    id=row['id'],
+                    station_id=row['station_id'],
+                    powerbank_id=row['powerbank_id'],
+                    slot_number=row['slot_number'],
+                    level=row['level'],
+                    voltage=row['voltage'],
+                    temperature=row['temperature'],
+                    last_update=row['last_update']
+                ) for row in results]
+    
+    @classmethod
+    async def get_count_by_station(cls, db_pool, station_id: int) -> int:
+        """Получает количество повербанков в станции"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    SELECT COUNT(*) FROM station_powerbank 
+                    WHERE station_id = %s
+                """, (station_id,))
+                result = await cur.fetchone()
+                return result[0] if result else 0
+    
+    @classmethod
+    async def get_station_slots(cls, db_pool, station_id: int) -> List[int]:
+        """Получает список слотов в станции"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    SELECT slot_number FROM station_powerbank 
+                    WHERE station_id = %s
+                    ORDER BY slot_number
+                """, (station_id,))
+                results = await cur.fetchall()
+                return [row[0] for row in results]

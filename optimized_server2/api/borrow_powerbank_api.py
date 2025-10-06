@@ -95,6 +95,24 @@ class BorrowPowerbankAPI:
             if station.status != 'active':
                 return {"error": "Станция неактивна", "success": False}
             
+            # Проверяем онлайн статус станции
+            from models.connection import ConnectionManager
+            connection_manager = self.connection_manager
+            if connection_manager:
+                connection = connection_manager.get_connection_by_station_id(station_id)
+                if not connection:
+                    return {"error": "Станция не подключена", "success": False}
+                
+                # Проверяем последний heartbeat (не более 30 секунд назад)
+                if connection.last_heartbeat:
+                    from datetime import datetime
+                    from utils.time_utils import get_moscow_time
+                    time_since_heartbeat = (get_moscow_time() - connection.last_heartbeat).total_seconds()
+                    if time_since_heartbeat > 30:
+                        return {"error": f"Станция офлайн (последний heartbeat {time_since_heartbeat:.0f} секунд назад)", "success": False}
+                else:
+                    return {"error": "Станция не отправляла heartbeat", "success": False}
+            
             # Проверяем права доступа пользователя к станции
             from utils.org_unit_utils import can_user_access_station, log_access_denied_event
             

@@ -12,9 +12,10 @@ from config.settings import MAX_PACKET_SIZE, PROTOCOL_COMMAND_RANGE, MAX_SUSPICI
 from utils.time_utils import get_moscow_time, get_moscow_now
 
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
-    """Логирование TCP пакета через логгер"""
+    """Логирование TCP пакета через логгер с точным временем"""
     try:
         from utils.tcp_packet_logger import log_tcp_packet
+        import time
         
         hex_data = data.hex().upper()
         size = len(data)
@@ -24,14 +25,21 @@ def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", com
         if size >= 3:
             command_hex = f"0x{data[2]:02X}"
         
-        # Логируем через TCP логгер
+        # Добавляем микросекундную точность времени
+        timestamp = time.time()
+        microseconds = int((timestamp - int(timestamp)) * 1000000)
+        time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
+        precise_time = f"{time_str}.{microseconds:06d}"
+        
+        # Логируем через TCP логгер с точным временем
         log_tcp_packet(
             direction=direction,
             packet_type=command_name,
             station_id=station_box_id,
             packet_size=size,
             command=command_hex,
-            packet_data=hex_data
+            packet_data=hex_data,
+            additional_info=f"TIME:{precise_time}"
         )
             
     except Exception as e:
@@ -262,8 +270,12 @@ def build_heartbeat_response(secret_key: bytes, vsn: int = 1) -> bytes:
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header
     
-    # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "HeartbeatResponse")
+    # Проверяем валидность созданного пакета
+    if len(packet) != 7:
+        print(f"❌ ОШИБКА: HeartbeatResponse имеет неправильную длину: {len(packet)} байт")
+    
+    if packet[2] != 0x61:
+        print(f"❌ ОШИБКА: HeartbeatResponse имеет неправильную команду: 0x{packet[2]:02X}")
     
     return packet
 def build_borrow_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
@@ -277,7 +289,7 @@ def build_borrow_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "BorrowPowerBank")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -293,7 +305,7 @@ def build_return_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "ReturnPowerBank")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -305,7 +317,7 @@ def build_return_power_bank_response(slot: int, result: int, terminal_id: bytes,
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "ReturnPowerBank")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -512,7 +524,7 @@ def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
     packet = header + payload
     
    
-    log_packet(packet, "OUTGOING", "unknown", "ForceEject")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -533,7 +545,7 @@ def build_query_iccid_request(secret_key: bytes, vsn: int = 1) -> bytes:
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "QueryICCID")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -666,7 +678,7 @@ def parse_packet(data: bytes) -> Dict[str, Any]:
         0x83: "SlotAbnormalReport"
     }
     command_name = command_names.get(command, f"Unknown(0x{command:02X})")
-    log_packet(data, "INCOMING", "unknown", command_name)
+    # Убираем логирование отсюда - оно должно быть в обработчиках
     
     try:
         if command == 0x60:  # Login
@@ -828,7 +840,7 @@ def build_restart_cabinet_request(secret_key: bytes, vsn: int = 1) -> bytes:
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "RestartCabinet")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -885,7 +897,7 @@ def build_query_inventory_request(secret_key: bytes, vsn: int = 1, station_box_i
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", station_box_id, "QueryInventory")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -989,7 +1001,7 @@ def build_query_voice_volume_request(secret_key: bytes, vsn: int = 1) -> bytes:
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "QueryVoiceVolume")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -1049,7 +1061,7 @@ def build_set_voice_volume_request(secret_key: bytes, volume_level: int, vsn: in
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "SetVoiceVolume")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -1122,7 +1134,7 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "SetServerAddress")
+    # Логирование происходит в server.py
     
     return packet
 
@@ -1179,7 +1191,7 @@ def build_query_server_address_request(secret_key: bytes, vsn: int = 1) -> bytes
     packet = header + payload
     
     # Логируем пакет
-    log_packet(packet, "OUTGOING", "unknown", "QueryServerAddress")
+    # Логирование происходит в server.py
     
     return packet
 

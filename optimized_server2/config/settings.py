@@ -13,11 +13,12 @@ HTTP_PORT = 8000
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "root",
-    "password": "",
-    "db": "DB",
+    "user": "appuser",
+    "password": "MyPassw0rd!",
+    "db": "zaryd",
     "autocommit": True
 }
+
 
 
 
@@ -32,7 +33,7 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
 # Настройки соединений
-CONNECTION_TIMEOUT = 300  # 5 минут
+CONNECTION_TIMEOUT = 30   # 30 секунд - таймаут для heartbeat
 HEARTBEAT_INTERVAL = 30   # 30 секунд
 
 # Настройки безопасности паролей

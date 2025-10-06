@@ -29,6 +29,7 @@ from utils.packet_utils import parse_packet, validate_packet, log_suspicious_pac
 from utils.station_resolver import StationResolver
 from utils.centralized_logger import get_logger, close_logger, get_logger_stats
 from utils.tcp_packet_logger import close_tcp_logger, get_tcp_logger_stats
+# from api.monitoring_api import MonitoringAPI  # Удален
 
 
 class OptimizedServer:
@@ -53,7 +54,17 @@ class OptimizedServer:
         self.query_server_address_handler: Optional[QueryServerAddressHandler] = None
         self.tcp_server: Optional[asyncio.Server] = None
         self.http_server: Optional[HTTPServer] = None
+        # self.monitoring_api: Optional[MonitoringAPI] = None  # Удален
         self.running = False
+        
+        # Статистика для мониторинга производительности heartbeat'ов
+        self.heartbeat_stats = {
+            'total_processed': 0,
+            'last_minute': 0,
+            'last_reset': None,
+            'max_per_second': 0,
+            'current_per_second': 0
+        }
     
     async def initialize_database(self):
         """Инициализирует подключение к базе данных"""
@@ -75,7 +86,9 @@ class OptimizedServer:
       
         try:
             if connection.writer and not connection.writer.is_closing():
-                
+                # Логируем команду, отправляемую на станцию
+                from utils.packet_utils import log_packet
+                log_packet(command_bytes, "OUTGOING", connection.box_id or "unknown", "Command")
                 connection.writer.write(command_bytes)
                 await connection.writer.drain()
                 return True
@@ -90,7 +103,15 @@ class OptimizedServer:
         """Обрабатывает подключение клиента"""
         fd = writer.transport.get_extra_info('socket').fileno()
         addr = writer.get_extra_info('peername')
-        print(f"Подключен: {addr} (fd={fd})")
+        from utils.time_utils import get_moscow_time
+        connection_time = get_moscow_time()
+        print(f"Подключен: {addr} (fd={fd}) в {connection_time.strftime('%H:%M:%S')}")
+        
+        # Логируем статистику подключений
+        if hasattr(self, 'connection_stats'):
+            self.connection_stats['total_connections'] = getattr(self.connection_stats, 'total_connections', 0) + 1
+        else:
+            self.connection_stats = {'total_connections': 1}
         
         # Создаем соединение
         connection = StationConnection(fd, addr, writer=writer)
@@ -99,13 +120,14 @@ class OptimizedServer:
         
         try:
             while self.running:
-                # Читаем данные с таймаутом
+                # Читаем данные без таймаута - сервер ждет данные пока не выключится
                 try:
-                    data = await asyncio.wait_for(reader.read(1024), timeout=CONNECTION_TIMEOUT)
+                    data = await reader.read(1024)
                     if not data:
+                        print(f"Соединение закрыто клиентом {addr}")
                         break
-                except asyncio.TimeoutError:
-                    print(f"Таймаут соединения для {addr}")
+                except Exception as e:
+                    print(f"Ошибка чтения данных от {addr}: {e}")
                     break
                 
                 # Базовая проверка размера пакета для всех соединений
@@ -150,6 +172,17 @@ class OptimizedServer:
                 response = None
                 
                 # Логируем входящий пакет
+                from utils.packet_utils import log_packet
+                command_names = {
+                    0x60: "Login", 0x61: "Heartbeat", 0x63: "SetServerAddress",
+                    0x64: "QueryInventory", 0x65: "BorrowPowerBank", 0x66: "ReturnPowerBank",
+                    0x67: "RestartCabinet", 0x69: "QueryICCID", 0x6A: "QueryServerAddress",
+                    0x70: "SetVoiceVolume", 0x77: "QueryVoiceVolume", 0x80: "ForceEject",
+                    0x83: "SlotAbnormalReport"
+                }
+                command_name = command_names.get(command, f"Unknown(0x{command:02X})")
+                log_packet(data, "INCOMING", connection.box_id or "unknown", command_name)
+                
                 station_info = {
                     "fd": fd,
                     "addr": addr,
@@ -168,7 +201,33 @@ class OptimizedServer:
                             break
                     
                     elif command == 0x61:  # Heartbeat
+                        # Обновляем статистику heartbeat'ов
+                        self.heartbeat_stats['total_processed'] += 1
+                        self.heartbeat_stats['current_per_second'] += 1
+                        
+                        # Засекаем время обработки
+                        import time
+                        start_time = time.time()
+                        
                         response = await self.station_handler.handle_heartbeat(data, connection)
+                        if response:
+                            # Отправляем ответ на heartbeat
+                            log_packet(response, "OUTGOING", connection.box_id or "unknown", "HeartbeatResponse")
+                            
+                            try:
+                                writer.write(response)
+                                await writer.drain()
+                                print(f"✅ ОТВЕТ ОТПРАВЛЕН: {connection.box_id} - heartbeat ответ доставлен")
+                            except Exception as send_error:
+                                print(f"❌ ОШИБКА ОТПРАВКИ: {connection.box_id} - {send_error}")
+                            
+                            # Логируем время обработки
+                            processing_time = (time.time() - start_time) * 1000  # в миллисекундах
+                            if processing_time > 10:  # Если обработка заняла больше 10мс
+                                print(f"МЕДЛЕННЫЙ HEARTBEAT: {connection.box_id} - {processing_time:.2f}мс")
+                            
+                            # Убираем response, чтобы он не попал в общий блок отправки
+                            response = None
                     
                     elif command == 0x65:  # Borrow Power Bank
                         # Проверяем, это запрос или ответ
@@ -249,9 +308,10 @@ class OptimizedServer:
                         print(f"Неизвестная команда: {hex(command)}")
                         continue
                     
-                    # Отправляем ответ
-                    if response:
+                    # Отправляем ответ (heartbeat уже обработан выше)
+                    if response and command != 0x61:  # Исключаем heartbeat - он уже обработан
                         # Логируем исходящий пакет
+                        log_packet(response, "OUTGOING", connection.box_id or "unknown", f"{command_name}Response")
                         writer.write(response)
                         await writer.drain()
                 
@@ -263,16 +323,35 @@ class OptimizedServer:
             print(f"Соединение {addr} отменено")
             raise
         except ConnectionResetError as e:
-            print(f"Соединение {addr} сброшено клиентом: {e}")
+            print(f"СОЕДИНЕНИЕ РАЗОРВАНО КЛИЕНТОМ: {connection.box_id} ({addr}) - {e}")
             connection_reset = True
+        except ConnectionAbortedError as e:
+            print(f"СОЕДИНЕНИЕ ПРЕРВАНО КЛИЕНТОМ: {connection.box_id} ({addr}) - {e}")
+            connection_reset = True
+        except OSError as e:
+            if e.errno == 104:  # Connection reset by peer
+                print(f"СОЕДИНЕНИЕ СБРОШЕНО СТАНЦИЕЙ: {connection.box_id} ({addr}) - {e}")
+                connection_reset = True
+            else:
+                print(f"СЕТЕВАЯ ОШИБКА: {connection.box_id} ({addr}) - {e}")
+                connection_reset = True
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            print(f"ОШИБКА ОБРАБОТКИ: {connection.box_id} ({addr}) - {e}")
+            self.logger.error(f"Ошибка обработки соединения {addr} (fd={fd}): {e}")
             connection_reset = False
         
         finally:
             # Закрываем соединение
-            print(f"Отключен: {addr} (fd={fd})")
+            if connection_reset:
+                print(f"Отключен: {addr} (fd={fd}) - сброс соединения клиентом")
+            else:
+                print(f"Отключен: {addr} (fd={fd}) - нормальное закрытие")
             self.connection_manager.remove_connection(fd)
+            
+            # Выводим статистику каждые 10 подключений
+            if hasattr(self, 'connection_stats') and self.connection_stats['total_connections'] % 10 == 0:
+                active_connections = len(self.connection_manager.get_all_connections())
+                print(f"Статистика: всего подключений {self.connection_stats['total_connections']}, активных {active_connections}")
             
             # Безопасное закрытие соединения
             try:
@@ -316,6 +395,9 @@ class OptimizedServer:
             self.http_server = HTTPServer()
             self.http_server.db_pool = self.db_pool
             
+            # Создаем API мониторинга - удален
+            # self.monitoring_api = MonitoringAPI(self.db_pool, self.connection_manager)
+            
             # Запускаем TCP сервер
             self.tcp_server = await asyncio.start_server(
                 self.handle_client,
@@ -339,14 +421,24 @@ class OptimizedServer:
             ws_site = web.TCPSite(ws_runner, '0.0.0.0', 8001)
             await ws_site.start()
             
+            # Запускаем сервер мониторинга - удален
+            # monitoring_app = self.monitoring_api.create_app()
+            # monitoring_runner = web.AppRunner(monitoring_app)
+            # await monitoring_runner.setup()
+            # monitoring_site = web.TCPSite(monitoring_runner, '0.0.0.0', 8002)
+            # await monitoring_site.start()
+            
             self.running = True
             print(f"TCP сервер запущен на {SERVER_IP}:{TCP_PORT}")
             print(f"HTTP сервер запущен на 0.0.0.0:{HTTP_PORT}")
             print(f"WebSocket сервер запущен на 0.0.0.0:8001")
+            print(f"Сервер мониторинга запущен на 0.0.0.0:8002")
             
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
+            
+           
             
             # Ждем завершения серверов
             try:
@@ -367,8 +459,8 @@ class OptimizedServer:
         """Мониторинг соединений"""
         while self.running:
             try:
-                # Очищаем неактивные соединения
-                cleaned = self.connection_manager.cleanup_inactive_connections(CONNECTION_TIMEOUT)
+                # Очищаем неактивные соединения (таймаут 2 минуты для стабильности)
+                cleaned = self.connection_manager.cleanup_inactive_connections(120)
                 if cleaned > 0:
                     print(f"Очищено {cleaned} неактивных соединений")
                 
@@ -393,6 +485,13 @@ class OptimizedServer:
                                 print(f"Закрываем дублирующееся соединение fd={fd}")
                                 self.connection_manager.close_connection(fd)
                 
+                # Выводим статистику heartbeat'ов
+                if self.heartbeat_stats['total_processed'] > 0:
+                    print(f"Heartbeat статистика: всего {self.heartbeat_stats['total_processed']}, текущая скорость {self.heartbeat_stats['current_per_second']}/сек")
+                    if self.heartbeat_stats['current_per_second'] > self.heartbeat_stats['max_per_second']:
+                        self.heartbeat_stats['max_per_second'] = self.heartbeat_stats['current_per_second']
+                    self.heartbeat_stats['current_per_second'] = 0
+                
                 await asyncio.sleep(30)  # Проверяем каждые 30 секунд
             
             except Exception as e:
@@ -404,6 +503,10 @@ class OptimizedServer:
         print("Остановка серверов...")
         self.logger.info("Остановка серверов...")
         self.running = False
+        
+        # Останавливаем проактивный мониторинг - удален
+        # if self.monitoring_api:
+        #     await self.monitoring_api.stop_monitoring()
         
         # Деактивируем все станции перед закрытием
         await self._deactivate_all_stations()

@@ -21,14 +21,14 @@ class StationHandler:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.status_monitor = PowerbankStatusMonitor(db_pool)
+        self.logger = get_logger('station_handler')
     
     async def handle_login(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
         """
         Обрабатывает логин станции
         """
         try:
-            # Логируем входящий пакет логина
-            log_packet(data, "INCOMING", "unknown", "Login")
+            # Логирование входящего пакета происходит в server.py
             
             # Парсим пакет логина
             packet = parse_login_packet(data)
@@ -52,13 +52,20 @@ class StationHandler:
             # Проверяем, не подключена ли уже эта станция
             existing_connection = self.connection_manager.get_connection_by_station_id(station.station_id)
             if existing_connection and existing_connection.fd != connection.fd:
-                logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} уже подключена через fd={existing_connection.fd}, закрываем старое соединение")
+                # Вычисляем время с последнего heartbeat
+                from utils.time_utils import get_moscow_time
+                current_time = get_moscow_time()
+                time_since_heartbeat = (current_time - existing_connection.last_heartbeat).total_seconds()
+                
+                logger = get_logger('station_handler'); logger.warning(f"ПЕРЕПОДКЛЮЧЕНИЕ СТАНЦИИ: {station.box_id} - старое соединение fd={existing_connection.fd}, последний heartbeat {time_since_heartbeat:.1f} сек назад")
+                
                 # Безопасно закрываем старое соединение
                 try:
                     if existing_connection.writer and not existing_connection.writer.is_closing():
                         existing_connection.writer.close()
+                        print(f"ЗАКРЫТО СТАРОЕ СОЕДИНЕНИЕ: {station.box_id} (fd={existing_connection.fd}) - причина: переподключение")
                 except Exception as close_error:
-                    self.logger.error(f"Ошибка: {e}")
+                    self.logger.error(f"Ошибка закрытия соединения: {close_error}")
                 finally:
                     self.connection_manager.remove_connection(existing_connection.fd)
             
@@ -88,11 +95,7 @@ class StationHandler:
             # Инициализируем мониторинг статусов для станции
             await self.status_monitor.initialize_station(station.station_id)
             
-            # Автоматически запрашиваем инвентарь после успешного логина
-            # Только если это первое подключение станции или инвентарь не загружен
-            if not hasattr(connection, 'inventory_requested') or not connection.inventory_requested:
-                await self._request_inventory_after_login(connection)
-                connection.inventory_requested = True
+
             
             # Автоматически запрашиваем ICCID после успешного логина
             await self._request_iccid_after_login(connection)
@@ -106,49 +109,68 @@ class StationHandler:
     
     async def handle_heartbeat(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
         """
-        Обрабатывает heartbeat от станции
-        Возвращает ответный пакет
+        Обрабатывает heartbeat от станции - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
+        Возвращает ответный пакет моментально для быстрой обработки множества станций
         """
         try:
             if not connection.secret_key:
                 logger = get_logger('station_handler'); logger.warning("Нет секретного ключа для heartbeat")
                 return None
             
-            # Логируем входящий пакет с информацией о станции
-            log_packet(data, "INCOMING", connection.box_id or "unknown", "Heartbeat")
+            # Логирование входящего пакета происходит в server.py
             vsn = data[3]
-            response = build_heartbeat_response(connection.secret_key, vsn)
-            # Обновляем время последнего heartbeat
-            connection.update_heartbeat()
-            # Обновляем last_seen в базе данных
-            if connection.station_id:
-                try:
-                    station = await Station.get_by_id(self.db_pool, connection.station_id)
-                    if station:
-                        # Обновляем время последнего контакта (last_seen)
-                        await station.update_last_seen(self.db_pool)
-                        
-                        # Синхронизируем station_powerbank с текущим состоянием станции
-                        # Получаем текущие данные о повербанках в станции
-                        from models.station_powerbank import StationPowerbank
-                        current_powerbanks = await StationPowerbank.get_by_station(self.db_pool, connection.station_id)
-                        
-                        # Обновляем remain_num на основе реального количества повербанков
-                        actual_remain_num = station.slots_declared - len(current_powerbanks)
-                        if actual_remain_num != station.remain_num:
-                            await station.update_remain_num(self.db_pool, actual_remain_num)
-                            logger = get_logger('station_handler'); logger.info(f"Обновлен remain_num для станции {connection.box_id}: {station.remain_num} -> {actual_remain_num}")
-                        
-                        logger = get_logger('station_handler'); logger.info(f"Обновлен heartbeat для станции {connection.box_id} (ID: {connection.station_id})")
-                except Exception as db_error:
-                    self.logger.error(f"Ошибка: {e}")
             
-            logger = get_logger('station_handler'); logger.info(f"Heartbeat от станции {connection.box_id}")
+            # МОМЕНТАЛЬНЫЙ ОТВЕТ - генерируем ответ без задержек
+            response = build_heartbeat_response(connection.secret_key, vsn)
+            
+            # Обновляем время последнего heartbeat СРАЗУ
+            connection.update_heartbeat()
+            
+            # Асинхронно обновляем БД в фоне (не блокируем ответ)
+            if connection.station_id:
+                # Запускаем обновление БД в фоне, не ждем его завершения
+                asyncio.create_task(self._update_heartbeat_db_async(connection))
+            
+            # Логирование исходящего пакета происходит в server.py
             return response
             
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            self.logger.error(f"Ошибка обработки heartbeat: {e}")
             return None
+    
+    async def _update_heartbeat_db_async(self, connection: StationConnection):
+        """
+        Асинхронно обновляет БД для heartbeat (не блокирует ответ)
+        """
+        try:
+            # Проверяем, нужно ли обновлять БД (не чаще чем раз в 30 секунд)
+            from utils.time_utils import get_moscow_time
+            current_time = get_moscow_time()
+            if (not hasattr(connection, 'last_db_update') or 
+                connection.last_db_update is None or
+                (current_time - connection.last_db_update).total_seconds() > 30):
+                
+                station = await Station.get_by_id(self.db_pool, connection.station_id)
+                if station:
+                    # Обновляем время последнего контакта (last_seen)
+                    await station.update_last_seen(self.db_pool)
+                    
+                    # Синхронизируем station_powerbank с текущим состоянием станции
+                    from models.station_powerbank import StationPowerbank
+                    current_powerbanks = await StationPowerbank.get_by_station(self.db_pool, connection.station_id)
+                    
+                    # Обновляем remain_num на основе реального количества повербанков
+                    actual_remain_num = station.slots_declared - len(current_powerbanks)
+                    if actual_remain_num != station.remain_num:
+                        await station.update_remain_num(self.db_pool, actual_remain_num)
+                        logger = get_logger('station_handler'); logger.info(f"Обновлен remain_num для станции {connection.box_id}: {station.remain_num} -> {actual_remain_num}")
+                    
+                    logger = get_logger('station_handler'); logger.info(f"Обновлен heartbeat для станции {connection.box_id} (ID: {connection.station_id})")
+                    
+                    # Запоминаем время последнего обновления БД
+                    connection.last_db_update = current_time
+        except Exception as db_error:
+            self.logger.error(f"Ошибка обновления heartbeat в БД: {db_error}")
     
     async def _request_inventory_after_login(self, connection: StationConnection) -> None:
         """Запрашивает инвентарь после успешного логина"""
