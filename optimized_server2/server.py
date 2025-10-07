@@ -9,7 +9,7 @@ from typing import Optional
 import aiomysql
 from aiohttp import web
 
-from config.settings import SERVER_IP, TCP_PORT, HTTP_PORT, DB_CONFIG, CONNECTION_TIMEOUT, MAX_SUSPICIOUS_PACKETS, MAX_PACKET_SIZE
+from config.settings import SERVER_IP, TCP_PORT, HTTP_PORT, DB_CONFIG, CONNECTION_TIMEOUT, MAX_PACKET_SIZE
 from models.connection import ConnectionManager, StationConnection
 from models.station import Station
 from handlers.station_handler import StationHandler
@@ -25,11 +25,11 @@ from handlers.set_voice_volume import SetVoiceVolumeHandler
 from handlers.set_server_address import SetServerAddressHandler
 from handlers.query_server_address import QueryServerAddressHandler
 from http_server import HTTPServer
-from utils.packet_utils import parse_packet, validate_packet, log_suspicious_packet
+from utils.packet_utils import parse_packet
 from utils.station_resolver import StationResolver
 from utils.centralized_logger import get_logger, close_logger, get_logger_stats
 from utils.tcp_packet_logger import close_tcp_logger, get_tcp_logger_stats
-# from api.monitoring_api import MonitoringAPI  # Удален
+
 
 
 class OptimizedServer:
@@ -54,7 +54,6 @@ class OptimizedServer:
         self.query_server_address_handler: Optional[QueryServerAddressHandler] = None
         self.tcp_server: Optional[asyncio.Server] = None
         self.http_server: Optional[HTTPServer] = None
-        # self.monitoring_api: Optional[MonitoringAPI] = None  # Удален
         self.running = False
         
         # Статистика для мониторинга производительности heartbeat'ов
@@ -120,52 +119,28 @@ class OptimizedServer:
         
         try:
             while self.running:
-                # Читаем данные без таймаута - сервер ждет данные пока не выключится
+               
                 try:
-                    data = await reader.read(1024)
-                    if not data:
+                    # Читаем заголовок пакета (первые 2 байта - длина пакета)
+                    header = await reader.read(2)
+                    if not header:
                         print(f"Соединение закрыто клиентом {addr}")
                         break
+                    
+                    # Получаем длину пакета из заголовка (big-endian)
+                    packet_len = int.from_bytes(header, byteorder='big')
+                    
+                    
+                    # Читаем остальную часть пакета
+                    remaining_data = await reader.read(packet_len)
+                    
+                    # Собираем полный пакет
+                    data = header + remaining_data
                 except Exception as e:
                     print(f"Ошибка чтения данных от {addr}: {e}")
                     break
                 
-                # Базовая проверка размера пакета для всех соединений
-                if len(data) > MAX_PACKET_SIZE:
-                    print(f" Слишком большой пакет от {connection.addr}: {len(data)} байт (максимум {MAX_PACKET_SIZE})")
-                    log_suspicious_packet(data, connection, f"Пакет слишком большой: {len(data)} байт")
-                    continue
                 
-                # Проверяем пакет на подозрительность
-                if connection.station_status == "active":
-                    is_valid, error_message = validate_packet(data, connection)
-                    if not is_valid:
-                        # Логируем подозрительный пакет
-                        log_suspicious_packet(data, connection, error_message)
-                        
-                        # Увеличиваем счетчик подозрительных пакетов
-                        connection.increment_suspicious_packets()
-                        
-                        # Проверяем, не слишком ли много подозрительных пакетов
-                        if connection.is_too_suspicious(MAX_SUSPICIOUS_PACKETS):
-                            print(f" СТАНЦИЯ ЗАБЛОКИРОВАНА: {connection.box_id} ({connection.addr}) - слишком много подозрительных пакетов ({connection.suspicious_packets})")
-                            log_suspicious_packet(data, connection, f"СТАНЦИЯ ЗАБЛОКИРОВАНА - {connection.suspicious_packets} подозрительных пакетов")
-                            
-                            # Принудительно закрываем соединение
-                            try:
-                                if not writer.is_closing():
-                                    writer.close()
-                                    await writer.wait_closed()
-                            except Exception as close_error:
-                                self.logger.error(f"Ошибка: {e}")
-                            
-                            break  # Закрываем соединение
-                        
-                        print(f" Подозрительный пакет от {connection.box_id}: {error_message}")
-                        continue
-                    
-                    # Сбрасываем счетчик подозрительных пакетов при получении валидного пакета
-                    connection.reset_suspicious_packets()
                 
                 # Определяем команду
                 command = data[2]
@@ -201,33 +176,19 @@ class OptimizedServer:
                             break
                     
                     elif command == 0x61:  # Heartbeat
-                        # Обновляем статистику heartbeat'ов
-                        self.heartbeat_stats['total_processed'] += 1
-                        self.heartbeat_stats['current_per_second'] += 1
-                        
-                        # Засекаем время обработки
-                        import time
-                        start_time = time.time()
-                        
+                        # Простая обработка heartbeat - отвечаем сразу
                         response = await self.station_handler.handle_heartbeat(data, connection)
                         if response:
-                            # Отправляем ответ на heartbeat
-                            log_packet(response, "OUTGOING", connection.box_id or "unknown", "HeartbeatResponse")
-                            
                             try:
+                                self.logger.info(f"Отправляем heartbeat ответ станции {connection.box_id}: {response.hex()}")
                                 writer.write(response)
                                 await writer.drain()
-                                print(f"✅ ОТВЕТ ОТПРАВЛЕН: {connection.box_id} - heartbeat ответ доставлен")
-                            except Exception as send_error:
-                                print(f"❌ ОШИБКА ОТПРАВКИ: {connection.box_id} - {send_error}")
-                            
-                            # Логируем время обработки
-                            processing_time = (time.time() - start_time) * 1000  # в миллисекундах
-                            if processing_time > 10:  # Если обработка заняла больше 10мс
-                                print(f"МЕДЛЕННЫЙ HEARTBEAT: {connection.box_id} - {processing_time:.2f}мс")
-                            
-                            # Убираем response, чтобы он не попал в общий блок отправки
+                                self.logger.info(f"Heartbeat ответ успешно отправлен станции {connection.box_id}")
+                            except Exception as e:
+                                self.logger.error(f"Ошибка отправки heartbeat ответа: {e}")
                             response = None
+                        else:
+                            self.logger.warning(f"Heartbeat ответ не был создан для станции {connection.box_id}")
                     
                     elif command == 0x65:  # Borrow Power Bank
                         # Проверяем, это запрос или ответ
@@ -395,9 +356,7 @@ class OptimizedServer:
             self.http_server = HTTPServer()
             self.http_server.db_pool = self.db_pool
             
-            # Создаем API мониторинга - удален
-            # self.monitoring_api = MonitoringAPI(self.db_pool, self.connection_manager)
-            
+    
             # Запускаем TCP сервер
             self.tcp_server = await asyncio.start_server(
                 self.handle_client,
@@ -421,12 +380,7 @@ class OptimizedServer:
             ws_site = web.TCPSite(ws_runner, '0.0.0.0', 8001)
             await ws_site.start()
             
-            # Запускаем сервер мониторинга - удален
-            # monitoring_app = self.monitoring_api.create_app()
-            # monitoring_runner = web.AppRunner(monitoring_app)
-            # await monitoring_runner.setup()
-            # monitoring_site = web.TCPSite(monitoring_runner, '0.0.0.0', 8002)
-            # await monitoring_site.start()
+          
             
             self.running = True
             print(f"TCP сервер запущен на {SERVER_IP}:{TCP_PORT}")
@@ -487,7 +441,6 @@ class OptimizedServer:
                 
                 # Выводим статистику heartbeat'ов
                 if self.heartbeat_stats['total_processed'] > 0:
-                    print(f"Heartbeat статистика: всего {self.heartbeat_stats['total_processed']}, текущая скорость {self.heartbeat_stats['current_per_second']}/сек")
                     if self.heartbeat_stats['current_per_second'] > self.heartbeat_stats['max_per_second']:
                         self.heartbeat_stats['max_per_second'] = self.heartbeat_stats['current_per_second']
                     self.heartbeat_stats['current_per_second'] = 0
@@ -503,10 +456,6 @@ class OptimizedServer:
         print("Остановка серверов...")
         self.logger.info("Остановка серверов...")
         self.running = False
-        
-        # Останавливаем проактивный мониторинг - удален
-        # if self.monitoring_api:
-        #     await self.monitoring_api.stop_monitoring()
         
         # Деактивируем все станции перед закрытием
         await self._deactivate_all_stations()
@@ -564,7 +513,6 @@ class OptimizedServer:
             else:
                 print(" Активных станций не найдено")
             
-            # Дополнительно деактивируем все станции со статусом 'active' в БД
             await self._deactivate_all_active_stations_in_db()
                 
         except Exception as e:

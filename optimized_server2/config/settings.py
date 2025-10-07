@@ -62,5 +62,3 @@ NOTIFICATION_CONFIG = {
 }
 
 MAX_PACKET_SIZE = 1024  # Максимальный размер пакета в байтах
-PROTOCOL_COMMAND_RANGE = (0x60, 0x8F)  # Диапазон команд протокола
-MAX_SUSPICIOUS_PACKETS = 5  # Максимум подозрительных пакетов перед отключением

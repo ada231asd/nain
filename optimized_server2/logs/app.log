@@ -1,4 +1,0 @@
-2025-10-06 23:14:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
-2025-10-06 23:16:23 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
-2025-10-06 23:16:23 - server - ERROR - Ошибка: (1045, "Access denied for user 'appuser'@'localhost' (using password: YES)")
-2025-10-06 23:16:23 - server - INFO - Остановка серверов...

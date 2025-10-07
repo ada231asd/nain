@@ -6,9 +6,9 @@ import hashlib
 import random
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Tuple, Optional
-from config.settings import MAX_PACKET_SIZE, PROTOCOL_COMMAND_RANGE, MAX_SUSPICIOUS_PACKETS
+from config.settings import MAX_PACKET_SIZE
 
-# Импортируем централизованные функции времени
+
 from utils.time_utils import get_moscow_time, get_moscow_now
 
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
@@ -49,81 +49,6 @@ def log_packet_with_station(data: bytes, direction: str, station_box_id: str, co
     """Логирование пакета с информацией о станции"""
     log_packet(data, direction, station_box_id, command_name)
 
-def validate_packet(data: bytes, connection) -> Tuple[bool, str]:
-    """
-    Проверяет валидность пакета - базовая проверка структуры
-    """
-    try:
-        # Проверка размера пакета
-        if len(data) > MAX_PACKET_SIZE:
-            return False, f"Пакет слишком большой: {len(data)} байт (максимум {MAX_PACKET_SIZE})"
-        
-        if len(data) < 9:  # Минимум: 2(длина) + 1(команда) + 1(VSN) + 1(checksum) + 4(token)
-            return False, f"Пакет слишком короткий: {len(data)} байт (минимум 9)"
-        
-        # Проверка команды
-        command = data[2]
-        min_cmd, max_cmd = PROTOCOL_COMMAND_RANGE
-        if command < min_cmd or command > max_cmd:
-            return False, f"Недопустимая команда: 0x{command:02X} (вне диапазона 0x{min_cmd:02X}-0x{max_cmd:02X})"
-        
-        
-        packet_len = struct.unpack('>H', data[:2])[0]
-       
-       
-        if command == 0x64:  # QueryInventory
-            if abs(packet_len - len(data)) > 50:  
-                return False, f"Критичное несоответствие длины: заявлено {packet_len}, фактически {len(data)}"
-        else:
-            if abs(packet_len - len(data)) > 10:  
-                return False, f"Критичное несоответствие длины: заявлено {packet_len}, фактически {len(data)}"
-        
-  
-        if len(data) >= 9:
-            vsn = data[3]
-            checksum = data[4]
-            token = struct.unpack('>I', data[5:9])[0]
-            payload = data[9:] 
-            
-            
-            if vsn < 1 or vsn > 10:
-                return False, f"Подозрительный VSN: {vsn}"
-            
-            # Проверяем checksum для payload
-            if payload and len(payload) > 0:
-                computed_checksum = compute_checksum(payload)
-                if computed_checksum != checksum:
-                    return False, f"Неверный checksum: ожидался 0x{computed_checksum:02X}, получен 0x{checksum:02X}"
-            
-            # Проверяем токен (для Login команды токен может быть нулевым)
-            if token == 0 and command != 0x60:  # 0x60 = Login
-                return False, f"Нулевой токен: 0x{token:08X}"
-        
-        return True, ""
-        
-    except Exception as e:
-        return False, f"Ошибка валидации пакета: {e}"
-
-def log_suspicious_packet(data: bytes, connection, reason: str) -> None:
-    """Логирует подозрительный пакет"""
-    try:
-        from utils.tcp_packet_logger import log_tcp_error
-        
-        station_id = connection.box_id or "unknown"
-        hex_data = data.hex().upper()
-        
-        log_tcp_error(
-            station_id=station_id,
-            error_message=f"ПОДОЗРИТЕЛЬНЫЙ ПАКЕТ: {reason}",
-            packet_data=hex_data
-        )
-        
-        
-        log_packet(data, "SUSPICIOUS", station_id, f"SUSPICIOUS_{reason}")
-        
-    except Exception as e:
-        print(f"Ошибка логирования подозрительного пакета: {e}")
-
 
 def compute_checksum(payload_bytes: bytes) -> int:
     """Вычисляет контрольную сумму"""
@@ -132,19 +57,10 @@ def compute_checksum(payload_bytes: bytes) -> int:
         checksum ^= b
     return checksum
 
-def generate_token(payload: bytes, secret_key: str) -> bytes:
-  
-    import hashlib  
-    combined = payload + secret_key.encode('utf-8')
-    md5_hash = hashlib.md5(combined).digest()
-    token = bytes([
-        md5_hash[15],  
-        md5_hash[11],  
-        md5_hash[7],   
-        md5_hash[3]    
-    ])
-    
-    return token
+def generate_session_token(payload: bytes, secret_key: bytes) -> int:
+    """Генерирует session token из payload и secret_key"""
+    md5 = hashlib.md5(payload + secret_key).digest()
+    return md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
 
 
 def parse_terminal_id(bytes8: bytes) -> str:
@@ -171,12 +87,17 @@ def parse_login_packet(data: bytes) -> Dict[str, Any]:
         if magic != 0xA0A0:
             raise ValueError(f"Magic неверный: {hex(magic)}")
 
-        payload_bytes = data[header_size - 8:]
-        if compute_checksum(payload_bytes) != checksum:
-            raise ValueError("Неверный checksum")
+        # Payload начинается с header_size - 8 (как в рабочем сервере)
+        payload = data[header_size - 8:]
+        
+        # Убираем проверку checksum согласно требованию
+        # if compute_checksum(payload) != checksum:
+        #     raise ValueError("Неверный checksum")
 
         boxid_start = header_size
         boxid_end = boxid_start + boxid_len
+        if boxid_end > len(data):
+            raise ValueError("BoxID выходит за границы пакета")
         boxid = data[boxid_start:boxid_end].rstrip(b'\x00').decode('ascii')
 
         timestamp, slots_num, remain_num = struct.unpack(">I B B", data[boxid_end:boxid_end + 6])
@@ -252,44 +173,41 @@ def build_login_response(vsn: int, nonce: int, secret_key: bytes) -> Tuple[bytes
     new_nonce = random.randint(0, 0xffffffff)
     payload = struct.pack(">BII", result, new_nonce, timestamp)
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    session_token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    session_token = generate_session_token(payload, secret_key)
     packet_len = 7 + len(payload)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, session_token)
     return header + payload, session_token
 
 
-def build_heartbeat_response(secret_key: bytes, vsn: int = 1) -> bytes:
+def build_heartbeat_response(secret_key: bytes, vsn: int = 1, station_id: str = "unknown") -> bytes:
     """Создает ответ на heartbeat"""
-    command = 0x61
-    packet_len = 7
-    checksum = 0
-    payload = b''  # Для heartbeat payload пустой
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
-    header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
-    packet = header
-    
-    # Проверяем валидность созданного пакета
-    if len(packet) != 7:
-        print(f"❌ ОШИБКА: HeartbeatResponse имеет неправильную длину: {len(packet)} байт")
-    
-    if packet[2] != 0x61:
-        print(f"❌ ОШИБКА: HeartbeatResponse имеет неправильную команду: 0x{packet[2]:02X}")
-    
-    return packet
+    try:
+        command = 0x61
+        packet_len = 7  # Длина данных без учета самого PacketLen (Command + VSN + CheckSum + Token)
+        checksum = 0
+        payload = b''  # Для heartbeat payload пустой
+        token = generate_session_token(payload, secret_key)
+        
+        # Создаем пакет: PacketLen(2) + Command(1) + VSN(1) + CheckSum(1) + Token(4) = 9 байт общая длина
+        packet = struct.pack(">HBBBL", packet_len, command, vsn, checksum, token)
+        
+        # Логируем пакет
+        log_packet(packet, "OUTGOING", station_id, "HeartbeatResponse")
+        
+        return packet
+    except Exception as e:
+        print(f"Ошибка создания heartbeat response: {e}")
+        return b''
 def build_borrow_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
     command = 0x65
     packet_len = 8
     payload = struct.pack(">B", slot)
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -299,13 +217,11 @@ def build_return_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
     packet_len = 8
     payload = struct.pack(">B", slot)
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -316,8 +232,7 @@ def build_return_power_bank_response(slot: int, result: int, terminal_id: bytes,
     header = struct.pack(">HBBBL", len(payload)+7, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -518,13 +433,10 @@ def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
     packet_len = 8
     payload = struct.pack(">B", slot)
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-   
-    # Логирование происходит в server.py
     
     return packet
 
@@ -539,13 +451,11 @@ def build_query_iccid_request(secret_key: bytes, vsn: int = 1) -> bytes:
     packet_len = 7  
     payload = b''  
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -651,8 +561,7 @@ def build_slot_abnormal_report_response(secret_key: bytes, vsn: int = 1) -> byte
     packet_len = 7 
     payload = b''  
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     return header + payload
 
@@ -740,10 +649,6 @@ def parse_heartbeat_packet(data: bytes) -> Dict[str, Any]:
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])  
         
         
-        payload = b''
-        if compute_checksum(payload) != checksum:
-            raise ValueError("Неверный checksum")
-        
         return {
             "Type": "Heartbeat",
             "PacketLen": packet_len,
@@ -773,8 +678,6 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])#2+1+1+1+4=9
         
-        if command != 0x80:
-            raise ValueError(f"Неверная команда: {hex(command)}")
         
         
         result = {
@@ -834,13 +737,11 @@ def build_restart_cabinet_request(secret_key: bytes, vsn: int = 1) -> bytes:
     packet_len = 7 
     payload = b''  
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -896,8 +797,7 @@ def build_query_inventory_request(secret_key: bytes, vsn: int = 1, station_box_i
     header = struct.pack(">HBBB", packet_len, command, vsn, checksum) + token_bytes
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -995,13 +895,11 @@ def build_query_voice_volume_request(secret_key: bytes, vsn: int = 1) -> bytes:
     packet_len = 7 
     payload = b''  
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -1055,13 +953,11 @@ def build_set_voice_volume_request(secret_key: bytes, volume_level: int, vsn: in
     packet_len = 8 
     payload = struct.pack(">B", volume_level)  
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -1126,15 +1022,13 @@ def build_set_server_address_request(secret_key: bytes, server_address: str, ser
     
     # Вычисляем checksum и token
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     
    
     header = struct.pack(">HBBBI", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 
@@ -1185,13 +1079,11 @@ def build_query_server_address_request(secret_key: bytes, vsn: int = 1) -> bytes
     packet_len = 7 
     payload = b''  
     checksum = compute_checksum(payload)
-    md5 = hashlib.md5(payload + secret_key).digest()
-    token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    token = generate_session_token(payload, secret_key)
     header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, token)
     packet = header + payload
     
-    # Логируем пакет
-    # Логирование происходит в server.py
+    
     
     return packet
 

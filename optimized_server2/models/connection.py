@@ -24,7 +24,6 @@ class StationConnection:
         self.secret_key: Optional[bytes] = None
         self.station_status = "pending"
         self.borrow_sent = False
-        self.suspicious_packets = 0  # Счетчик подозрительных пакетов
         self.inventory_requested = False  # Флаг запроса инвентаря при логине
         self.connected_at = get_moscow_time()  # Время подключения
         self.last_db_update = None  # Время последнего обновления БД
@@ -46,15 +45,6 @@ class StationConnection:
     def update_heartbeat(self):
         """Обновляет время последнего heartbeat"""
         current_time = get_moscow_time()
-        
-        # Проверяем пропуски heartbeat'ов
-        if self.last_heartbeat:
-            time_since_last = (current_time - self.last_heartbeat).total_seconds()
-            if time_since_last > 30:
-                print(f"ПРОПУСК HEARTBEAT: Станция {self.box_id} - пропуск {time_since_last:.1f} секунд")
-            elif time_since_last > 60:
-                print(f"КРИТИЧЕСКИЙ ПРОПУСК: Станция {self.box_id} - пропуск {time_since_last:.1f} секунд")
-        
         self.last_heartbeat = current_time
         self.last_seen = current_time
     
@@ -69,17 +59,6 @@ class StationConnection:
         self.last_db_update = None  # Сбрасываем время последнего обновления БД
         self.update_heartbeat()
     
-    def increment_suspicious_packets(self):
-        """Увеличивает счетчик подозрительных пакетов"""
-        self.suspicious_packets += 1
-    
-    def reset_suspicious_packets(self):
-        """Сбрасывает счетчик подозрительных пакетов"""
-        self.suspicious_packets = 0
-    
-    def is_too_suspicious(self, max_packets: int) -> bool:
-        """Проверяет, не слишком ли много подозрительных пакетов"""
-        return self.suspicious_packets >= max_packets
 
 
 class ConnectionManager:

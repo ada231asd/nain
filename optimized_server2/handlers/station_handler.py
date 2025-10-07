@@ -32,6 +32,12 @@ class StationHandler:
             
             # Парсим пакет логина
             packet = parse_login_packet(data)
+            
+            # Проверяем, есть ли ошибка парсинга
+            if "Error" in packet:
+                self.logger.error(f"Ошибка парсинга Login пакета: {packet['Error']}")
+                return None
+            
             logger = get_logger('station_handler'); logger.info(f"Обработан Login пакет: BoxID={packet['BoxID']}")
             
             # Получаем или создаем станцию
@@ -108,30 +114,31 @@ class StationHandler:
             return None
     
     async def handle_heartbeat(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
-        """
-        Обрабатывает heartbeat от станции - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
-        Возвращает ответный пакет моментально для быстрой обработки множества станций
-        """
+        """Обрабатывает heartbeat пакет"""
         try:
+            self.logger.info(f"Получен heartbeat от {connection.addr}, box_id: {connection.box_id}")
+            
+            # Проверяем, что соединение авторизовано
             if not connection.secret_key:
-                logger = get_logger('station_handler'); logger.warning("Нет секретного ключа для heartbeat")
+                self.logger.warning(f"Heartbeat от неавторизованного соединения {connection.addr}")
                 return None
             
-            # Логирование входящего пакета происходит в server.py
+            # Получаем VSN из пакета
             vsn = data[3]
+            self.logger.info(f"VSN из heartbeat: {vsn}")
             
-            # МОМЕНТАЛЬНЫЙ ОТВЕТ - генерируем ответ без задержек
-            response = build_heartbeat_response(connection.secret_key, vsn)
+            # Генерируем ответ
+            response = build_heartbeat_response(connection.secret_key, vsn, connection.box_id or "unknown")
+            self.logger.info(f"Сгенерирован heartbeat ответ: {response.hex() if response else 'None'}")
             
-            # Обновляем время последнего heartbeat СРАЗУ
+            if not response:
+                self.logger.error("Heartbeat response не был создан!")
+                return None
+            
+            # Обновляем время последнего heartbeat
             connection.update_heartbeat()
             
-            # Асинхронно обновляем БД в фоне (не блокируем ответ)
-            if connection.station_id:
-                # Запускаем обновление БД в фоне, не ждем его завершения
-                asyncio.create_task(self._update_heartbeat_db_async(connection))
-            
-            # Логирование исходящего пакета происходит в server.py
+            self.logger.info(f"Heartbeat ответ готов к отправке: {len(response)} байт")
             return response
             
         except Exception as e:
