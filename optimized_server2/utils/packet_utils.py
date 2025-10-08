@@ -57,10 +57,16 @@ def compute_checksum(payload_bytes: bytes) -> int:
         checksum ^= b
     return checksum
 
-def generate_session_token(payload: bytes, secret_key: bytes) -> int:
-    """Генерирует session token из payload и secret_key"""
-    md5 = hashlib.md5(payload + secret_key).digest()
-    return md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+def generate_session_token(payload: bytes, secret_key: str) -> int:
+    """Генерирует session token из payload и secret_key (строка из БД)"""
+    # Преобразуем secret_key в bytes
+    secret_key_bytes = secret_key.encode('utf-8')
+    
+
+    md5 = hashlib.md5(payload + secret_key_bytes).digest()
+    session_token = md5[3] + md5[7]*256 + md5[11]*65536 + md5[15]*16777216
+    
+    return session_token
 
 
 def parse_terminal_id(bytes8: bytes) -> str:
@@ -165,7 +171,7 @@ def parse_login_packet(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_login_response(vsn: int, nonce: int, secret_key: bytes) -> Tuple[bytes, int]:
+def build_login_response(vsn: int, nonce: int, secret_key: str) -> Tuple[bytes, int]:
     """Создает ответ на логин"""
     command = 0x60
     result = 1
@@ -175,11 +181,11 @@ def build_login_response(vsn: int, nonce: int, secret_key: bytes) -> Tuple[bytes
     checksum = compute_checksum(payload)
     session_token = generate_session_token(payload, secret_key)
     packet_len = 7 + len(payload)
-    header = struct.pack(">hBBBL", packet_len, command, vsn, checksum, session_token)
+    header = struct.pack(">HBBBI", packet_len, command, vsn, checksum, session_token)
     return header + payload, session_token
 
 
-def build_heartbeat_response(secret_key: bytes, vsn: int = 1, station_id: str = "unknown") -> bytes:
+def build_heartbeat_response(secret_key: str, vsn: int = 1, station_id: str = "unknown") -> bytes:
     """Создает ответ на heartbeat"""
     try:
         command = 0x61
@@ -189,7 +195,7 @@ def build_heartbeat_response(secret_key: bytes, vsn: int = 1, station_id: str = 
         token = generate_session_token(payload, secret_key)
         
         # Создаем пакет: PacketLen(2) + Command(1) + VSN(1) + CheckSum(1) + Token(4) = 9 байт общая длина
-        packet = struct.pack(">HBBBL", packet_len, command, vsn, checksum, token)
+        packet = struct.pack(">HBBBI", packet_len, command, vsn, checksum, token)
         
         # Логируем пакет
         log_packet(packet, "OUTGOING", station_id, "HeartbeatResponse")
@@ -198,7 +204,7 @@ def build_heartbeat_response(secret_key: bytes, vsn: int = 1, station_id: str = 
     except Exception as e:
         print(f"Ошибка создания heartbeat response: {e}")
         return b''
-def build_borrow_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
+def build_borrow_power_bank(secret_key: str, slot: int = 1, vsn: int = 1):
     command = 0x65
     packet_len = 8
     payload = struct.pack(">B", slot)
@@ -211,7 +217,7 @@ def build_borrow_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
     
     return packet
 
-def build_return_power_bank(secret_key: bytes, slot: int = 1, vsn: int = 1):
+def build_return_power_bank(secret_key: str, slot: int = 1, vsn: int = 1):
     """Создает команду на возврат повербанка (команда 0x66)"""
     command = 0x66
     packet_len = 8
@@ -428,7 +434,7 @@ def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
 
 
 
-def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
+def build_force_eject_request(secret_key: str, slot: int, vsn: int = 1):
     command = 0x80
     packet_len = 8
     payload = struct.pack(">B", slot)
@@ -445,7 +451,7 @@ def build_force_eject_request(secret_key: bytes, slot: int, vsn: int = 1):
 
 
 
-def build_query_iccid_request(secret_key: bytes, vsn: int = 1) -> bytes:
+def build_query_iccid_request(secret_key: str, vsn: int = 1) -> bytes:
     """Создает запрос на получение ICCID SIM карты (команда 0x69)"""
     command = 0x69
     packet_len = 7  
@@ -555,7 +561,7 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
     }
 
 
-def build_slot_abnormal_report_response(secret_key: bytes, vsn: int = 1) -> bytes:
+def build_slot_abnormal_report_response(secret_key: str, vsn: int = 1) -> bytes:
     """Создает ответ на отчет об аномалии слота (команда 0x83)"""
     command = 0x83
     packet_len = 7 
@@ -731,7 +737,7 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_restart_cabinet_request(secret_key: bytes, vsn: int = 1) -> bytes:
+def build_restart_cabinet_request(secret_key: str, vsn: int = 1) -> bytes:
     """Создает запрос на перезагрузку кабинета (команда 0x67)"""
     command = 0x67
     packet_len = 7 
@@ -786,7 +792,7 @@ def parse_restart_cabinet_response(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_query_inventory_request(secret_key: bytes, vsn: int = 1, station_box_id: str = "unknown") -> bytes:
+def build_query_inventory_request(secret_key: str, vsn: int = 1, station_box_id: str = "unknown") -> bytes:
     """Создает запрос на получение инвентаря кабинета (команда 0x64)"""
     command = 0x64
     packet_len = 7 
@@ -889,7 +895,7 @@ def parse_query_inventory_response(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_query_voice_volume_request(secret_key: bytes, vsn: int = 1) -> bytes:
+def build_query_voice_volume_request(secret_key: str, vsn: int = 1) -> bytes:
     """Создает запрос на получение уровня громкости голосового вещания (команда 0x77)"""
     command = 0x77
     packet_len = 7 
@@ -947,7 +953,7 @@ def parse_query_voice_volume_response(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_set_voice_volume_request(secret_key: bytes, volume_level: int, vsn: int = 1) -> bytes:
+def build_set_voice_volume_request(secret_key: str, volume_level: int, vsn: int = 1) -> bytes:
     """Создает запрос на установку уровня громкости голосового вещания (команда 0x70)"""
     command = 0x70
     packet_len = 8 
@@ -1002,7 +1008,7 @@ def parse_set_voice_volume_response(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_set_server_address_request(secret_key: bytes, server_address: str, server_port: str, heartbeat_interval: int = 30, vsn: int = 1) -> bytes:
+def build_set_server_address_request(secret_key: str, server_address: str, server_port: str, heartbeat_interval: int = 30, vsn: int = 1) -> bytes:
     """Создает запрос на установку адреса сервера (команда 0x63)"""
     command = 0x63
     
@@ -1073,7 +1079,7 @@ def parse_set_server_address_response(data: bytes) -> Dict[str, Any]:
         }
 
 
-def build_query_server_address_request(secret_key: bytes, vsn: int = 1) -> bytes:
+def build_query_server_address_request(secret_key: str, vsn: int = 1) -> bytes:
     """Создает запрос на получение адреса сервера (команда 0x6A)"""
     command = 0x6A
     packet_len = 7 

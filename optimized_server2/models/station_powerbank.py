@@ -306,13 +306,13 @@ class StationPowerbank:
                         await cur.execute("""
                             INSERT INTO station_powerbank 
                             (station_id, powerbank_id, slot_number, level, voltage, temperature, last_update)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s) AS new_values
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                             ON DUPLICATE KEY UPDATE
-                            powerbank_id = new_values.powerbank_id,
-                            level = new_values.level,
-                            voltage = new_values.voltage,
-                            temperature = new_values.temperature,
-                            last_update = new_values.last_update
+                            powerbank_id = VALUES(powerbank_id),
+                            level = VALUES(level),
+                            voltage = VALUES(voltage),
+                            temperature = VALUES(temperature),
+                            last_update = VALUES(last_update)
                         """, (
                             station_id,
                             powerbank_id,

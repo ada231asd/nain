@@ -6,7 +6,11 @@ from typing import Dict, Any
 
 # Настройки сервера
 SERVER_IP = "0.0.0.0"
-TCP_PORT = 9066
+
+
+TCP_PORTS_ENV = os.getenv("TCP_PORTS", "9066,10001")
+TCP_PORTS = [int(port.strip()) for port in TCP_PORTS_ENV.split(",") if port.strip()]
+
 HTTP_PORT = 8000
 
 # Настройки базы данных
@@ -18,6 +22,8 @@ DB_CONFIG = {
     "db": "zaryd",
     "autocommit": True
 }
+
+
 
 
 

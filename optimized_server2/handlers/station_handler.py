@@ -123,11 +123,35 @@ class StationHandler:
                 self.logger.warning(f"Heartbeat от неавторизованного соединения {connection.addr}")
                 return None
             
+            # ВАЖНО: Валидируем токен в heartbeat пакете согласно протоколу
+            if len(data) >= 9:  # Минимальная длина heartbeat пакета
+                received_token = data[5:9]  # Токен находится в байтах 5-8
+                payload = b''  # Для heartbeat payload пустой
+                
+                # Вычисляем ожидаемый токен
+                import hashlib
+                md5_hash = hashlib.md5(payload + connection.secret_key.encode()).digest()
+                expected_token = bytes([
+                    md5_hash[15],  # 16-я позиция
+                    md5_hash[11],  # 12-я позиция  
+                    md5_hash[7],   # 8-я позиция
+                    md5_hash[3]    # 4-я позиция
+                ])
+                
+                if received_token != expected_token:
+                    self.logger.warning(f"Неверный токен в heartbeat от {connection.box_id}: получено {received_token.hex()}, ожидалось {expected_token.hex()}")
+                    return None
+                
+                self.logger.info(f"Токен в heartbeat валиден для станции {connection.box_id}")
+            else:
+                self.logger.warning(f"Слишком короткий heartbeat пакет от {connection.box_id}: {len(data)} байт")
+                return None
+            
             # Получаем VSN из пакета
             vsn = data[3]
             self.logger.info(f"VSN из heartbeat: {vsn}")
             
-            # Генерируем ответ
+            # Генерируем ответ с новым токеном
             response = build_heartbeat_response(connection.secret_key, vsn, connection.box_id or "unknown")
             self.logger.info(f"Сгенерирован heartbeat ответ: {response.hex() if response else 'None'}")
             

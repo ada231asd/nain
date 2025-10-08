@@ -108,7 +108,7 @@ class Station:
                 await cur.execute("SELECT key_value FROM station_secret_key WHERE station_id=%s", 
                                 (station_data["station_id"],))
                 key_row = await cur.fetchone()
-                secret_key = key_row["key_value"].encode() if key_row else None
+                secret_key = key_row["key_value"] if key_row else None
                 
                 station = cls(
                     station_id=int(station_data["station_id"]),
