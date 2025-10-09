@@ -62,7 +62,7 @@ class Station:
                         remain_num=int(station_data["remain_num"]),
                         status=str(station_data["status"]),
                         org_unit_id=int(station_data["org_unit_id"]),
-                        iccid=station_data.get("iccid"),
+                        iccid=station_data.get("iccid").rstrip('\x00') if station_data.get("iccid") else None,
                         address_id=station_data.get("address_id"),
                         last_seen=normalize_datetime_to_moscow(station_data.get("last_seen")),
                         created_at=normalize_datetime_to_moscow(station_data.get("created_at")),
@@ -190,7 +190,7 @@ class Station:
                     stations.append(cls(
                         station_id=int(result[0]),
                         box_id=str(result[1]),
-                        iccid=str(result[2]) if result[2] else None,
+                        iccid=str(result[2]).rstrip('\x00') if result[2] else None,
                         slots_declared=int(result[3]) if result[3] else 0,
                         remain_num=int(result[4]) if result[4] else 0,
                         status=str(result[5]),
@@ -220,7 +220,7 @@ class Station:
                     stations.append(cls(
                         station_id=int(result[0]),
                         box_id=str(result[1]),
-                        iccid=str(result[2]) if result[2] else None,
+                        iccid=str(result[2]).rstrip('\x00') if result[2] else None,
                         slots_declared=int(result[3]) if result[3] else 0,
                         remain_num=int(result[4]) if result[4] else 0,
                         status=str(result[5]),

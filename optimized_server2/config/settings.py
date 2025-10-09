@@ -17,9 +17,9 @@ HTTP_PORT = 8000
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "appuser",
-    "password": "MyPassw0rd!",
-    "db": "zaryd",
+    "user": "root",
+    "password": "",
+    "db": "DB",
     "autocommit": True
 }
 
@@ -50,7 +50,7 @@ PASSWORD_HASH_ROUNDS = 12  # Для bcrypt
 # Настройки уведомлений
 NOTIFICATION_CONFIG = {
     "smtp": {
-        "enabled": os.getenv("SMTP_ENABLED", "true").lower() == "true",  # Можно отключить через переменную окружения
+        "enabled": os.getenv("SMTP_ENABLED", "true").lower() == "true",  
         "host": "smtp.mail.ru",
         "port": 587,
         "use_tls": True,

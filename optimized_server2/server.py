@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import signal
 import sys
+import platform
 from typing import Optional
 
 import aiomysql
@@ -506,12 +507,20 @@ class OptimizedServer:
             # Запускаем TCP серверы на всех указанных портах
             print(f"Запуск TCP серверов на портах: {TCP_PORTS}")
             for port in TCP_PORTS:
+                # Определяем параметры для TCP сервера в зависимости от ОС
+                server_kwargs = {
+                    'reuse_address': True
+                }
+                
+                # reuse_port поддерживается только в Linux
+                if platform.system() == 'Linux':
+                    server_kwargs['reuse_port'] = True
+                
                 server = await asyncio.start_server(
                     self.handle_client,
                     SERVER_IP,
                     port,
-                    reuse_address=True,
-                    reuse_port=True
+                    **server_kwargs
                 )
                 self.tcp_servers.append(server)
                 print(f"TCP сервер запущен на {SERVER_IP}:{port}")

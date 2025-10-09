@@ -103,54 +103,37 @@ def send_additional_packet(socket_conn, packet, packet_name):
         print(f"[{datetime.now()}] Ошибка при отправке {packet_name}: {e}")
         return False
 
-# Основной цикл с автоматическим переподключением
-logged_in = False
-login_attempts = 0
-connection_attempts = 0
-heartbeat_count = 0  # Счетчик отправленных heartbeat'ов
-s = None
-
-try:
-    while True:
-        # Проверяем соединение и переподключаемся если нужно
+# Основной цикл работы эмулятора
+def main():
+    """Основная функция эмулятора станции"""
+    s = None
+    heartbeat_count = 0
+    
+    try:
+        # Подключаемся к серверу
+        print(f"[{datetime.now()}] Подключение к серверу...")
+        s = create_connection()
         if s is None:
-            connection_attempts += 1
-            print(f"[{datetime.now()}] Попытка подключения #{connection_attempts}")
-            s = create_connection()
-            if s is None:
-                print(f"[{datetime.now()}] Не удалось подключиться. Повтор через 10 секунд...")
-                time.sleep(10)
-                continue
-            else:
-                # Сбрасываем состояние при новом подключении
-                logged_in = False
-                login_attempts = 0
-                heartbeat_count = 0
-
-        # Основная логика работы
-        try:
-            if not logged_in:
-                # Попытка логина
-                login_attempts += 1
-                print(f"[{datetime.now()}] Попытка логина #{login_attempts}")
-                
-                if attempt_login(s):
-                    logged_in = True
-                    print(f"[{datetime.now()}] Логин успешен!")
-                else:
-                    print(f"[{datetime.now()}] Логин неудачен. Повтор через 20 секунд...")
-                    time.sleep(20)
-                    continue
-            else:
-                # Отправка heartbeat каждые 30 секунд
+            print(f"[{datetime.now()}] Не удалось подключиться к серверу")
+            return
+        
+        # Отправляем логин один раз
+        print(f"[{datetime.now()}] Отправка логина...")
+        if not attempt_login(s):
+            print(f"[{datetime.now()}] Логин неудачен")
+            s.close()
+            return
+        
+        print(f"[{datetime.now()}] Логин успешен! Начинаем отправку heartbeat пакетов...")
+        
+        # Основной цикл - отправляем heartbeat каждые 30 секунд
+        while True:
+            try:
+                # Отправляем heartbeat
                 if not send_heartbeat(s):
-                    # Если heartbeat не удался, соединение разорвано
-                    print(f"[{datetime.now()}] Соединение разорвано. Переподключение...")
-                    s.close()
-                    s = None
-                    continue
+                    print(f"[{datetime.now()}] Ошибка отправки heartbeat. Соединение разорвано.")
+                    break
                 
-                # Увеличиваем счетчик heartbeat'ов
                 heartbeat_count += 1
                 print(f"[{datetime.now()}] Heartbeat #{heartbeat_count} отправлен")
                 
@@ -169,16 +152,18 @@ try:
                 print(f"[{datetime.now()}] Ожидание 30 секунд до следующего heartbeat...")
                 time.sleep(30)
                 
-        except Exception as e:
-            print(f"[{datetime.now()}] Ошибка в основном цикле: {e}")
-            if s:
-                s.close()
-                s = None
-            print(f"[{datetime.now()}] Переподключение через 5 секунд...")
-            time.sleep(5)
-            continue
+            except Exception as e:
+                print(f"[{datetime.now()}] Ошибка в цикле heartbeat: {e}")
+                break
                 
-except KeyboardInterrupt:
-    print("Клиент завершен пользователем")
-    if s:
-        s.close()
+    except KeyboardInterrupt:
+        print(f"[{datetime.now()}] Эмулятор завершен пользователем")
+    except Exception as e:
+        print(f"[{datetime.now()}] Критическая ошибка: {e}")
+    finally:
+        if s:
+            s.close()
+            print(f"[{datetime.now()}] Соединение закрыто")
+
+if __name__ == "__main__":
+    main()

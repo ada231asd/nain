@@ -19,6 +19,9 @@ def convert_datetime_to_string(obj: Any) -> Any:
         return obj.isoformat()
     elif isinstance(obj, Decimal):
         return float(obj)
+    elif isinstance(obj, str):
+        # Удаляем нулевые байты из строк
+        return obj.rstrip('\x00')
     elif isinstance(obj, dict):
         return {key: convert_datetime_to_string(value) for key, value in obj.items()}
     elif isinstance(obj, list):

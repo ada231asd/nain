@@ -20,3 +20,4 @@ optimized_server2/config/settings.py/
 /logs/**/**/**/**/*
 /logs/**/**/**/**/**/*
 /zaryd.sql
+/parsed_packets.json

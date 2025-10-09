@@ -101,11 +101,20 @@ class BorrowPowerbankHandler:
             
             # Ищем соответствующий pending request
             pending_order_id = None
+            print(f"Ищем pending request для station_id={station_id}, slot_number={slot_number}")
+            print(f"Всего pending requests: {len(self.pending_requests)}")
             for order_id, request_info in self.pending_requests.items():
+                print(f"  Order {order_id}: station_id={request_info['station_id']}, slot_number={request_info['slot_number']}")
                 if (request_info['station_id'] == station_id and 
                     request_info['slot_number'] == slot_number):
                     pending_order_id = order_id
+                    print(f"Найден соответствующий pending request: {order_id}")
                     break
+            
+            if pending_order_id is None:
+                print(f"❌ Pending request НЕ НАЙДЕН для station_id={station_id}, slot_number={slot_number}")
+            else:
+                print(f"✅ Pending request найден: {pending_order_id}")
             
             # Проверяем успешность ответа
             if success:
@@ -298,6 +307,7 @@ class BorrowPowerbankHandler:
                 'powerbank_id': powerbank_id,
                 'user_id': user_id
             }
+            print(f"✅ Создан pending request: order_id={order_id}, station_id={station_id}, slot_number={slot_number}")
             
             # Создаем команду на выдачу повербанка
             borrow_command = build_borrow_power_bank(
