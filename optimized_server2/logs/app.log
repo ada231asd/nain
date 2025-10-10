@@ -1,0 +1,43 @@
+2025-10-10 12:24:37 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-10 12:25:42 - station_handler - INFO - Обработан Login пакет: BoxID=DCHEY02504000019
+2025-10-10 12:25:42 - station_handler - INFO - ICCID уже есть у станции DCHEY02504000019: 89852240400009714602
+2025-10-10 12:25:42 - station_handler - INFO - Станция DCHEY02504000019 успешно авторизована и обновлена в БД
+2025-10-10 12:25:42 - station_handler - INFO - Обработан Login пакет: BoxID=DCHEY02504000018
+2025-10-10 12:25:42 - station_handler - INFO - ICCID уже есть у станции DCHEY02504000018: 897010260115993765FF
+2025-10-10 12:25:42 - station_handler - INFO - Станция DCHEY02504000018 успешно авторизована и обновлена в БД
+2025-10-10 12:26:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:26:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:26:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:26:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:27:12 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:12 +0000] "GET /api/auth/profile HTTP/1.1" 401 537 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:12 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:12 +0000] "GET /api/auth/profile HTTP/1.1" 401 537 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:12 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:12 +0000] "GET /api/auth/profile HTTP/1.1" 401 537 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:27:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:27:13 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:13 +0000] "POST /api/auth/login HTTP/1.1" 200 1055 "https://redmine.primetech.ru:8443/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:13 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:13 +0000] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 592 "https://redmine.primetech.ru:8443/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:13 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:13 +0000] "GET /api/stations/13 HTTP/1.1" 200 727 "https://redmine.primetech.ru:8443/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:13 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:13 +0000] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "https://redmine.primetech.ru:8443/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:19 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:19 +0000] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:19 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:19 +0000] "GET /api/users?limit=10000 HTTP/1.1" 200 2820 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:19 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:19 +0000] "GET /api/stations?limit=10000 HTTP/1.1" 200 1111 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:19 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:19 +0000] "GET /api/orders?limit=10000 HTTP/1.1" 200 8661 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:20 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:20 +0000] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:20 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:20 +0000] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:20 - aiohttp.access - INFO - 127.0.0.1 [10/Oct/2025:12:27:20 +0000] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "https://redmine.primetech.ru:8443/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-10 12:27:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:27:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:28:08 - server - ERROR - Ошибка валидации пакета: index out of range
+2025-10-10 12:28:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:28:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:28:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:28:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:29:11 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:29:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:29:41 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:29:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:30:11 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:30:12 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
+2025-10-10 12:30:37 - server - INFO - Очищено 1 неактивных соединений
+2025-10-10 12:30:41 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 49796), box_id: DCHEY02504000019
+2025-10-10 12:30:42 - station_handler - INFO - Получен heartbeat от ('192.168.0.1', 43196), box_id: DCHEY02504000018
