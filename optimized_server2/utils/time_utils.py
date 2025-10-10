@@ -12,9 +12,6 @@ MOSCOW_TZ = timezone(timedelta(hours=3))
 def get_moscow_time() -> datetime:
     """
     Возвращает текущее московское время (UTC+3)
-    
-    Returns:
-        datetime: Текущее время в московской временной зоне
     """
     return datetime.now(MOSCOW_TZ)
 
@@ -22,9 +19,7 @@ def get_moscow_time() -> datetime:
 def get_moscow_now() -> datetime:
     """
     Алиас для get_moscow_time() для обратной совместимости
-    
-    Returns:
-        datetime: Текущее время в московской временной зоне
+
     """
     return get_moscow_time()
 
@@ -32,9 +27,7 @@ def get_moscow_now() -> datetime:
 def moscow_timestamp() -> float:
     """
     Возвращает timestamp московского времени
-    
-    Returns:
-        float: Unix timestamp в московском времени
+
     """
     return get_moscow_time().timestamp()
 
@@ -42,13 +35,7 @@ def moscow_timestamp() -> float:
 def format_moscow_time(dt: Optional[datetime] = None, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
     """
     Форматирует московское время в строку
-    
-    Args:
-        dt: Объект datetime (если None, используется текущее время)
-        format_str: Формат строки (по умолчанию "%Y-%m-%d %H:%M:%S")
-        
-    Returns:
-        str: Отформатированная строка времени
+
     """
     if dt is None:
         dt = get_moscow_time()
@@ -65,12 +52,7 @@ def format_moscow_time(dt: Optional[datetime] = None, format_str: str = "%Y-%m-%
 def format_moscow_time_with_microseconds(dt: Optional[datetime] = None) -> str:
     """
     Форматирует московское время с микросекундами для логирования
-    
-    Args:
-        dt: Объект datetime (если None, используется текущее время)
-        
-    Returns:
-        str: Время в формате "YYYY-MM-DD HH:MM:SS.mmm"
+
     """
     if dt is None:
         dt = get_moscow_time()
@@ -85,12 +67,7 @@ def format_moscow_time_with_microseconds(dt: Optional[datetime] = None) -> str:
 def to_moscow_time(dt: datetime) -> datetime:
     """
     Конвертирует datetime в московское время
-    
-    Args:
-        dt: Объект datetime для конвертации
-        
-    Returns:
-        datetime: Время в московской временной зоне
+
     """
     if dt.tzinfo is None:
         # Если время без временной зоны, считаем его UTC
@@ -102,12 +79,7 @@ def to_moscow_time(dt: datetime) -> datetime:
 def normalize_datetime_to_moscow(dt: Optional[datetime]) -> Optional[datetime]:
     """
     Нормализует datetime объект к московскому времени
-    
-    Args:
-        dt: Объект datetime для нормализации
-        
-    Returns:
-        datetime: Время в московской временной зоне или None если входной объект None
+
     """
     if dt is None:
         return None
@@ -126,12 +98,7 @@ def normalize_datetime_to_moscow(dt: Optional[datetime]) -> Optional[datetime]:
 def from_timestamp_moscow(timestamp: float) -> datetime:
     """
     Создает datetime из timestamp в московском времени
-    
-    Args:
-        timestamp: Unix timestamp
-        
-    Returns:
-        datetime: Объект datetime в московской временной зоне
+
     """
     return datetime.fromtimestamp(timestamp, tz=MOSCOW_TZ)
 
@@ -139,11 +106,6 @@ def from_timestamp_moscow(timestamp: float) -> datetime:
 def is_moscow_timezone(dt: datetime) -> bool:
     """
     Проверяет, находится ли datetime в московской временной зоне
-    
-    Args:
-        dt: Объект datetime для проверки
-        
-    Returns:
-        bool: True если время в московской зоне, False иначе
+
     """
     return dt.tzinfo == MOSCOW_TZ if dt.tzinfo else False

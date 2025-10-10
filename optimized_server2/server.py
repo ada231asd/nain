@@ -214,7 +214,7 @@ class OptimizedServer:
                     try:
                         writer.write(response)
                         await writer.drain()
-                        print(f"✅ Ответ Login отправлен станции {connection.box_id}")
+                        print(f" Ответ Login отправлен станции {connection.box_id}")
                         response = None  # Уже отправлен
                     except Exception as e:
                         self.logger.error(f"Ошибка отправки Login ответа: {e}")
@@ -319,7 +319,7 @@ class OptimizedServer:
                 log_packet(response, "OUTGOING", connection.box_id or "unknown", f"{command_name}Response")
                 writer.write(response)
                 await writer.drain()
-                print(f"✅ Ответ {command_name} отправлен станции {connection.box_id}")
+                print(f" Ответ {command_name} отправлен станции {connection.box_id}")
             
             return False
             

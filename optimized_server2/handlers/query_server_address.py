@@ -59,7 +59,6 @@ class QueryServerAddressHandler:
     async def handle_query_server_address_response(self, data: bytes, connection: StationConnection) -> None:
         """
         Обрабатывает ответ на запрос адреса сервера от станции
-        НЕ сохраняет данные в БД, передает напрямую фронтенду
         """
         try:
             # Парсим ответ

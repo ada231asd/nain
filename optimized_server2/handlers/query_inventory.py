@@ -84,7 +84,7 @@ class QueryInventoryHandler:
             inventory_manager = InventoryManager(self.db_pool)
             await inventory_manager.process_inventory_response(data, connection.station_id)
             
-            # Обрабатываем каждый слот из ответа для кэша
+            # Обрабатываем каждый слот из ответа
             inventory_data = []
             for slot_data in response.get('Slots', []):
                 slot_number = slot_data['Slot']
@@ -116,8 +116,8 @@ class QueryInventoryHandler:
                         else:
                             print(f" Ошибка изменения статуса заказа {active_order.order_id} на 'return'")
                     
-                    # Обновляем только SOH, статус не меняем
-                    # Конвертируем SOH в int, чтобы избежать MySQL warnings
+                
+                
                     soh_int = int(soh) if soh is not None else 0
                     await powerbank.update_soh(self.db_pool, soh_int)
                     print(f" Обновлен повербанк {terminal_id}: SOH {soh_int}")
@@ -137,7 +137,7 @@ class QueryInventoryHandler:
                     'status': status
                 })
 
-            # Сохраняем инвентарь в кэш соединения
+      
             connection.inventory_cache = {
                 'slots_num': response.get('SlotsNum', 0),
                 'remain_num': response.get('RemainNum', 0),

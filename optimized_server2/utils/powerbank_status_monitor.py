@@ -11,8 +11,8 @@ class PowerbankStatusMonitor:
     
     def __init__(self, db_pool):
         self.db_pool = db_pool
-        self.status_cache: Dict[int, str] = {}  # Кэш статусов повербанков
-        self.station_powerbanks: Dict[int, Set[int]] = {}  # Повербанки в станциях
+        self.status_cache: Dict[int, str] = {} 
+        self.station_powerbanks: Dict[int, Set[int]] = {} 
     
     async def initialize_station(self, station_id: int) -> None:
         """Инициализирует мониторинг для станции"""

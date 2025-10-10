@@ -100,14 +100,6 @@ async def validate_borrow_request(db_pool, user_id: int, powerbank_id: int,
     """
     Комплексная валидация запроса на выдачу powerbank'а
     
-    Args:
-        db_pool: Пул соединений с БД
-        user_id: ID пользователя
-        powerbank_id: ID powerbank'а
-        station_id: ID станции
-        
-    Returns:
-        tuple[bool, str]: (запрос_валиден, сообщение)
     """
     try:
         logger = get_logger('order_utils')

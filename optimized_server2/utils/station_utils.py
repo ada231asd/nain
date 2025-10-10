@@ -11,14 +11,6 @@ from utils.centralized_logger import get_logger
 async def check_station_online_status(db_pool, station_id: int, required_seconds: int = 30) -> Tuple[bool, str]:
     """
     Проверяет, была ли станция онлайн в течение указанного количества секунд
-    
-    Args:
-        db_pool: Пул соединений с БД
-        station_id: ID станции
-        required_seconds: Количество секунд для проверки (по умолчанию 30)
-        
-    Returns:
-        tuple[bool, str]: (статус_онлайн, сообщение)
     """
     try:
         logger = get_logger('station_utils')
@@ -60,13 +52,6 @@ async def check_station_online_status(db_pool, station_id: int, required_seconds
 async def check_station_connection_status(connection_manager, station_id: int) -> Tuple[bool, str]:
     """
     Проверяет активное TCP соединение со станцией
-    
-    Args:
-        connection_manager: Менеджер соединений
-        station_id: ID станции
-        
-    Returns:
-        tuple[bool, str]: (соединение_активно, сообщение)
     """
     try:
         if not connection_manager:
@@ -92,16 +77,6 @@ async def validate_station_for_operation(db_pool, connection_manager, station_id
                                        required_online_seconds: int = 30) -> Tuple[bool, str]:
     """
     Комплексная проверка станции перед выполнением операции
-    
-    Args:
-        db_pool: Пул соединений с БД
-        connection_manager: Менеджер соединений
-        station_id: ID станции
-        operation_name: Название операции для логирования
-        required_online_seconds: Требуемое время онлайн в секундах
-        
-    Returns:
-        tuple[bool, str]: (можно_выполнять_операцию, сообщение)
     """
     try:
         logger = get_logger('station_utils')

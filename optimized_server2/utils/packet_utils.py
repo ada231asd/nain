@@ -93,12 +93,10 @@ def parse_login_packet(data: bytes) -> Dict[str, Any]:
         if magic != 0xA0A0:
             raise ValueError(f"Magic неверный: {hex(magic)}")
 
-        # Payload начинается с header_size - 8 (как в рабочем сервере)
+        # Payload начинается с header_size - 8 
         payload = data[header_size - 8:]
         
-        # Убираем проверку checksum согласно требованию
-        # if compute_checksum(payload) != checksum:
-        #     raise ValueError("Неверный checksum")
+      
 
         boxid_start = header_size
         boxid_end = boxid_start + boxid_len
@@ -189,12 +187,11 @@ def build_heartbeat_response(secret_key: str, vsn: int = 1, station_id: str = "u
     """Создает ответ на heartbeat"""
     try:
         command = 0x61
-        packet_len = 7  # Длина данных без учета самого PacketLen (Command + VSN + CheckSum + Token)
+        packet_len = 7
         checksum = 0
-        payload = b''  # Для heartbeat payload пустой
+        payload = b''  
         token = generate_session_token(payload, secret_key)
         
-        # Создаем пакет: PacketLen(2) + Command(1) + VSN(1) + CheckSum(1) + Token(4) = 9 байт общая длина
         packet = struct.pack(">HBBBI", packet_len, command, vsn, checksum, token)
         
         # Логируем пакет
@@ -556,7 +553,7 @@ def parse_packet(data: bytes) -> Dict[str, Any]:
         0x83: "SlotAbnormalReport"
     }
     command_name = command_names.get(command, f"Unknown(0x{command:02X})")
-    # Убираем логирование отсюда - оно должно быть в обработчиках
+    
     
     try:
         if command == 0x60:  # Login
@@ -677,7 +674,7 @@ def parse_force_eject_response(data: bytes) -> Dict[str, Any]:
             except Exception as parse_error:
                 result["ParseWarning"] = f"Ошибка парсинга дополнительных данных: {parse_error}"
         else:
-            # Проверяем checksum (payload пустой для ответа)
+            # Проверяем checksum
             payload = b''
             if compute_checksum(payload) != checksum:
                 result["CheckSumValid"] = False

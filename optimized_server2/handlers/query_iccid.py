@@ -34,7 +34,7 @@ class QueryICCIDHandler:
             # Создаем команду на запрос ICCID
             iccid_command = build_query_iccid_request(
                 secret_key=secret_key,
-                vsn=1  
+                vsn=2
             )
             
             print(f"Создана команда на запрос ICCID станции {station_id}")

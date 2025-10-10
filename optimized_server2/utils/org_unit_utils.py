@@ -15,14 +15,6 @@ async def is_powerbank_compatible(db_pool, powerbank_org_id: int, station_org_id
     1. Один и тот же org_unit - совместимы
     2. Повербанк в группе (родитель), станция в подгруппе этой группы - совместимы
     3. Все остальные случаи - несовместимы
-    
-    Args:
-        db_pool: Пул соединений с БД
-        powerbank_org_id: ID организационной единицы повербанка
-        station_org_id: ID организационной единицы станции
-        
-    Returns:
-        bool: True если совместимы, False если нет
     """
     try:
         powerbank_unit = await OrgUnit.get_by_id(db_pool, powerbank_org_id)
@@ -53,13 +45,6 @@ async def get_compatibility_reason(db_pool, powerbank_org_id: int, station_org_i
     """
     Возвращает причину совместимости/несовместимости для логирования
     
-    Args:
-        db_pool: Пул соединений с БД
-        powerbank_org_id: ID организационной единицы повербанка
-        station_org_id: ID организационной единицы станции
-        
-    Returns:
-        str: Описание причины
     """
     try:
         powerbank_unit = await OrgUnit.get_by_id(db_pool, powerbank_org_id)
@@ -91,14 +76,6 @@ async def log_powerbank_ejection_event(db_pool, station_id: int, slot_number: in
     """
     Логирует событие выплева повербанка в файл
     
-    Args:
-        db_pool: Пул соединений с БД (не используется, оставлен для совместимости)
-        station_id: ID станции
-        slot_number: Номер слота
-        powerbank_serial: Серийный номер повербанка
-        powerbank_org_id: ID организационной единицы повербанка
-        station_org_id: ID организационной единицы станции
-        reason: Причина выплева
     """
     try:
         # Логируем в файл через централизованный логгер
@@ -109,7 +86,7 @@ async def log_powerbank_ejection_event(db_pool, station_id: int, slot_number: in
                    f"повербанк {powerbank_serial} (org_unit: {powerbank_org_id}), "
                    f"станция org_unit: {station_org_id}, причина: {reason}")
         
-        # Дополнительно логируем в отдельный файл для выплевов (если нужно)
+        # Дополнительно логируем в отдельный файл для выплевов
         ejection_logger = get_logger('powerbank_ejections')
         ejection_logger.info(f"EJECTION|{get_moscow_time().isoformat()}|"
                            f"STATION:{station_id}|SLOT:{slot_number}|"
@@ -126,13 +103,6 @@ async def can_user_borrow_powerbank(db_pool, user_id: int, powerbank_id: int) ->
     """
     Проверяет, может ли пользователь взять указанный повербанк
     
-    Args:
-        db_pool: Пул соединений с БД
-        user_id: ID пользователя
-        powerbank_id: ID повербанка
-        
-    Returns:
-        tuple[bool, str]: (разрешено, причина отказа/разрешения)
     """
     try:
         from models.user_role import UserRole
@@ -188,13 +158,6 @@ async def can_user_access_station(db_pool, user_id: int, station_id: int) -> tup
     """
     Проверяет, может ли пользователь получить доступ к станции
     
-    Args:
-        db_pool: Пул соединений с БД
-        user_id: ID пользователя
-        station_id: ID станции
-        
-    Returns:
-        tuple[bool, str]: (разрешено, причина отказа/разрешения)
     """
     try:
         from models.user_role import UserRole
@@ -246,13 +209,6 @@ async def log_access_denied_event(db_pool, user_id: int, resource_type: str,
                                 resource_id: int, reason: str) -> None:
     """
     Логирует событие отказа в доступе
-    
-    Args:
-        db_pool: Пул соединений с БД
-        user_id: ID пользователя
-        resource_type: Тип ресурса ('powerbank', 'station')
-        resource_id: ID ресурса
-        reason: Причина отказа
     """
     try:
         logger = get_logger('access_control')

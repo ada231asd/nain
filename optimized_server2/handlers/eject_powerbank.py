@@ -43,7 +43,7 @@ class EjectPowerbankHandler:
             eject_command = build_force_eject_request(
                 secret_key=secret_key,
                 slot=slot_number,
-                vsn=1  # Можно получить из соединения
+                vsn=2  
             )
             
             print(f"Создана команда на принудительное извлечение повербанка из слота {slot_number}")
@@ -68,7 +68,7 @@ class EjectPowerbankHandler:
             
             # Если извлечение успешно, удаляем повербанк из station_powerbank
             if eject_response.get("Success", False):
-                # Очищаем все повербанки из станции (принудительное извлечение)
+                # Очищаем все повербанки из станции 
                 from models.station_powerbank import StationPowerbank
                 removed_count = await StationPowerbank.clear_station_powerbanks(self.db_pool, station_id)
                 

@@ -112,9 +112,9 @@ class BorrowPowerbankHandler:
                     break
             
             if pending_order_id is None:
-                print(f"❌ Pending request НЕ НАЙДЕН для station_id={station_id}, slot_number={slot_number}")
+                print(f" Pending request НЕ НАЙДЕН для station_id={station_id}, slot_number={slot_number}")
             else:
-                print(f"✅ Pending request найден: {pending_order_id}")
+                print(f" Pending request найден: {pending_order_id}")
             
             # Проверяем успешность ответа
             if success:
@@ -146,16 +146,6 @@ class BorrowPowerbankHandler:
                         future.set_result({"success": True, "message": "Повербанк успешно выдан"})
                     del self.pending_requests[pending_order_id]
                 
-                # Отправляем WebSocket уведомление о успешной выдаче
-                await self._send_websocket_notification({
-                    "type": "borrow_success",
-                    "station_id": station_id,
-                    "slot_number": slot_number,
-                    "terminal_id": borrow_response.get('TerminalID', 'unknown'),
-                    "message": "Повербанк успешно выдан",
-                    "timestamp": borrow_response.get('ReceivedAt', '')
-                })
-                
                 
             else:
                 
@@ -183,20 +173,6 @@ class BorrowPowerbankHandler:
                     if not future.done():
                         future.set_result({"success": False, "message": error_msg})
                     del self.pending_requests[pending_order_id]
-                
-                # Отправляем WebSocket уведомление о неудачной выдаче
-                await self._send_websocket_notification({
-                    "type": "borrow_failure",
-                    "station_id": station_id,
-                    "slot_number": slot_number,
-                    "terminal_id": borrow_response.get('TerminalID', 'unknown'),
-                    "message": error_msg,
-                    "timestamp": borrow_response.get('ReceivedAt', ''),
-                    "error_details": {
-                        "current_slot_locked": current_slot_locked,
-                        "adjacent_slot_locked": adjacent_slot_locked
-                    }
-                })
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -331,22 +307,22 @@ class BorrowPowerbankHandler:
                 'powerbank_id': powerbank_id,
                 'user_id': user_id
             }
-            print(f"✅ Создан pending request: order_id={order_id}, station_id={station_id}, slot_number={slot_number}")
+            print(f" Создан pending request: order_id={order_id}, station_id={station_id}, slot_number={slot_number}")
             
             # Создаем команду на выдачу повербанка
             borrow_command = build_borrow_power_bank(
                 secret_key=secret_key,
                 slot=slot_number,
-                vsn=1  # Используем VSN=1 по умолчанию
+                vsn=2  
             )
             
-            # Отправляем команду через TCP соединение
+            # Отправляем команду 
             if connection.writer and not connection.writer.is_closing():
                 connection.writer.write(borrow_command)
                 await connection.writer.drain()
                 print(f" Команда на выдачу повербанка отправлена станции {station_id}, слот {slot_number}")
                 
-                # Ждем ответа от станции (максимум 15 секунд)
+                # Ждем ответа от станции
                 try:
                     result = await asyncio.wait_for(future, timeout=15.0)
                     return result
@@ -402,10 +378,10 @@ class BorrowPowerbankHandler:
             borrow_command = build_borrow_power_bank(
                 secret_key=secret_key,
                 slot=slot_number,
-                vsn=1  # Используем VSN=1 по умолчанию
+                vsn=2  
             )
             
-            # Отправляем команду через TCP соединение
+            # Отправляем команду 
             if connection.writer and not connection.writer.is_closing():
                 connection.writer.write(borrow_command)
                 await connection.writer.drain()
@@ -443,23 +419,3 @@ class BorrowPowerbankHandler:
         except Exception as e:
             print(f" Ошибка запроса инвентаря после операции: {e}")
     
-    async def _send_websocket_notification(self, notification_data: dict) -> None:
-        """
-        Отправляет WebSocket уведомление о результате выдачи повербанка
-        """
-        try:
-            from websocket_server import websocket_manager
-            
-            # Добавляем дополнительную информацию
-            notification_data.update({
-                "event": "powerbank_borrow_result",
-                "source": "borrow_handler"
-            })
-            
-            # Отправляем уведомление всем подключенным WebSocket клиентам
-            await websocket_manager.broadcast(notification_data)
-            
-            self.logger.info(f"WebSocket уведомление отправлено: {notification_data['type']} для станции {notification_data['station_id']}")
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка отправки WebSocket уведомления: {e}")

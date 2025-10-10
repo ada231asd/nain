@@ -208,11 +208,21 @@ class AdminEndpoints:
                     "error": "station_id, slot_number и admin_user_id должны быть числами"
                 }, status=400)
             
-            # Валидация диапазонов
-            if slot_number < 1 or slot_number > 20:  # Предполагаем максимум 20 слотов
+            # Получаем информацию о станции для валидации количества слотов
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
                 return web.json_response({
                     "success": False,
-                    "error": "slot_number должен быть от 1 до 20"
+                    "error": "Станция не найдена"
+                }, status=404)
+            
+            # Валидация диапазонов на основе реального количества слотов
+            max_slots = station.slots_declared
+            if slot_number < 1 or slot_number > max_slots:
+                return web.json_response({
+                    "success": False,
+                    "error": f"slot_number должен быть от 1 до {max_slots}"
                 }, status=400)
             
             result = await self.admin_api.force_eject_powerbank(

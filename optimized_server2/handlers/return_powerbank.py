@@ -267,8 +267,6 @@ class ReturnPowerbankHandler:
             
             # Запрашиваем инвентарь для получения актуальных данных о вставленном повербанке
             await self._request_inventory_after_operation(station_id)
-            
-            # Дополнительно ждем еще 2 секунды для обработки ответа инвентаря
             await asyncio.sleep(2)
             
             # Проверяем, был ли повербанк действительно вставлен в станцию
@@ -359,7 +357,7 @@ class ReturnPowerbankHandler:
             if not station_valid:
                 return {"success": False, "message": station_message}
             
-            # Получаем соединение (уже проверенное в validate_station_for_operation)
+            # Получаем соединение
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             
             # Отправляем команду на возврат повербанка
@@ -442,8 +440,8 @@ class ReturnPowerbankHandler:
             if not station:
                 return None
             
-            # Предполагаем, что у станции может быть до 20 слотов (можно настроить)
-            max_slots = getattr(station, 'max_slots', 20)
+            # Используем количество слотов из базы данных
+            max_slots = station.slots_declared
             
             # Ищем первый свободный слот
             for slot_number in range(1, max_slots + 1):

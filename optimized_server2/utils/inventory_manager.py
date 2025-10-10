@@ -26,7 +26,7 @@ class InventoryManager:
             # Создаем запрос инвентаря
             inventory_request = build_query_inventory_request(
                 secret_key=connection.secret_key,
-                vsn=1,  # Используем VSN=1 по умолчанию
+                vsn=2,  
                 station_box_id=connection.box_id or f"station_{station_id}"
             )
             
@@ -36,8 +36,8 @@ class InventoryManager:
                 await connection.writer.drain()
                 logger = get_logger('inventory_manager'); logger.info(f"Запрос инвентаря отправлен станции {station_id}")
                 
-                # Ждем ответ (с таймаутом)
-                await asyncio.sleep(0.5)  # Даем время на ответ
+                # Ждем ответ
+                await asyncio.sleep(0.5)
             else:
                 logger = get_logger('inventory_manager'); logger.warning(f"TCP соединение со станцией {station_id} недоступно")
                 
@@ -65,7 +65,7 @@ class InventoryManager:
             slots = inventory_data.get("Slots", [])
             logger = get_logger('inventory_manager'); logger.info(f"Обрабатываем инвентарь станции {station_id}: {len(slots)} слотов")
             
-            # Синхронизируем данные с базой (даже если слотов нет - это означает, что станция пустая)
+            # Синхронизируем данные с базой
             await self._sync_inventory_with_database(station_id, slots)
             
         except Exception as e:
