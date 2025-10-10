@@ -62,8 +62,8 @@ class Order:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (fio, email, phone_e164, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON DUPLICATE KEY UPDATE fio = VALUES(fio)
+                        VALUES (%s, %s, %s, %s, %s) AS new_user
+                        ON DUPLICATE KEY UPDATE fio = new_user.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
                 
                 await cursor.execute("""

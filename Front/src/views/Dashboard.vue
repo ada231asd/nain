@@ -157,6 +157,7 @@ import StationCard from '../components/StationCard.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
+import websocketClient from '../utils/websocketClient'
 
 const router = useRouter()
 const route = useRoute()
@@ -834,6 +835,45 @@ const formatTime = (timestamp) => {
   })
 }
 
+// WebSocket уведомления о выдаче повербанков
+const setupWebSocketNotifications = () => {
+  try {
+    // Подключаемся к WebSocket
+    websocketClient.connect('ws://localhost:8001/ws')
+    
+    // Обрабатываем успешную выдачу
+    websocketClient.on('borrow_success', (data) => {
+      console.log('✅ WebSocket: Получено уведомление об успешной выдаче:', data)
+      
+      // Показываем уведомление пользователю
+      alert(`✅ ${data.message}`)
+      
+      // Обновляем данные станции
+      if (data.station_id) {
+        refreshAllDataAfterBorrowLocal(data.station_id, user.value?.user_id)
+      }
+    })
+    
+    // Обрабатываем неудачную выдачу
+    websocketClient.on('borrow_failure', (data) => {
+      console.log('❌ WebSocket: Получено уведомление о неудачной выдаче:', data)
+      
+      // Показываем уведомление пользователю
+      alert(`❌ ${data.message}`)
+    })
+    
+    // Обрабатываем ошибки WebSocket
+    websocketClient.on('error', (error) => {
+      console.warn('WebSocket ошибка:', error)
+    })
+    
+    console.log('WebSocket уведомления настроены для Dashboard')
+    
+  } catch (error) {
+    console.warn('Не удалось настроить WebSocket уведомления:', error)
+  }
+}
+
 // Жизненный цикл
 onMounted(async () => {
   try {
@@ -842,6 +882,9 @@ onMounted(async () => {
     
     // Загружаем QR-станцию если есть параметры
     await loadQRStation()
+    
+    // Настраиваем WebSocket для получения уведомлений о выдаче повербанков
+    setupWebSocketNotifications()
     
     // Не запускаем автоматическое обновление по таймеру
     // Обновление происходит только после действий
@@ -857,6 +900,9 @@ onUnmounted(() => {
   
   // Останавливаем автоматическое обновление
   stopAutoRefresh()
+  
+  // Отключаем WebSocket
+  websocketClient.disconnect()
 })
 </script>
 

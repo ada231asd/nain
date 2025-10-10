@@ -36,6 +36,9 @@ class StationHandler:
             # Проверяем, есть ли ошибка парсинга
             if "Error" in packet:
                 self.logger.error(f"Ошибка парсинга Login пакета: {packet['Error']}")
+                print(f"Ошибка парсинга Login пакета: {packet['Error']}")
+                print(f"Размер пакета: {len(data)} байт")
+                print(f"Пакет в hex: {data.hex()}")
                 return None
             
             logger = get_logger('station_handler'); logger.info(f"Обработан Login пакет: BoxID={packet['BoxID']}")
@@ -65,15 +68,8 @@ class StationHandler:
                 
                 logger = get_logger('station_handler'); logger.warning(f"ПЕРЕПОДКЛЮЧЕНИЕ СТАНЦИИ: {station.box_id} - старое соединение fd={existing_connection.fd}, последний heartbeat {time_since_heartbeat:.1f} сек назад")
                 
-                # Безопасно закрываем старое соединение
-                try:
-                    if existing_connection.writer and not existing_connection.writer.is_closing():
-                        existing_connection.writer.close()
-                        print(f"ЗАКРЫТО СТАРОЕ СОЕДИНЕНИЕ: {station.box_id} (fd={existing_connection.fd}) - причина: переподключение")
-                except Exception as close_error:
-                    self.logger.error(f"Ошибка закрытия соединения: {close_error}")
-                finally:
-                    self.connection_manager.remove_connection(existing_connection.fd)
+                # Закрываем старое соединение при переподключении
+                self.connection_manager.close_old_station_connections(station.station_id, connection.fd)
             
             # Обновляем данные соединения
             connection.update_login(
@@ -124,36 +120,33 @@ class StationHandler:
                 return None
             
             # ВАЖНО: Валидируем токен в heartbeat пакете согласно протоколу
-            if len(data) >= 9:  # Минимальная длина heartbeat пакета
-                received_token = data[5:9]  # Токен находится в байтах 5-8
-                payload = b''  # Для heartbeat payload пустой
-                
-                # Вычисляем ожидаемый токен
-                import hashlib
-                md5_hash = hashlib.md5(payload + connection.secret_key.encode()).digest()
-                expected_token = bytes([
-                    md5_hash[15],  # 16-я позиция
-                    md5_hash[11],  # 12-я позиция  
-                    md5_hash[7],   # 8-я позиция
-                    md5_hash[3]    # 4-я позиция
-                ])
-                
-                if received_token != expected_token:
-                    self.logger.warning(f"Неверный токен в heartbeat от {connection.box_id}: получено {received_token.hex()}, ожидалось {expected_token.hex()}")
-                    return None
-                
-                self.logger.info(f"Токен в heartbeat валиден для станции {connection.box_id}")
-            else:
-                self.logger.warning(f"Слишком короткий heartbeat пакет от {connection.box_id}: {len(data)} байт")
+            received_token = data[5:9]  # Токен находится в байтах 5-8
+            payload = b''  # Для heartbeat payload пустой
+            
+            # Используем правильную генерацию токена из packet_utils
+            from utils.packet_utils import generate_session_token
+            expected_token_int = generate_session_token(payload, connection.secret_key)
+            expected_token = expected_token_int.to_bytes(4, byteorder='big')
+            
+            if received_token != expected_token:
+                self.logger.warning(f"Неверный токен в heartbeat от {connection.box_id}: получено {received_token.hex()}, ожидалось {expected_token.hex()}")
                 return None
+            
+            # Обновляем last_seen в БД при каждом heartbeat
+            try:
+                station = await Station.get_by_id(self.db_pool, connection.station_id)
+                if station:
+                    await station.update_last_seen(self.db_pool)
+            except Exception as db_error:
+                self.logger.error(f"Ошибка обновления last_seen в БД: {db_error}")
             
             # Получаем VSN из пакета
             vsn = data[3]
-            self.logger.info(f"VSN из heartbeat: {vsn}")
+            
             
             # Генерируем ответ с новым токеном
             response = build_heartbeat_response(connection.secret_key, vsn, connection.box_id or "unknown")
-            self.logger.info(f"Сгенерирован heartbeat ответ: {response.hex() if response else 'None'}")
+          
             
             if not response:
                 self.logger.error("Heartbeat response не был создан!")
@@ -162,46 +155,11 @@ class StationHandler:
             # Обновляем время последнего heartbeat
             connection.update_heartbeat()
             
-            self.logger.info(f"Heartbeat ответ готов к отправке: {len(response)} байт")
             return response
             
         except Exception as e:
             self.logger.error(f"Ошибка обработки heartbeat: {e}")
             return None
-    
-    async def _update_heartbeat_db_async(self, connection: StationConnection):
-        """
-        Асинхронно обновляет БД для heartbeat (не блокирует ответ)
-        """
-        try:
-            # Проверяем, нужно ли обновлять БД (не чаще чем раз в 30 секунд)
-            from utils.time_utils import get_moscow_time
-            current_time = get_moscow_time()
-            if (not hasattr(connection, 'last_db_update') or 
-                connection.last_db_update is None or
-                (current_time - connection.last_db_update).total_seconds() > 30):
-                
-                station = await Station.get_by_id(self.db_pool, connection.station_id)
-                if station:
-                    # Обновляем время последнего контакта (last_seen)
-                    await station.update_last_seen(self.db_pool)
-                    
-                    # Синхронизируем station_powerbank с текущим состоянием станции
-                    from models.station_powerbank import StationPowerbank
-                    current_powerbanks = await StationPowerbank.get_by_station(self.db_pool, connection.station_id)
-                    
-                    # Обновляем remain_num на основе реального количества повербанков
-                    actual_remain_num = station.slots_declared - len(current_powerbanks)
-                    if actual_remain_num != station.remain_num:
-                        await station.update_remain_num(self.db_pool, actual_remain_num)
-                        logger = get_logger('station_handler'); logger.info(f"Обновлен remain_num для станции {connection.box_id}: {station.remain_num} -> {actual_remain_num}")
-                    
-                    logger = get_logger('station_handler'); logger.info(f"Обновлен heartbeat для станции {connection.box_id} (ID: {connection.station_id})")
-                    
-                    # Запоминаем время последнего обновления БД
-                    connection.last_db_update = current_time
-        except Exception as db_error:
-            self.logger.error(f"Ошибка обновления heartbeat в БД: {db_error}")
     
     async def _request_inventory_after_login(self, connection: StationConnection) -> None:
         """Запрашивает инвентарь после успешного логина"""
