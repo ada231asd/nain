@@ -40,6 +40,17 @@ class WebSocketClient {
             this.emit('new_abnormal_report', data.data)
           } else if (data.type === 'recent_abnormal_reports') {
             this.emit('recent_reports', data.data)
+          } else if (data.type === 'borrow_success') {
+            this.emit('borrow_success', data)
+          } else if (data.type === 'borrow_failure') {
+            this.emit('borrow_failure', data)
+          } else if (data.event === 'powerbank_borrow_result') {
+            // Обрабатываем уведомления о результате выдачи повербанка
+            if (data.type === 'borrow_success') {
+              this.emit('borrow_success', data)
+            } else if (data.type === 'borrow_failure') {
+              this.emit('borrow_failure', data)
+            }
           } else if (data.type === 'error') {
             this.emit('error', data.message)
           }

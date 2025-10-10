@@ -16,15 +16,11 @@ SECRET_KEY = "wZ8nY2xE"  # Ключ для станции DCHEY02504000019
 
 def generate_heartbeat_token(secret_key: str) -> bytes:
     """Генерирует токен для heartbeat согласно протоколу"""
+    from utils.packet_utils import generate_session_token
     payload = b''  # Для heartbeat payload пустой
-    md5_hash = hashlib.md5(payload + secret_key.encode()).digest()
-    token = bytes([
-        md5_hash[15],  # 16-я позиция
-        md5_hash[11],  # 12-я позиция  
-        md5_hash[7],   # 8-я позиция
-        md5_hash[3]    # 4-я позиция
-    ])
-    return token
+    token_int = generate_session_token(payload, secret_key)
+    # Преобразуем int в bytes (4 байта, big-endian)
+    return token_int.to_bytes(4, byteorder='big')
 
 def create_heartbeat_packet(secret_key: str) -> bytes:
     """Создает heartbeat пакет с правильным токеном"""

@@ -69,14 +69,25 @@ class ConnectionManager:
     
     def add_connection(self, connection: StationConnection):
         """Добавляет соединение"""
-        # Если станция уже подключена, закрываем старое соединение
-        if connection.station_id:
-            old_connection = self.get_connection_by_station_id(connection.station_id)
-            if old_connection and old_connection.fd != connection.fd:
-                print(f"Закрываем старое соединение для станции {connection.station_id} (fd={old_connection.fd})")
-                self.remove_connection(old_connection.fd)
+        # Проверяем, есть ли уже соединение с таким fd
+        if connection.fd in self.connections:
+            print(f"Соединение с fd={connection.fd} уже существует, заменяем")
+            self.remove_connection(connection.fd)
         
         self.connections[connection.fd] = connection
+    
+    def close_old_station_connections(self, station_id: int, keep_fd: int):
+        """Закрывает старые соединения станции, оставляя только указанное"""
+        connections_to_close = []
+        for fd, conn in self.connections.items():
+            if conn.station_id == station_id and fd != keep_fd:
+                connections_to_close.append(fd)
+        
+        for fd in connections_to_close:
+            print(f"Закрываем старое соединение станции {station_id} (fd={fd})")
+            self.close_connection(fd)
+        
+        return len(connections_to_close)
     
     def remove_connection(self, fd: int):
         """Удаляет соединение"""
@@ -90,11 +101,6 @@ class ConnectionManager:
     def get_all_connections(self) -> Dict[int, StationConnection]:
         """Получает все соединения"""
         return self.connections.copy()
-    
-    def get_connections_by_station_id(self, station_id: int) -> list[StationConnection]:
-        """Получает соединения по ID станции"""
-        return [conn for conn in self.connections.values() 
-                if conn.station_id == station_id]
     
     def get_connection_by_station_id(self, station_id: int) -> Optional[StationConnection]:
         """Получает первое соединение по ID станции"""
