@@ -93,45 +93,32 @@ class OptimizedServer:
             return False
 
     async def _validate_packet(self, data: bytes, connection: StationConnection) -> bool:
-        """Валидация пакета согласно протоколу: checksum и token"""
-        try:
-            packet_data_len = int.from_bytes(data[0:2], byteorder='big')
-            
-
-            if len(data) < 2 + packet_data_len:
-                return False
-
-            command = data[2]
-            vsn = data[3]
-            checksum = data[4]
-            token = data[5:9]
-            
-            # Извлекаем payload (данные после токена)
-            payload_start = 9
-            payload_end = 2 + packet_data_len
-            payload = data[payload_start:payload_end] if payload_end > payload_start else b''
-            
+        """Валидация пакета согласно протоколу: checksum"""
+        packet_data_len = int.from_bytes(data[0:2], byteorder='big')
         
-            if command != 0x60:  
-                calculated_checksum = 0
-                for byte in payload:
-                    calculated_checksum ^= byte
-                    
-                if checksum != calculated_checksum:
-                    print(f"Неверная checksum: получено 0x{checksum:02X}, ожидалось 0x{calculated_checksum:02X}")
-                    return False
-            
-       
-            if command != 0x60:  
-                if not await self._validate_token(connection, payload, token):
-                    print(f"Неверный токен для команды 0x{command:02X}")
-                    return False
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка валидации пакета: {e}")
+        if len(data) < 2 + packet_data_len:
             return False
+
+        command = data[2]
+        vsn = data[3]
+        checksum = data[4]
+        token = data[5:9]
+        
+        # Извлекаем payload (данные после токена)
+        payload_start = 9
+        payload_end = 2 + packet_data_len
+        payload = data[payload_start:payload_end] if payload_end > payload_start else b''
+        
+        # Проверяем checksum для всех пакетов
+        calculated_checksum = 0
+        for byte in payload:
+            calculated_checksum ^= byte
+            
+        if checksum != calculated_checksum:
+            print(f"Неверная checksum: получено 0x{checksum:02X}, ожидалось 0x{calculated_checksum:02X}")
+            return False
+        
+        return True
 
     async def _validate_token(self, connection: StationConnection, payload: bytes, received_token: bytes) -> bool:
         """Валидация токена по алгоритму MD5(payload + SecretKey)"""
