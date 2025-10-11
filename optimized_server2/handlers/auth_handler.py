@@ -9,6 +9,7 @@ from aiohttp import web
 import aiomysql
 
 from models.user import User
+from models.action_log import ActionLog
 from utils.notification_service import notification_service
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, PASSWORD_MAX_LENGTH
 from utils.centralized_logger import get_logger

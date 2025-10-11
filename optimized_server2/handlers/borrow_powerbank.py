@@ -7,6 +7,7 @@ from datetime import datetime
 from models.station_powerbank import StationPowerbank
 from models.powerbank import Powerbank
 from models.order import Order
+from models.action_log import ActionLog
 from utils.packet_utils import build_borrow_power_bank, parse_borrow_request, parse_borrow_response
 from utils.centralized_logger import get_logger
 

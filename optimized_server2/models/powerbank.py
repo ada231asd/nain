@@ -12,7 +12,7 @@ class Powerbank:
     
     def __init__(self, powerbank_id: int = None, org_unit_id: int = None, 
                  serial_number: str = None, soh: int = None, 
-                 status: str = 'active', write_off_reason: str = 'none',
+                 status: str = 'unknown', write_off_reason: str = 'none',
                  created_at: datetime = None):
         self.powerbank_id = powerbank_id
         self.org_unit_id = org_unit_id

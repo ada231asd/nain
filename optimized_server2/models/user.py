@@ -20,7 +20,8 @@ class User:
                  password_hash: str, fio: Optional[str] = None,
                  status: str = 'active', role: str = 'user', 
                  created_at: Optional[datetime] = None,
-                 last_login_at: Optional[datetime] = None):
+                 last_login_at: Optional[datetime] = None,
+                 powerbank_limit: int = 1):
         self.user_id = user_id
         self.phone_e164 = phone_e164
         self.email = email
@@ -30,6 +31,7 @@ class User:
         self.role = role
         self.created_at = created_at or get_moscow_time()
         self.last_login_at = last_login_at
+        self.powerbank_limit = powerbank_limit
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует пользователя в словарь"""
@@ -41,7 +43,8 @@ class User:
             'status': self.status,
             'role': self.role,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None
+            'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None,
+            'powerbank_limit': self.powerbank_limit
         }
     
     @staticmethod
@@ -117,9 +120,9 @@ class User:
                 
                 # Создаем пользователя
                 await cur.execute("""
-                    INSERT INTO app_user (phone_e164, email, password_hash, fio, status)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (phone_e164, email, password_hash, fio, 'pending'))
+                    INSERT INTO app_user (phone_e164, email, password_hash, fio, status, powerbank_limit)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (phone_e164, email, password_hash, fio, 'pending', 1))
                 
                 user_id = cur.lastrowid
                 
@@ -166,7 +169,8 @@ class User:
                     status=user_data['status'],
                     role=role,
                     created_at=user_data['created_at'],
-                    last_login_at=user_data['last_login_at']
+                    last_login_at=user_data['last_login_at'],
+                    powerbank_limit=user_data.get('powerbank_limit', 1)
                 )
     
     @classmethod
@@ -200,7 +204,8 @@ class User:
                     status=user_data['status'],
                     role=role,
                     created_at=user_data['created_at'],
-                    last_login_at=user_data['last_login_at']
+                    last_login_at=user_data['last_login_at'],
+                    powerbank_limit=user_data.get('powerbank_limit', 1)
                 )
     
     @classmethod

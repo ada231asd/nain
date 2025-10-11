@@ -8,6 +8,7 @@ import asyncio
 from models.station_powerbank import StationPowerbank
 from models.powerbank import Powerbank
 from models.order import Order
+from models.action_log import ActionLog
 from utils.centralized_logger import get_logger
 from utils.packet_utils import build_return_power_bank, parse_return_response, get_moscow_time
 

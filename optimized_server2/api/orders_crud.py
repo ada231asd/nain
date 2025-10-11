@@ -30,7 +30,7 @@ class OrdersCRUD:
                     }, status=400)
             
             # Валидация enum значений
-            valid_statuses = ['borrow', 'return']
+            valid_statuses = ['borrow', 'return', 'force_eject']
             if 'status' in data and data['status'] not in valid_statuses:
                 return web.json_response({
                     "success": False,
@@ -204,7 +204,7 @@ class OrdersCRUD:
             params = []
             
             # Валидация enum значений
-            valid_statuses = ['borrow', 'return']
+            valid_statuses = ['borrow', 'return', 'force_eject']
             if 'status' in data and data['status'] not in valid_statuses:
                 return web.json_response({
                     "success": False,

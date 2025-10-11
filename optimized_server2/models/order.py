@@ -12,18 +12,14 @@ class Order:
     
     def __init__(self, order_id: int, station_id: int, user_id: int, 
                  powerbank_id: Optional[int] = None, status: str = 'borrow',
-                 timestamp: Optional[datetime] = None, borrow_time: Optional[datetime] = None,
-                 return_time: Optional[datetime] = None, order_type: str = 'borrow', notes: str = None):
+                 timestamp: Optional[datetime] = None, completed_at: Optional[datetime] = None):
         self.order_id = order_id
         self.station_id = station_id
         self.user_id = user_id
         self.powerbank_id = powerbank_id
         self.status = status
         self.timestamp = timestamp or get_moscow_time()
-        self.borrow_time = borrow_time
-        self.return_time = return_time
-        self.order_type = order_type
-        self.notes = notes
+        self.completed_at = completed_at
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует заказ в словарь"""
@@ -34,8 +30,7 @@ class Order:
             'powerbank_id': self.powerbank_id,
             'status': self.status,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
-            'borrow_time': self.borrow_time.isoformat() if self.borrow_time else None,
-            'return_time': self.return_time.isoformat() if self.return_time else None
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
     
     @classmethod
@@ -43,12 +38,11 @@ class Order:
                                  station_id: int) -> 'Order':
         """Создает заказ со статусом 'pending' (ожидание ответа от станции)"""
         return await cls.create(db_pool, station_id, user_id, powerbank_id, 
-                              order_type='borrow', status='pending')
+                              status='borrow')
     
     @classmethod
     async def create(cls, db_pool, station_id: int, user_id: int, 
-                    powerbank_id: int = None, order_type: str = 'borrow', 
-                    status: str = 'borrow', notes: str = None) -> 'Order':
+                    powerbank_id: int = None, status: str = 'borrow') -> 'Order':
         """Создает заказ с указанными параметрами"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
@@ -61,10 +55,10 @@ class Order:
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
-                        INSERT INTO app_user (fio, email, phone_e164, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s) AS new_user
+                        INSERT INTO app_user (fio, email, phone_e164, status, created_at, powerbank_limit)
+                        VALUES (%s, %s, %s, %s, %s, %s) AS new_user
                         ON DUPLICATE KEY UPDATE fio = new_user.fio
-                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time(), 1))
                 
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
@@ -78,9 +72,7 @@ class Order:
                     station_id=station_id,
                     user_id=user_id,
                     powerbank_id=powerbank_id,
-                    order_type=order_type,
                     status=status,
-                    notes=notes,
                     timestamp=get_moscow_time()
                 )
     
@@ -99,10 +91,10 @@ class Order:
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
-                        INSERT INTO app_user (user_id, username, email, phone, status, created_at)
+                        INSERT INTO app_user (fio, email, phone_e164, status, created_at, powerbank_limit)
                         VALUES (%s, %s, %s, %s, %s, %s) AS new_values
-                        ON DUPLICATE KEY UPDATE username = new_values.username
-                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
+                        ON DUPLICATE KEY UPDATE fio = new_values.fio
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time(), 1))
                 
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
@@ -135,10 +127,10 @@ class Order:
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
-                        INSERT INTO app_user (user_id, username, email, phone, status, created_at)
+                        INSERT INTO app_user (fio, email, phone_e164, status, created_at, powerbank_limit)
                         VALUES (%s, %s, %s, %s, %s, %s) AS new_values
-                        ON DUPLICATE KEY UPDATE username = new_values.username
-                    """, (user_id, f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time()))
+                        ON DUPLICATE KEY UPDATE fio = new_values.fio
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time(), 1))
                 
                 # Для заказов на возврат сразу устанавливаем completed_at
                 completed_time = get_moscow_time()

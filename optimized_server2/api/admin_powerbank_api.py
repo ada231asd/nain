@@ -9,6 +9,7 @@ import aiomysql
 
 from models.powerbank import Powerbank
 from models.station_powerbank import StationPowerbank
+from models.action_log import ActionLog
 
 
 
