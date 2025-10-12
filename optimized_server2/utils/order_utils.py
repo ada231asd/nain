@@ -95,6 +95,83 @@ async def check_powerbank_availability(db_pool, powerbank_id: int) -> Tuple[bool
         return False, f"Ошибка проверки доступности: {e}"
 
 
+async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
+    """
+    Проверяет, не превышен ли лимит повербанков для пользователя
+    
+    Args:
+        db_pool: Пул соединений с БД
+        user_id: ID пользователя
+        
+    Returns:
+        tuple[bool, str]: (лимит_не_превышен, сообщение)
+    """
+    try:
+        logger = get_logger('order_utils')
+        
+        # Получаем информацию о пользователе с лимитами
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    SELECT 
+                        au.user_id,
+                        au.powerbank_limit as individual_limit,
+                        ou.default_powerbank_limit as group_default_limit,
+                        ou.name as group_name,
+                        CASE 
+                            WHEN au.powerbank_limit IS NOT NULL THEN au.powerbank_limit
+                            WHEN ou.default_powerbank_limit IS NOT NULL THEN ou.default_powerbank_limit
+                            ELSE 0
+                        END as effective_limit,
+                        CASE 
+                            WHEN au.powerbank_limit IS NOT NULL THEN 'individual'
+                            WHEN ou.default_powerbank_limit IS NOT NULL THEN 'group'
+                            ELSE 'no_group'
+                        END as limit_type
+                    FROM app_user au
+                    LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                    LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
+                    WHERE au.user_id = %s
+                """, (user_id,))
+                
+                user_data = await cur.fetchone()
+                
+                if not user_data:
+                    return False, "Пользователь не найден"
+                
+                effective_limit = user_data[4]  # effective_limit
+                limit_type = user_data[5]       # limit_type
+                
+                # Если лимит = 0 (пользователь не в группе), запрещаем выдачу
+                if effective_limit == 0:
+                    return False, "Пользователь не привязан к группе и не может брать повербанки"
+                
+                # Подсчитываем количество активных повербанков у пользователя
+                await cur.execute("""
+                    SELECT COUNT(*) as active_count
+                    FROM orders o
+                    WHERE o.user_id = %s 
+                    AND o.status = 'borrow' 
+                    AND o.completed_at IS NULL
+                """, (user_id,))
+                
+                active_count_result = await cur.fetchone()
+                active_count = active_count_result[0] if active_count_result else 0
+                
+                # Проверяем, не превышен ли лимит
+                if active_count >= effective_limit:
+                    limit_source = "индивидуального лимита" if limit_type == 'individual' else f"лимита группы"
+                    return False, f"Превышен лимит повербанков ({active_count}/{effective_limit}). Источник: {limit_source}"
+                
+                logger.info(f"Пользователь {user_id}: активных повербанков {active_count}/{effective_limit} (тип: {limit_type})")
+                return True, f"Лимит не превышен ({active_count}/{effective_limit})"
+                
+    except Exception as e:
+        logger = get_logger('order_utils')
+        logger.error(f"Ошибка проверки лимита пользователя {user_id}: {e}")
+        return False, f"Ошибка проверки лимита: {e}"
+
+
 async def validate_borrow_request(db_pool, user_id: int, powerbank_id: int, 
                                 station_id: int) -> Tuple[bool, str]:
     """
@@ -104,6 +181,11 @@ async def validate_borrow_request(db_pool, user_id: int, powerbank_id: int,
     try:
         logger = get_logger('order_utils')
         logger.info(f"Валидация запроса на выдачу: пользователь {user_id}, powerbank {powerbank_id}, станция {station_id}")
+        
+        # Проверяем лимит повербанков пользователя
+        limit_ok, limit_message = await check_user_powerbank_limit(db_pool, user_id)
+        if not limit_ok:
+            return False, limit_message
         
         # Проверяем дубликаты заказов
         has_duplicate, duplicate_message = await check_duplicate_borrow_order(

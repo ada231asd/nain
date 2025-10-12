@@ -27,6 +27,8 @@ from api.query_server_address_api import QueryServerAddressAPI
 from api.user_powerbank_api import UserPowerbankAPI
 from api.powerbank_error_endpoints import PowerbankErrorEndpoints
 from api.simple_return_endpoints import SimpleReturnEndpoints
+from api.powerbank_status_api import PowerbankStatusAPI
+from api.bulk_user_import_api import BulkUserImportAPI
 
 
 
@@ -54,6 +56,8 @@ class HTTPServer:
         self.user_powerbank_api: UserPowerbankAPI = None
         self.powerbank_error_endpoints: PowerbankErrorEndpoints = None
         self.simple_return_endpoints: SimpleReturnEndpoints = None
+        self.powerbank_status_api: PowerbankStatusAPI = None
+        self.bulk_user_import_api: BulkUserImportAPI = None
         
     
     async def initialize_database(self):
@@ -139,6 +143,8 @@ class HTTPServer:
         self.user_powerbank_api = UserPowerbankAPI(self.db_pool, connection_manager)
         self.powerbank_error_endpoints = PowerbankErrorEndpoints(self.db_pool)
         self.simple_return_endpoints = SimpleReturnEndpoints(self.db_pool, connection_manager)
+        self.powerbank_status_api = PowerbankStatusAPI(self.db_pool)
+        self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
         
         # Регистрируем маршруты
         self._setup_routes(app, connection_manager)
@@ -209,6 +215,12 @@ class HTTPServer:
         # Новые API для возврата повербанков
         self.powerbank_error_endpoints.setup_routes(app)
         self.simple_return_endpoints.setup_routes(app)
+        
+        # API для статусов повербанков
+        self.powerbank_status_api.setup_routes(app)
+        
+        # API для пакетного импорта пользователей
+        self.bulk_user_import_api.setup_routes(app)
         
         # API для отчетов об аномалиях слотов
         from api.slot_abnormal_report_endpoints import SlotAbnormalReportEndpoints

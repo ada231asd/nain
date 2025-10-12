@@ -142,7 +142,7 @@ class CRUDEndpoints:
                     await cur.execute(count_query, params)
                     total = (await cur.fetchone())['total']
                     
-                    # Получаем пользователей с ролями
+                    # Получаем пользователей с ролями и лимитами
                     query = f"""
                         SELECT 
                             au.user_id, 
@@ -153,9 +153,23 @@ class CRUDEndpoints:
                             au.created_at, 
                             au.last_login_at,
                             COALESCE(ur.role, 'user') as role,
-                            ur.org_unit_id as parent_org_unit_id
+                            ur.org_unit_id as parent_org_unit_id,
+                            au.powerbank_limit as individual_limit,
+                            ou.default_powerbank_limit as group_default_limit,
+                            ou.name as group_name,
+                            CASE 
+                                WHEN au.powerbank_limit IS NOT NULL THEN au.powerbank_limit
+                                WHEN ou.default_powerbank_limit IS NOT NULL THEN ou.default_powerbank_limit
+                                ELSE 0
+                            END as effective_limit,
+                            CASE 
+                                WHEN au.powerbank_limit IS NOT NULL THEN 'individual'
+                                WHEN ou.default_powerbank_limit IS NOT NULL THEN 'group'
+                                ELSE 'no_group'
+                            END as limit_type
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                        LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
                         {where_clause.replace('status', 'au.status') if where_clause else ''}
                         ORDER BY au.created_at DESC
                         LIMIT %s OFFSET %s
@@ -197,9 +211,23 @@ class CRUDEndpoints:
                             au.created_at, 
                             au.last_login_at,
                             COALESCE(ur.role, 'user') as role,
-                            ur.org_unit_id as parent_org_unit_id
+                            ur.org_unit_id as parent_org_unit_id,
+                            au.powerbank_limit as individual_limit,
+                            ou.default_powerbank_limit as group_default_limit,
+                            ou.name as group_name,
+                            CASE 
+                                WHEN au.powerbank_limit IS NOT NULL THEN au.powerbank_limit
+                                WHEN ou.default_powerbank_limit IS NOT NULL THEN ou.default_powerbank_limit
+                                ELSE 0
+                            END as effective_limit,
+                            CASE 
+                                WHEN au.powerbank_limit IS NOT NULL THEN 'individual'
+                                WHEN ou.default_powerbank_limit IS NOT NULL THEN 'group'
+                                ELSE 'no_group'
+                            END as limit_type
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                        LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
                         WHERE au.user_id = %s
                     """, (user_id,))
                     
@@ -312,6 +340,28 @@ class CRUDEndpoints:
                     
                     update_fields.append("status = %s")
                     params.append(data['статус'])
+                    
+                    # Добавляем поддержку обновления лимита повербанков
+                    if 'powerbank_limit' in data:
+                        powerbank_limit = data['powerbank_limit']
+                        if powerbank_limit is not None and powerbank_limit != '':
+                            try:
+                                powerbank_limit = int(powerbank_limit)
+                                if powerbank_limit < 0:
+                                    return web.json_response({
+                                        "success": False,
+                                        "error": "Лимит повербанков не может быть отрицательным"
+                                    }, status=400)
+                            except (ValueError, TypeError):
+                                return web.json_response({
+                                    "success": False,
+                                    "error": "Лимит повербанков должен быть числом"
+                                }, status=400)
+                        else:
+                            powerbank_limit = None
+                        
+                        update_fields.append("powerbank_limit = %s")
+                        params.append(powerbank_limit)
                     
                     if password_hash:
                         update_fields.append("password_hash = %s")
