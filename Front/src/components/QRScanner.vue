@@ -8,7 +8,6 @@
       
       <div class="scanner-body">
         <div v-if="!hasCamera" class="no-camera">
-          <div class="no-camera-icon">📷</div>
           <p>Камера недоступна</p>
           <p>Введите код станции вручную</p>
         </div>
@@ -30,15 +29,35 @@
            />
            
            <div v-if="!showCamera" class="camera-placeholder">
-             <div class="camera-icon">📱</div>
              <p>Нажмите "Сканировать QR-код" для сканирования</p>
            </div>
            
            <!-- Отображение ошибок -->
            <div v-if="lastError" class="error-message">
-             <p>⚠️ {{ lastError }}</p>
+             <p>{{ lastError }}</p>
            </div>
          </div>
+        
+        <!-- Кнопки управления -->
+        <div class="scanner-controls">
+          <button 
+            v-if="!showCamera && hasCamera" 
+            @click="startCamera" 
+            class="btn-primary"
+          >
+            Сканировать QR-код
+          </button>
+          <button 
+            v-if="showCamera" 
+            @click="stopCamera" 
+            class="btn-secondary"
+          >
+            Выключить камеру
+          </button>
+          <button @click="closeScanner" class="btn-cancel">
+            Отмена
+          </button>
+        </div>
         
         <!-- Ручной ввод как fallback -->
         <div class="manual-input">
@@ -59,26 +78,6 @@
             Добавить
           </button>
         </div>
-      </div>
-      
-      <div class="scanner-footer">
-        <button 
-          v-if="!showCamera && hasCamera" 
-          @click="startCamera" 
-          class="btn-primary"
-        >
-          Сканировать QR-код
-        </button>
-        <button 
-          v-if="showCamera" 
-          @click="stopCamera" 
-          class="btn-secondary"
-        >
-          Выключить камеру
-        </button>
-        <button @click="closeScanner" class="btn-cancel">
-          Отмена
-        </button>
       </div>
     </div>
   </div>
@@ -296,13 +295,6 @@ onUnmounted(() => {
   border: 2px dashed #dee2e6;
 }
 
-.no-camera-icon,
-.camera-icon {
-  font-size: 3rem;
-  margin-bottom: 15px;
-  display: block;
-}
-
 .loading-spinner {
   width: 40px;
   height: 40px;
@@ -394,13 +386,12 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.scanner-footer {
+.scanner-controls {
   display: flex;
   gap: 15px;
-  padding: 20px 30px;
+  margin-top: 20px;
+  padding-top: 20px;
   border-top: 1px solid #e9ecef;
-  background: #f8f9fa;
-  border-radius: 0 0 20px 20px;
 }
 
 .btn-primary {

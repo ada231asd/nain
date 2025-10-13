@@ -5,7 +5,7 @@
       <div v-if="qrStationData" class="qr-station-section">
         <div class="qr-station-card">
           <div class="qr-station-header">
-            <h2>📍 Отсканированная станция</h2>
+            <h2>Отсканированная станция</h2>
             <button @click="closeQRStation" class="close-qr-btn">×</button>
           </div>
           <div class="qr-station-info">
@@ -45,24 +45,24 @@
         </div>
       </div>
 
-      <!-- Поиск станций -->
-      <div class="search-section">
-        <div class="search-input-wrapper">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Поиск станций..."
-            class="search-input"
-            @input="handleSearch"
-          />
-        </div>
-      </div>
-
       <!-- Избранные станции -->
       <section class="favorites-section">
         <div class="section-header">
           <h2>Избранные станции</h2>
           
+        </div>
+
+        <!-- Поиск станций -->
+        <div class="search-section">
+          <div class="search-input-wrapper">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Поиск станций..."
+              class="search-input"
+              @input="handleSearch"
+            />
+          </div>
         </div>
         
         <div v-if="favoriteStations.length === 0" class="empty-state">
@@ -84,6 +84,7 @@
             :showAdminActions="isAdmin"
             @toggleFavorite="toggleFavorite"
             @takeBattery="handleTakeBattery"
+            @returnWithError="handleReturnWithError"
             @adminClick="handleAdminStationClick"
           />
         </div>
@@ -100,6 +101,7 @@
           :showAdminActions="isAdmin"
           @toggleFavorite="toggleFavorite"
           @takeBattery="handleTakeBattery"
+          @returnWithError="handleReturnWithError"
           @adminClick="handleAdminStationClick"
         />
       </section>
@@ -112,13 +114,11 @@
       <section class="quick-actions">
         <h2>Быстрые действия</h2>
         <div class="actions-grid">
-          <button @click="showQRScanner = true" class="action-btn">
-            <span class="action-icon">📱</span>
-            <span>Добавить станцию</span>
+          <button @click="showQRScanner = true" class="action-btn-standard">
+            Добавить станцию
           </button>
-          <button @click="goToAdmin" v-if="isAdmin" class="action-btn">
-            <span class="action-icon">⚙️</span>
-            <span>Админ панель</span>
+          <button @click="goToAdmin" v-if="isAdmin" class="action-btn-standard">
+            Админ панель
           </button>
         </div>
       </section>
@@ -365,6 +365,32 @@ const handleTakeBattery = async (station) => {
     } else {
       alert('❌ Ошибка при запросе аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
     }
+  }
+}
+
+const handleReturnWithError = async (station) => {
+  try {
+    const stationId = station.station_id || station.id
+    const userId = user.value?.user_id
+    
+    if (!stationId) {
+      console.error('Отсутствует ID станции')
+      return
+    }
+    
+    if (!userId) {
+      console.error('Отсутствует ID пользователя')
+      return
+    }
+    
+    console.log('Запрос на возврат с ошибкой:', { stationId, userId })
+    
+    // TODO: Здесь нужно добавить вызов API для возврата с ошибкой
+    alert('Функция "Вернуть с ошибкой" будет реализована')
+    
+  } catch (error) {
+    console.error('Ошибка при возврате с ошибкой:', error)
+    alert('❌ Ошибка: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -914,7 +940,7 @@ onUnmounted(() => {
 }
 
 .search-section {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .search-input-wrapper {
@@ -1156,27 +1182,22 @@ onUnmounted(() => {
   gap: 20px;
 }
 
-.action-btn {
-  background: white;
-  border: 2px solid #e9ecef;
-  border-radius: 15px;
-  padding: 25px 20px;
+.action-btn-standard {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
-.action-btn:hover {
-  border-color: #667eea;
-  transform: translateY(-3px);
+.action-btn-standard:hover {
+  background: #5a6fd8;
+  transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.action-icon {
-  font-size: 2rem;
 }
 
 
@@ -1236,6 +1257,10 @@ onUnmounted(() => {
 
   .actions-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-btn-standard {
+    width: 100%;
   }
 
   .search-input-wrapper {

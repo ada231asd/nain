@@ -20,7 +20,7 @@
     <div class="station-card__content">
 
       <p v-if="station.address" class="station-card__address">
-        📍 {{ station.address }}
+        {{ station.address }}
       </p>
 
       <p v-if="station.description" class="station-card__description">
@@ -64,6 +64,14 @@
       </BaseButton>
 
       <BaseButton
+        variant="warning"
+        size="small"
+        @click="$emit('returnWithError', station)"
+      >
+        Вернуть с ошибкой
+      </BaseButton>
+
+      <BaseButton
         v-if="showFavoriteButton"
         :variant="isFavorite ? 'danger' : 'secondary'"
         size="small"
@@ -78,12 +86,11 @@
         size="small"
         @click="$emit('adminClick', station)"
       >
-        🔋 Управление банками
+        Управление банками
       </BaseButton>
     </div>
     
     <div v-if="station.distance" class="station-card__distance">
-      <span class="station-card__distance-icon">📍</span>
       <span class="station-card__distance-text">{{ formatDistance(station.distance) }}</span>
     </div>
   </div>
@@ -124,7 +131,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'adminClick'])
+const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'returnWithError', 'adminClick'])
 
 const availablePorts = computed(() => {
   return props.station.freePorts || 0
