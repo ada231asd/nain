@@ -79,10 +79,10 @@
             v-for="user in paginatedUsers" 
             :key="user.user_id || user.id"
             class="user-row"
-            :class="[getUserRowClass(user.статус || user.status), { 'row-selected': isUserSelected(user) }]"
+            :class="[getUserRowClass(user.status), { 'row-selected': isUserSelected(user) }]"
           >
             <!-- Чекбокс -->
-            <td class="col-checkbox user-cell" :class="`user-status-${getUserStatusClass(user.статус || user.status)}`" @click.stop>
+            <td class="col-checkbox user-cell" :class="`user-status-${getUserStatusClass(user.status)}`" @click.stop>
               <input 
                 type="checkbox" 
                 :checked="isUserSelected(user)"
@@ -125,8 +125,8 @@
             <!-- Статус -->
             <td class="col-status" @click="openUserModal(user)">
               <div class="status-container">
-                <span class="status-indicator" :class="getUserStatusClass(user.статус || user.status)"></span>
-                <span class="status-text">{{ getUserStatusText(user.статус || user.status) }}</span>
+                <span class="status-indicator" :class="getUserStatusClass(user.status)"></span>
+                <span class="status-text">{{ getUserStatusText(user.status) }}</span>
               </div>
             </td>
 
@@ -230,8 +230,8 @@
                 </div>
                 <div class="detail-row" :class="{ 'editable-field': isEditing }">
                   <span class="detail-label">Статус:</span>
-                  <span v-if="!isEditing" class="detail-value">{{ getUserStatusText(selectedUser.статус || selectedUser.status) }}</span>
-                  <select v-else v-model="editForm.статус" class="edit-input">
+                  <span v-if="!isEditing" class="detail-value">{{ getUserStatusText(selectedUser.status) }}</span>
+                  <select v-else v-model="editForm.status" class="edit-input">
                     <option value="pending">Ожидает</option>
                     <option value="active">Активен</option>
                     <option value="blocked">Заблокирован</option>
@@ -285,21 +285,21 @@
               ✏️ Редактировать
             </button>
             <button 
-              v-if="(selectedUser.статус || selectedUser.status) === 'ожидает' || (selectedUser.статус || selectedUser.status) === 'pending'"
+              v-if="selectedUser.status === 'pending'"
               @click="handleModalAction('approve')" 
               class="btn-action btn-approve"
             >
               ✅ Одобрить
             </button>
             <button 
-              v-if="(selectedUser.статус || selectedUser.status) === 'активный' || (selectedUser.статус || selectedUser.status) === 'active'"
+              v-if="selectedUser.status === 'active'"
               @click="handleModalAction('block')" 
               class="btn-action btn-block"
             >
               🚫 Заблокировать
             </button>
             <button 
-              v-if="(selectedUser.статус || selectedUser.status) === 'заблокирован' || (selectedUser.статус || selectedUser.status) === 'blocked'"
+              v-if="selectedUser.status === 'blocked'"
               @click="handleModalAction('unblock')" 
               class="btn-action btn-unblock"
             >
@@ -386,7 +386,7 @@ const filteredUsers = computed(() => {
   // Фильтрация по статусу
   if (activeFilters.value.statuses.length > 0) {
     filtered = filtered.filter(user => {
-      const userStatus = user.статус || user.status
+      const userStatus = user.status
       return activeFilters.value.statuses.includes(userStatus)
     })
   }
@@ -591,7 +591,7 @@ const initEditForm = (user) => {
     email: user.email || '',
     role: user.role || 'user',
     parent_org_unit_id: user.parent_org_unit_id || user.org_unit_id || '',
-    status: user.статус || user.status || 'pending'
+    status: user.status || 'pending'
   }
 }
 

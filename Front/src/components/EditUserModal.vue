@@ -43,9 +43,10 @@
         </div>
         <div class="form-group">
           <label>Статус</label>
-          <select v-model="localForm.статус" class="form-select">
-            <option value="ожидает">Ожидает</option>
-            <option value="активный">Активен</option>
+          <select v-model="localForm.status" class="form-select">
+            <option value="pending">Ожидает</option>
+            <option value="active">Активен</option>
+            <option value="blocked">Заблокирован</option>
           </select>
         </div>
 
@@ -82,7 +83,7 @@ const localForm = reactive({
   email: '',
   role: 'user',
   parent_org_unit_id: '',
-  статус: 'ожидает'
+  status: 'pending'
 })
 
 // Доступные группы для выбора
@@ -97,11 +98,11 @@ watch(() => props.user, (u) => {
     localForm.email = u.email || ''
     localForm.role = u.role || 'user'
     localForm.parent_org_unit_id = u.parent_org_unit_id || u.org_unit_id || ''
-    localForm.статус = u.статус || u.status || 'ожидает'
+    localForm.status = u.status || 'pending'
   }
 }, { immediate: true })
 
-const showDecisionButtons = computed(() => localForm.статус === 'ожидает')
+const showDecisionButtons = computed(() => localForm.status === 'pending')
 
 const onClose = () => emit('close')
 
@@ -118,17 +119,8 @@ const onSave = async () => {
       formData.parent_org_unit_id = parseInt(formData.parent_org_unit_id)
     }
     
-    // Сервер ожидает поле "статус" (кириллица), оставляем как есть
-    // Проверяем, что статус в правильном формате (pending/active/blocked)
-    const statusMap = {
-      'ожидает': 'pending',
-      'активный': 'active', 
-      'заблокирован': 'blocked',
-      'отклонен': 'rejected'
-    }
-    if (formData.статус && statusMap[formData.статус]) {
-      formData.статус = statusMap[formData.статус]
-    }
+    // Статус уже в правильном формате (pending/active/blocked)
+    // Никаких дополнительных преобразований не требуется
     
     emit('save', formData)
   } finally {

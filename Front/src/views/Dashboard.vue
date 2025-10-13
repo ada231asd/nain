@@ -911,8 +911,8 @@ const formatTime = (timestamp) => {
 // WebSocket уведомления о выдаче повербанков
 const setupWebSocketNotifications = () => {
   try {
-    // Подключаемся к WebSocket
-    websocketClient.connect('ws://localhost:8001/ws')
+    // Подключаемся к WebSocket (URL определяется динамически внутри клиента)
+    websocketClient.connect()
     
     // Обрабатываем успешную выдачу
     websocketClient.on('borrow_success', (data) => {

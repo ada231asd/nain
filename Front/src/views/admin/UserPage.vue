@@ -40,7 +40,7 @@
           </thead>
           <tbody>
             <tr v-for="user in filteredUsers" :key="user.user_id || user.id">
-              <td class="user-cell" :class="`user-status-${getUserStatusClass(user.статус || user.status)}`">
+              <td class="user-cell" :class="`user-status-${getUserStatusClass(user.status)}`">
                 <span class="user-name-text">{{ user.user_id || user.id || 'N/A' }}</span>
               </td>
               <td>{{ user.fio || 'N/A' }}</td>
@@ -57,8 +57,8 @@
                 </span>
               </td>
               <td>
-                <span class="status-badge" :class="getUserStatusClass(user.статус || user.status)">
-                  {{ getUserStatusText(user.статус || user.status) }}
+                <span class="status-badge" :class="getUserStatusClass(user.status)">
+                  {{ getUserStatusText(user.status) }}
                 </span>
               </td>
               <td>{{ user.created_at ? formatTime(user.created_at) : 'N/A' }}</td>
@@ -67,9 +67,9 @@
                 <select class="filter-select" @change="handleUserAction(user, $event)">
                   <option value="">Выбрать действие</option>
                   <option value="edit">Редактировать</option>
-                  <option v-if="(user.статус || user.status) === 'ожидает' || (user.статус || user.status) === 'pending'" value="approve">Одобрить</option>
-                  <option v-if="(user.статус || user.status) === 'активный' || (user.статус || user.status) === 'active'" value="block">Заблокировать</option>
-                  <option v-if="(user.статус || user.status) === 'заблокирован' || (user.статус || user.status) === 'blocked'" value="unblock">Разблокировать</option>
+                  <option v-if="user.status === 'pending'" value="approve">Одобрить</option>
+                  <option v-if="user.status === 'active'" value="block">Заблокировать</option>
+                  <option v-if="user.status === 'blocked'" value="unblock">Разблокировать</option>
                   <option value="delete">Удалить</option>
                 </select>
               </td>

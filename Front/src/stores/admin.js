@@ -141,7 +141,7 @@ export const useAdminStore = defineStore('admin', {
           phone_e164: user.phone_e164,
           email: user.email,
           role: user.role,
-          статус: 'blocked',
+          status: 'blocked',
           parent_org_unit_id: user.parent_org_unit_id || ''
         });
       } catch (err) {
@@ -162,7 +162,7 @@ export const useAdminStore = defineStore('admin', {
           phone_e164: user.phone_e164,
           email: user.email,
           role: user.role,
-          статус: 'active',
+          status: 'active',
           parent_org_unit_id: user.parent_org_unit_id || ''
         });
       } catch (err) {

@@ -11,7 +11,21 @@ class WebSocketClient {
     this.shouldReconnect = true
   }
 
-  connect(url = 'ws://localhost:8001/ws/slot-abnormal-reports') {
+  connect(url) {
+    // Определяем URL по умолчанию динамически, чтобы избегать mixed content
+    let resolvedUrl = url
+    if (!resolvedUrl) {
+      try {
+        const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+        const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8001'
+        const protocol = isHttps ? 'wss:' : 'ws:'
+        // Используем относительный путь к стандартному маршруту WS бекенда
+        resolvedUrl = `${protocol}//${host}/ws`
+      } catch (e) {
+        // Fallback на localhost если что-то пошло не так
+        resolvedUrl = 'ws://localhost:8001/ws'
+      }
+    }
     // Предотвращаем множественные соединения
     if (this.isConnected || this.isConnecting) {
       console.log('WebSocket уже подключен или подключается')
@@ -20,7 +34,7 @@ class WebSocketClient {
 
     try {
       this.isConnecting = true
-      this.ws = new WebSocket(url)
+      this.ws = new WebSocket(resolvedUrl)
       
       this.ws.onopen = (event) => {
         console.log('WebSocket соединение установлено')
@@ -71,7 +85,7 @@ class WebSocketClient {
           this.reconnectAttempts++
           console.log(`Попытка переподключения ${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
           setTimeout(() => {
-            this.connect(url)
+            this.connect(resolvedUrl)
           }, this.reconnectDelay * this.reconnectAttempts)
         } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           console.error('Превышено максимальное количество попыток переподключения')

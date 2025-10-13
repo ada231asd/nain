@@ -318,7 +318,7 @@ export const pythonAPI = {
         email: userData.email || '',
         role: userData.role || 'user',
         parent_org_unit_id: userData.parent_org_unit_id || '',
-        статус: 'active' // Меняем статус на активный
+        status: 'active' // Меняем статус на активный
       }
       
       return handleResponse(apiClient.put(`/users/${userId}`, updateData), 'approve user')
@@ -340,7 +340,7 @@ export const pythonAPI = {
         email: userData.email || '',
         role: userData.role || 'user',
         parent_org_unit_id: userData.parent_org_unit_id || '',
-        статус: 'blocked' // Меняем статус на заблокированный
+        status: 'blocked' // Меняем статус на заблокированный
       }
       
       return handleResponse(apiClient.put(`/users/${userId}`, updateData), 'reject user')

@@ -210,7 +210,7 @@ const getGroupStats = () => {
   if (groupUsers.length === 0) return null
   
   const activeUsers = groupUsers.filter(u => 
-    (u.статус || u.status) === 'активный' || (u.статус || u.status) === 'active'
+    u.status === 'active'
   ).length
   
   return `${activeUsers}/${groupUsers.length} пользователей`

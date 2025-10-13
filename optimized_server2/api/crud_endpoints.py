@@ -22,7 +22,7 @@ class CRUDEndpoints:
         """POST /api/users - Создать пользователя"""
         try:
             data = await request.json()
-            required_fields = ['fio', 'phone_e164', 'email', 'role', 'статус', 'password']
+            required_fields = ['fio', 'phone_e164', 'email', 'role', 'status', 'password']
             
             for field in required_fields:
                 if field not in data:
@@ -33,7 +33,7 @@ class CRUDEndpoints:
             
             # Валидация enum значений
             valid_statuses = ['pending', 'active', 'blocked']
-            if data['статус'] not in valid_statuses:
+            if data['status'] not in valid_statuses:
                 return web.json_response({
                     "success": False,
                     "error": f"Недопустимый статус пользователя. Допустимые значения: {', '.join(valid_statuses)}"
@@ -85,7 +85,7 @@ class CRUDEndpoints:
                         data['email'],
                         password_hash,
                         data['fio'],
-                        data['статус']
+                        data['status']
                     ))
                     
                     user_id = cur.lastrowid
@@ -107,7 +107,7 @@ class CRUDEndpoints:
                             "email": data['email'],
                             "role": data['role'],
                             "parent_org_unit_id": parent_org_unit_id,
-                            "статус": data['статус']
+                            "status": data['status']
                         },
                         "message": "Пользователь создан"
                     })
@@ -151,6 +151,7 @@ class CRUDEndpoints:
                             au.fio, 
                             au.created_at, 
                             au.last_login_at,
+                            au.status as status,
                             COALESCE(ur.role, 'user') as role,
                             ur.org_unit_id as parent_org_unit_id,
                             au.powerbank_limit as individual_limit,
@@ -198,6 +199,7 @@ class CRUDEndpoints:
                             au.fio, 
                             au.created_at, 
                             au.last_login_at,
+                            au.status as status,
                             COALESCE(ur.role, 'user') as role,
                             ur.org_unit_id as parent_org_unit_id,
                             au.powerbank_limit as individual_limit,
@@ -239,7 +241,7 @@ class CRUDEndpoints:
             data = await request.json()
             
             # Валидация обязательных полей
-            required_fields = ['fio', 'phone_e164', 'email', 'role', 'статус']
+            required_fields = ['fio', 'phone_e164', 'email', 'role', 'status']
             for field in required_fields:
                 if field not in data:
                     return web.json_response({
@@ -249,7 +251,7 @@ class CRUDEndpoints:
             
             # Валидация enum значений
             valid_statuses = ['pending', 'active', 'blocked']
-            if data['статус'] not in valid_statuses:
+            if data['status'] not in valid_statuses:
                 return web.json_response({
                     "success": False,
                     "error": f"Недопустимый статус пользователя. Допустимые значения: {', '.join(valid_statuses)}"
@@ -317,7 +319,7 @@ class CRUDEndpoints:
                     params.append(data['email'])
                     
                     update_fields.append("status = %s")
-                    params.append(data['статус'])
+                    params.append(data['status'])
                     
                     # Добавляем поддержку обновления лимита повербанков
                     if 'individual_limit' in data or 'powerbank_limit' in data:

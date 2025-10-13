@@ -664,21 +664,8 @@ const handleUserUpdated = async (user) => {
       parent_org_unit_id: user.parent_org_unit_id
     }
     
-    // Сервер ожидает поле "статус" (кириллица) в английском формате (pending/active/blocked)
-    const statusMap = {
-      'ожидает': 'pending',
-      'активный': 'active', 
-      'заблокирован': 'blocked',
-      'отклонен': 'rejected',
-      'pending': 'pending',
-      'active': 'active',
-      'blocked': 'blocked',
-      'rejected': 'rejected'
-    }
-    const status = user.статус || user.status
-    if (status && statusMap[status]) {
-      updates.статус = statusMap[status]
-    }
+    // Сервер ожидает поле "status" с английскими значениями (pending/active/blocked)
+    // Статус уже в правильном формате, никаких преобразований не требуется
     
     await adminStore.updateUser(id, updates)
     await refreshAfterAction()

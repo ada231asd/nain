@@ -32,7 +32,8 @@ class BulkUserImportAPI:
             # Получаем multipart данные
             reader = await request.multipart()
             
-            file_field = None
+            file_content = None
+            filename = None
             org_unit_id = None
             
             # Обрабатываем поля формы
@@ -42,7 +43,9 @@ class BulkUserImportAPI:
                     break
                 
                 if part.name == 'file':
-                    file_field = part
+                    # Читаем файл сразу, пока поток доступен
+                    filename = part.filename
+                    file_content = await part.read()
                 elif part.name == 'org_unit_id':
                     org_unit_id_text = await part.text()
                     if org_unit_id_text:
@@ -54,14 +57,13 @@ class BulkUserImportAPI:
                                 "error": "org_unit_id должен быть числом"
                             }, status=400)
             
-            if not file_field:
+            if not file_content:
                 return web.json_response({
                     "success": False,
                     "error": "Отсутствует файл в запросе"
                 }, status=400)
             
             # Проверяем тип файла
-            filename = file_field.filename
             if not filename:
                 return web.json_response({
                     "success": False,
@@ -75,9 +77,6 @@ class BulkUserImportAPI:
                     "success": False,
                     "error": f"Неподдерживаемый формат файла. Разрешены: {', '.join(allowed_extensions)}"
                 }, status=400)
-            
-            # Читаем содержимое файла
-            file_content = await file_field.read()
             
             if not file_content:
                 return web.json_response({
@@ -186,7 +185,8 @@ class BulkUserImportAPI:
             # Получаем multipart данные
             reader = await request.multipart()
             
-            file_field = None
+            file_content = None
+            filename = None
             
             # Обрабатываем поля формы
             while True:
@@ -195,16 +195,17 @@ class BulkUserImportAPI:
                     break
                 
                 if part.name == 'file':
-                    file_field = part
+                    # Читаем файл сразу, пока поток доступен
+                    filename = part.filename
+                    file_content = await part.read()
             
-            if not file_field:
+            if not file_content:
                 return web.json_response({
                     "success": False,
                     "error": "Отсутствует файл в запросе"
                 }, status=400)
             
             # Проверяем тип файла
-            filename = file_field.filename
             if not filename:
                 return web.json_response({
                     "success": False,
@@ -218,9 +219,6 @@ class BulkUserImportAPI:
                     "success": False,
                     "error": f"Неподдерживаемый формат файла. Разрешены: {', '.join(allowed_extensions)}"
                 }, status=400)
-            
-            # Читаем содержимое файла
-            file_content = await file_field.read()
             
             if not file_content:
                 return web.json_response({
