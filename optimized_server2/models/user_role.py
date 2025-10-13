@@ -28,6 +28,32 @@ class UserRole:
         }
     
     @classmethod
+    async def get_primary_role(cls, db_pool, user_id: int) -> Optional['UserRole']:
+        """Возвращает основную роль пользователя.
+        Логика: выбираем самую последнюю по времени создания роль пользователя.
+        Если ролей нет — возвращаем None.
+        """
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    SELECT id, user_id, org_unit_id, role, created_at
+                    FROM user_role
+                    WHERE user_id = %s
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT 1
+                """, (user_id,))
+                row = await cur.fetchone()
+                if not row:
+                    return None
+                return cls(
+                    id=row[0],
+                    user_id=row[1],
+                    org_unit_id=row[2],
+                    role=row[3],
+                    created_at=row[4]
+                )
+    
+    @classmethod
     async def get_by_user_id(cls, db_pool, user_id: int) -> List['UserRole']:
         """Получает роли пользователя"""
         async with db_pool.acquire() as conn:

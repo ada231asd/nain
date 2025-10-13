@@ -320,13 +320,10 @@ class OptimizedServer:
         addr = writer.get_extra_info('peername')
         from utils.time_utils import get_moscow_time
         connection_time = get_moscow_time()
-        print(f"Подключен: {addr} (fd={fd}) в {connection_time.strftime('%H:%M:%S')}")
         
-        # Логируем статистику подключений
-        if hasattr(self, 'connection_stats'):
-            self.connection_stats['total_connections'] = getattr(self.connection_stats, 'total_connections', 0) + 1
-        else:
-            self.connection_stats = {'total_connections': 1}
+        self.logger.debug(f"Подключен: {addr} (fd={fd}) в {connection_time.strftime('%H:%M:%S')}")
+        
+        # Отключили ведение статистики подключений
         
         # Создаем соединение
         connection = StationConnection(fd, addr, writer=writer)
@@ -335,7 +332,8 @@ class OptimizedServer:
         
         # Логируем информацию о подключении
         total_connections = len(self.connection_manager.get_all_connections())
-        print(f"🔌 Подключен: {addr[0]}:{addr[1]} (fd={fd}) - Станция: {connection.box_id or 'Неизвестна'}")
+        
+        self.logger.debug(f"Подключен: {addr[0]}:{addr[1]} (fd={fd}) - Станция: {connection.box_id or 'Неизвестна'}")
         
         try:
             packet_count = 0
@@ -402,15 +400,12 @@ class OptimizedServer:
             # Закрываем соединение
             remaining_connections = len(self.connection_manager.get_all_connections())
             if connection_reset:
-                print(f"Отключен: {addr} (fd={fd}) - сброс соединения клиентом, осталось соединений: {remaining_connections}")
+                self.logger.debug(f"Отключен: {addr} (fd={fd}) - сброс соединения клиентом, осталось соединений: {remaining_connections}")
             else:
-                print(f"Отключен: {addr} (fd={fd}) - нормальное закрытие, осталось соединений: {remaining_connections}")
+                self.logger.debug(f"Отключен: {addr} (fd={fd}) - нормальное закрытие, осталось соединений: {remaining_connections}")
             self.connection_manager.remove_connection(fd)
             
-            # Выводим статистику каждые 10 подключений
-            if hasattr(self, 'connection_stats') and self.connection_stats['total_connections'] % 10 == 0:
-                active_connections = len(self.connection_manager.get_all_connections())
-                print(f"Статистика: всего подключений {self.connection_stats['total_connections']}, активных {active_connections}")
+          
             
             # Безопасное закрытие соединения
             try:
@@ -421,7 +416,7 @@ class OptimizedServer:
                         try:
                             await asyncio.wait_for(writer.wait_closed(), timeout=1.0)
                         except asyncio.TimeoutError:
-                            print(f"Таймаут при закрытии соединения {addr}")
+                            self.logger.debug(f"Таймаут при закрытии соединения {addr}")
                         except Exception as wait_error:
                             if not isinstance(wait_error, (ConnectionResetError, OSError)):
                                 self.logger.error(f"Ошибка: {e}")

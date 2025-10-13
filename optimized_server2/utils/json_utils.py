@@ -53,3 +53,22 @@ def safe_json_response(data: Dict[str, Any], status: int = 200) -> Dict[str, Any
             },
             "status": 500
         }
+
+from aiohttp import web
+from typing import Any, Dict
+
+
+def json_ok(data: Any = None, status: int = 200, **extra: Any) -> web.Response:
+    """Возвращает стандартный успешный JSON ответ в формате {success, data, ...}."""
+    payload: Dict[str, Any] = {"success": True, "data": data}
+    if extra:
+        payload.update(extra)
+    return web.json_response(serialize_for_json(payload), status=status)
+
+
+def json_fail(error: str, status: int = 400, **extra: Any) -> web.Response:
+    """Возвращает стандартный ошибочный JSON ответ в формате {success: False, error, ...}."""
+    payload: Dict[str, Any] = {"success": False, "error": error}
+    if extra:
+        payload.update(extra)
+    return web.json_response(serialize_for_json(payload), status=status)

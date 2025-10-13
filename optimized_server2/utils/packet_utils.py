@@ -245,10 +245,14 @@ def parse_borrow_request(data: bytes) -> Dict[str, Any]:
     packet_format = ">H B B B I"
     packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
     
-    slot = data[8] if len(data) > 8 else 0
+    # Payload строго по PacketLen (PacketLen включает 7 байт заголовка)
+    payload_len = max(0, packet_len - 7)
+    payload = data[9:9 + payload_len]
     
-    # Проверяем checksum
-    payload = struct.pack("B", slot)
+    # Слот — первый байт payload
+    slot = payload[0] if len(payload) >= 1 else 0
+    
+    # Проверяем checksum по фактическому payload
     if compute_checksum(payload) != checksum:
         raise ValueError("Неверный checksum")
     
@@ -271,16 +275,18 @@ def parse_borrow_response(data: bytes) -> Dict[str, Any]:
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
 
-        
+        # Payload строго по PacketLen (PacketLen включает 7 байт заголовка)
+        payload_len = max(0, packet_len - 7)
+        payload = data[9:9 + payload_len]
 
-        payload = data[9:]
-      
-        slot = payload[0]
-        result_code = payload[1]
-        terminal_id_bytes = payload[2:10]
+        # Минимальный ожидаемый payload: 10 байт (slot, result, 8 байт TerminalID)
+        # Некоторые ревизии присылают 12 байт (доп. 2 байта статусов)
+        slot = payload[0] if len(payload) >= 1 else 0
+        result_code = payload[1] if len(payload) >= 2 else 0
+        terminal_id_bytes = payload[2:10] if len(payload) >= 10 else b"\x00" * 8
         terminal_id = parse_terminal_id(terminal_id_bytes)
-        current_slot_lock_status = payload[10]
-        adjacent_slot_lock_status = payload[11]
+        current_slot_lock_status = payload[10] if len(payload) >= 12 else 0
+        adjacent_slot_lock_status = payload[11] if len(payload) >= 12 else 0
 
         if compute_checksum(payload) != checksum:
             checksum_valid = False
@@ -493,25 +499,38 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
 
     packet_format = ">H B B B I"
     packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
-    
-    event = data[9]
-    
-    slot_no = data[10]
-    
-    terminal_id = data[11:19]
-    
-    payload = struct.pack("BB8s", event, slot_no, terminal_id)
+
+    # Payload строго по PacketLen (PacketLen включает 7 байт заголовка)
+    payload_len = max(0, packet_len - 7)
+    payload = data[9:9 + payload_len]
+
+    # Минимальная длина payload: 1 (Event) + 1 (SlotNo) + 8 (TerminalID) = 10
+    if len(payload) < 10:
+        return {
+            "Type": "SlotAbnormalReportRequest",
+            "Error": f"Payload too short: {len(payload)}",
+            "PacketLen": packet_len,
+            "Command": hex(command),
+            "VSN": vsn,
+            "RawPacket": data.hex()
+        }
+
+    event = payload[0]
+    slot_no = payload[1]
+    terminal_id_bytes = payload[2:10]
+
+    # Проверка checksum по фактическому payload
     if compute_checksum(payload) != checksum:
         raise ValueError("Неверный checksum")
-    
+
     # Определяем тип события
     event_types = {
         1: "No unlock command",
         2: "Return detected but no power bank"
     }
-    
+
     event_text = event_types.get(event, f"Unknown event type {event}")
-    
+
     return {
         "Type": "SlotAbnormalReportRequest",
         "PacketLen": packet_len,
@@ -522,7 +541,7 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
         "Event": event,
         "EventText": event_text,
         "SlotNo": slot_no,
-        "TerminalID": terminal_id.hex().upper(),
+        "TerminalID": terminal_id_bytes.hex().upper(),
         "CheckSumValid": True,
         "ReceivedAt": get_moscow_time().isoformat()
     }

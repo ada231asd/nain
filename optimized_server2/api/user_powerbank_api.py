@@ -6,6 +6,7 @@ from aiohttp.web import Application
 import aiomysql
 
 from utils.centralized_logger import get_logger
+from utils.json_utils import json_ok, json_fail
 from models.user import User
 from models.powerbank import Powerbank
 from models.station import Station
@@ -59,15 +60,14 @@ class UserPowerbankAPI:
                             "access_reason": access_reason  # Добавляем причину доступа для информации
                         })
 
-            return web.json_response({
-                "success": True,
+            return json_ok({
                 "available_powerbanks": available_powerbanks,
                 "count": len(available_powerbanks)
             })
 
         except Exception as e:
             self.logger.error(f"Ошибка получения доступных повербанков для пользователя {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
 
     @jwt_middleware
     async def get_user_orders(self, request: web.Request):
@@ -104,14 +104,13 @@ class UserPowerbankAPI:
                     "return_time": order.return_time.isoformat() if order.return_time else None
                 })
 
-            return web.json_response({
-                "success": True,
+            return json_ok({
                 "orders": orders_data
             })
 
         except Exception as e:
             self.logger.error(f"Ошибка получения заказов пользователя {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
 
     @jwt_middleware
     async def borrow_powerbank(self, request: web.Request):
@@ -128,9 +127,7 @@ class UserPowerbankAPI:
             station_id = data.get('station_id')
 
             if not powerbank_id or not station_id:
-                return web.json_response({
-                    "error": "Не указаны powerbank_id или station_id"
-                }, status=400)
+                return json_fail("Не указаны powerbank_id или station_id", status=400)
 
             # Проверяем права доступа пользователя к повербанку
             from utils.org_unit_utils import can_user_borrow_powerbank, log_access_denied_event
@@ -139,24 +136,17 @@ class UserPowerbankAPI:
             if not can_borrow:
                 # Логируем отказ в доступе
                 await log_access_denied_event(self.db_pool, user_id, 'powerbank', powerbank_id, access_reason)
-                
-                return web.json_response({
-                    "error": access_reason
-                }, status=403)
+                return json_fail(access_reason, status=403)
 
             # Проверяем, что повербанк существует и доступен (дополнительная проверка)
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
             if not powerbank:
-                return web.json_response({
-                    "error": "Повербанк не найден"
-                }, status=404)
+                return json_fail("Повербанк не найден", status=404)
 
             # Проверяем, что повербанк не выдан
             active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
             if active_order:
-                return web.json_response({
-                    "error": "Повербанк уже выдан другому пользователю"
-                }, status=400)
+                return json_fail("Повербанк уже выдан другому пользователю", status=400)
 
             # Проверяем онлайн статус станции
             from models.connection import ConnectionManager
@@ -164,9 +154,7 @@ class UserPowerbankAPI:
             if connection_manager:
                 connection = connection_manager.get_connection_by_station_id(station_id)
                 if not connection:
-                    return web.json_response({
-                        "error": "Станция не подключена"
-                    }, status=503)
+                    return json_fail("Станция не подключена", status=503)
                 
                 # Проверяем последний heartbeat (не более 30 секунд назад)
                 if connection.last_heartbeat:
@@ -174,13 +162,9 @@ class UserPowerbankAPI:
                     from utils.time_utils import get_moscow_time
                     time_since_heartbeat = (get_moscow_time() - connection.last_heartbeat).total_seconds()
                     if time_since_heartbeat > 30:
-                        return web.json_response({
-                            "error": f"Станция офлайн (последний heartbeat {time_since_heartbeat:.0f} секунд назад)"
-                        }, status=503)
+                        return json_fail(f"Станция офлайн (последний heartbeat {time_since_heartbeat:.0f} секунд назад)", status=503)
                 else:
-                    return web.json_response({
-                        "error": "Станция не отправляла heartbeat"
-                    }, status=503)
+                    return json_fail("Станция не отправляла heartbeat", status=503)
             
             # Проверяем права доступа пользователя к станции
             from utils.org_unit_utils import can_user_access_station
@@ -189,22 +173,15 @@ class UserPowerbankAPI:
             if not can_access_station:
                 # Логируем отказ в доступе к станции
                 await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
-                
-                return web.json_response({
-                    "error": station_access_reason
-                }, status=403)
+                return json_fail(station_access_reason, status=403)
 
             # Проверяем, что станция существует и активна (дополнительная проверка)
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
-                return web.json_response({
-                    "error": "Станция не найдена"
-                }, status=404)
+                return json_fail("Станция не найдена", status=404)
 
             if station.status != 'active':
-                return web.json_response({
-                    "error": "Станция неактивна"
-                }, status=400)
+                return json_fail("Станция неактивна", status=400)
 
             # Создаем заказ со статусом 'pending' (ожидание ответа от станции)
             order = await Order.create_pending_order(
@@ -215,9 +192,7 @@ class UserPowerbankAPI:
             )
 
             if not order:
-                return web.json_response({
-                    "error": "Не удалось создать заказ"
-                }, status=500)
+                return json_fail("Не удалось создать заказ", status=500)
 
             # Отправляем команду выдачи на станцию и ждем ответа
             borrow_result = await self.borrow_handler.send_borrow_request_and_wait(
@@ -233,8 +208,7 @@ class UserPowerbankAPI:
                 
                 self.logger.info(f"Пользователь {user_id} успешно взял повербанк {powerbank_id} со станции {station_id}")
 
-                return web.json_response({
-                    "success": True,
+                return json_ok({
                     "message": "Повербанк успешно выдан",
                     "order_id": order.order_id,
                     "powerbank_serial": powerbank.serial_number,
@@ -243,13 +217,11 @@ class UserPowerbankAPI:
             else:
                 # Станция отклонила выдачу - отменяем заказ
                 await Order.cancel(self.db_pool, order.order_id)
-                return web.json_response({
-                    "error": f"Станция отклонила выдачу: {borrow_result['message']}"
-                }, status=400)
+                return json_fail(f"Станция отклонила выдачу: {borrow_result['message']}", status=400)
 
         except Exception as e:
             self.logger.error(f"Ошибка выдачи повербанка пользователю {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
 
     @jwt_middleware
     async def return_powerbank(self, request: web.Request):
@@ -266,40 +238,28 @@ class UserPowerbankAPI:
             station_id = data.get('station_id')
 
             if not order_id or not station_id:
-                return web.json_response({
-                    "error": "Не указаны order_id или station_id"
-                }, status=400)
+                return json_fail("Не указаны order_id или station_id", status=400)
 
             # Получаем заказ
             order = await Order.get_by_id(self.db_pool, order_id)
             if not order:
-                return web.json_response({
-                    "error": "Заказ не найден"
-                }, status=404)
+                return json_fail("Заказ не найден", status=404)
 
             # Проверяем, что заказ принадлежит пользователю
             if order.user_id != user_id:
-                return web.json_response({
-                    "error": "Заказ не принадлежит текущему пользователю"
-                }, status=403)
+                return json_fail("Заказ не принадлежит текущему пользователю", status=403)
 
             # Проверяем, что заказ активен
             if order.status != 'borrow':
-                return web.json_response({
-                    "error": "Заказ неактивен или уже возвращен"
-                }, status=400)
+                return json_fail("Заказ неактивен или уже возвращен", status=400)
 
             # Проверяем, что станция существует и активна
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
-                return web.json_response({
-                    "error": "Станция не найдена"
-                }, status=404)
+                return json_fail("Станция не найдена", status=404)
 
             if station.status != 'active':
-                return web.json_response({
-                    "error": "Станция неактивна"
-                }, status=400)
+                return json_fail("Станция неактивна", status=400)
 
             # Используем обработчик возврата для ручного возврата
             from handlers.return_powerbank import ReturnPowerbankHandler
@@ -309,21 +269,18 @@ class UserPowerbankAPI:
 
             if result.get('success'):
                 self.logger.info(f"Пользователь {user_id} успешно вернул повербанк {order.powerbank_id} на станцию {station_id}")
-                return web.json_response({
-                    "success": True,
+                return json_ok({
                     "message": result.get('message', 'Повербанк успешно возвращен'),
                     "order_id": order.order_id,
                     "station_box_id": station.box_id,
                     "powerbank_inserted": result.get('powerbank_inserted', False)
                 })
             else:
-                return web.json_response({
-                    "error": result.get('message', 'Ошибка возврата повербанка')
-                }, status=500)
+                return json_fail(result.get('message', 'Ошибка возврата повербанка'), status=500)
 
         except Exception as e:
             self.logger.error(f"Ошибка возврата повербанка пользователем {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
 
     @jwt_middleware
     async def get_stations(self, request: web.Request):
@@ -349,14 +306,13 @@ class UserPowerbankAPI:
                     "last_seen": station.last_seen.isoformat() if station.last_seen else None
                 })
 
-            return web.json_response({
-                "success": True,
+            return json_ok({
                 "stations": stations_data
             })
 
         except Exception as e:
             self.logger.error(f"Ошибка получения станций для пользователя {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
 
     @jwt_middleware
     async def get_user_profile(self, request: web.Request):
@@ -370,16 +326,13 @@ class UserPowerbankAPI:
         try:
             user = await User.get_by_id(self.db_pool, user_id)
             if not user:
-                return web.json_response({
-                    "error": "Пользователь не найден"
-                }, status=404)
+                return json_fail("Пользователь не найден", status=404)
 
             # Получаем статистику пользователя
             active_orders = await Order.get_active_by_user_id(self.db_pool, user_id)
             total_orders = await Order.get_count_by_user_id(self.db_pool, user_id)
 
-            return web.json_response({
-                "success": True,
+            return json_ok({
                 "user": {
                     "user_id": user.user_id,
                     "username": user.username,
@@ -395,7 +348,7 @@ class UserPowerbankAPI:
 
         except Exception as e:
             self.logger.error(f"Ошибка получения профиля пользователя {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
     
     @jwt_middleware
     async def return_damage_powerbank(self, request: web.Request):
@@ -412,24 +365,15 @@ class UserPowerbankAPI:
             description = data.get('description', '')
 
             if not station_id:
-                return web.json_response({
-                    "success": False,
-                    "error": "Не указан ID станции"
-                }, status=400)
+                return json_fail("Не указан ID станции", status=400)
 
             if not description:
-                return web.json_response({
-                    "success": False,
-                    "error": "Не указано описание проблемы"
-                }, status=400)
+                return json_fail("Не указано описание проблемы", status=400)
 
             # Проверяем, что станция существует
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
-                return web.json_response({
-                    "success": False,
-                    "error": "Станция не найдена"
-                }, status=404)
+                return json_fail("Станция не найдена", status=404)
 
             # Используем обработчик возврата с поломкой
             from handlers.return_powerbank import ReturnPowerbankHandler
@@ -438,18 +382,14 @@ class UserPowerbankAPI:
             result = await return_handler.start_damage_return_process(station_id, user_id, description)
             
             if result.get('success'):
-                return web.json_response({
-                    "success": True,
+                return json_ok({
                     "message": result.get('message'),
                     "station_id": station_id,
                     "user_id": user_id
                 })
             else:
-                return web.json_response({
-                    "success": False,
-                    "error": result.get('message', 'Ошибка возврата с поломкой')
-                }, status=400)
+                return json_fail(result.get('message', 'Ошибка возврата с поломкой'), status=400)
 
         except Exception as e:
             self.logger.error(f"Ошибка возврата повербанка с поломкой для пользователя {user_id}: {e}", exc_info=True)
-            return web.json_response({"error": f"Внутренняя ошибка сервера: {e}"}, status=500)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
