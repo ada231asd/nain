@@ -10,6 +10,7 @@ from models.order import Order
 from models.action_log import ActionLog
 from utils.packet_utils import build_borrow_power_bank, parse_borrow_request, parse_borrow_response
 from utils.centralized_logger import get_logger
+from websocket_server import websocket_manager
 
 
 class BorrowPowerbankHandler:
@@ -100,7 +101,8 @@ class BorrowPowerbankHandler:
             slot_number = borrow_response.get('Slot', 0)
             success = borrow_response.get('Success', False)
             
-            # Ищем соответствующий pending request
+            # Ищем соответствующий pending request: сначала по (station_id, slot),
+            # затем fallback — по station_id (первый ожидающий)
             pending_order_id = None
             print(f"Ищем pending request для station_id={station_id}, slot_number={slot_number}")
             print(f"Всего pending requests: {len(self.pending_requests)}")
@@ -111,6 +113,14 @@ class BorrowPowerbankHandler:
                     pending_order_id = order_id
                     print(f"Найден соответствующий pending request: {order_id}")
                     break
+
+            # Fallback: если не нашли совпадение по слоту, резолвим первый pending по станции
+            if pending_order_id is None:
+                for order_id, request_info in self.pending_requests.items():
+                    if request_info['station_id'] == station_id:
+                        pending_order_id = order_id
+                        print(f"Fallback: выбран pending request по station_id={station_id}: {order_id}")
+                        break
             
             if pending_order_id is None:
                 print(f" Pending request НЕ НАЙДЕН для station_id={station_id}, slot_number={slot_number}")
@@ -139,6 +149,30 @@ class BorrowPowerbankHandler:
                     await station.update_remain_num(self.db_pool, int(station.remain_num) - 1)
                 
                 print(f"Выдача повербанка успешна для станции {station_id}")
+
+                # Отправляем уведомление на фронт через WebSocket
+                try:
+                    powerbank_id = None
+                    user_id = None
+                    order_id_for_ws = None
+                    if pending_order_id and pending_order_id in self.pending_requests:
+                        req_info = self.pending_requests[pending_order_id]
+                        powerbank_id = req_info.get('powerbank_id')
+                        user_id = req_info.get('user_id')
+                        order_id_for_ws = pending_order_id
+                    message = {
+                        "event": "powerbank_borrow_result",
+                        "type": "borrow_success",
+                        "message": "Повербанк успешно выдан",
+                        "station_id": station_id,
+                        "slot_number": slot_number,
+                        "order_id": order_id_for_ws,
+                        "powerbank_id": powerbank_id,
+                        "user_id": user_id
+                    }
+                    await websocket_manager.broadcast(message)
+                except Exception as e:
+                    self.logger.error(f"Ошибка отправки WS уведомления о выдаче: {e}")
                 
                 # Уведомляем ожидающий запрос об успехе
                 if pending_order_id and pending_order_id in self.pending_requests:
@@ -167,6 +201,30 @@ class BorrowPowerbankHandler:
                     error_msg = "Ошибка выдачи повербанка"
                 
                 self.logger.error(f"Выдача повербанка не удалась для станции {station_id}, слот {slot_number}: {error_msg}")
+                
+                # Отправляем уведомление о неудачной выдаче на фронт
+                try:
+                    powerbank_id = None
+                    user_id = None
+                    order_id_for_ws = None
+                    if pending_order_id and pending_order_id in self.pending_requests:
+                        req_info = self.pending_requests[pending_order_id]
+                        powerbank_id = req_info.get('powerbank_id')
+                        user_id = req_info.get('user_id')
+                        order_id_for_ws = pending_order_id
+                    message = {
+                        "event": "powerbank_borrow_result",
+                        "type": "borrow_failure",
+                        "message": error_msg,
+                        "station_id": station_id,
+                        "slot_number": slot_number,
+                        "order_id": order_id_for_ws,
+                        "powerbank_id": powerbank_id,
+                        "user_id": user_id
+                    }
+                    await websocket_manager.broadcast(message)
+                except Exception as e:
+                    self.logger.error(f"Ошибка отправки WS уведомления об ошибке выдачи: {e}")
                 
                 # Уведомляем ожидающий запрос об ошибке
                 if pending_order_id and pending_order_id in self.pending_requests:

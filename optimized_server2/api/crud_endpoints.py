@@ -149,24 +149,13 @@ class CRUDEndpoints:
                             au.phone_e164, 
                             au.email, 
                             au.fio, 
-                            au.status as статус, 
                             au.created_at, 
                             au.last_login_at,
                             COALESCE(ur.role, 'user') as role,
                             ur.org_unit_id as parent_org_unit_id,
                             au.powerbank_limit as individual_limit,
                             ou.default_powerbank_limit as group_default_limit,
-                            ou.name as group_name,
-                            CASE 
-                                WHEN au.powerbank_limit IS NOT NULL THEN au.powerbank_limit
-                                WHEN ou.default_powerbank_limit IS NOT NULL THEN ou.default_powerbank_limit
-                                ELSE 0
-                            END as effective_limit,
-                            CASE 
-                                WHEN au.powerbank_limit IS NOT NULL THEN 'individual'
-                                WHEN ou.default_powerbank_limit IS NOT NULL THEN 'group'
-                                ELSE 'no_group'
-                            END as limit_type
+                            ou.name as group_name
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
                         LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
@@ -207,24 +196,13 @@ class CRUDEndpoints:
                             au.phone_e164, 
                             au.email, 
                             au.fio, 
-                            au.status as статус, 
                             au.created_at, 
                             au.last_login_at,
                             COALESCE(ur.role, 'user') as role,
                             ur.org_unit_id as parent_org_unit_id,
                             au.powerbank_limit as individual_limit,
                             ou.default_powerbank_limit as group_default_limit,
-                            ou.name as group_name,
-                            CASE 
-                                WHEN au.powerbank_limit IS NOT NULL THEN au.powerbank_limit
-                                WHEN ou.default_powerbank_limit IS NOT NULL THEN ou.default_powerbank_limit
-                                ELSE 0
-                            END as effective_limit,
-                            CASE 
-                                WHEN au.powerbank_limit IS NOT NULL THEN 'individual'
-                                WHEN ou.default_powerbank_limit IS NOT NULL THEN 'group'
-                                ELSE 'no_group'
-                            END as limit_type
+                            ou.name as group_name
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
                         LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
@@ -342,12 +320,12 @@ class CRUDEndpoints:
                     params.append(data['статус'])
                     
                     # Добавляем поддержку обновления лимита повербанков
-                    if 'powerbank_limit' in data:
-                        powerbank_limit = data['powerbank_limit']
-                        if powerbank_limit is not None and powerbank_limit != '':
+                    if 'individual_limit' in data or 'powerbank_limit' in data:
+                        limit_value = data.get('individual_limit', data.get('powerbank_limit'))
+                        if limit_value is not None and limit_value != '':
                             try:
-                                powerbank_limit = int(powerbank_limit)
-                                if powerbank_limit < 0:
+                                limit_value = int(limit_value)
+                                if limit_value < 0:
                                     return web.json_response({
                                         "success": False,
                                         "error": "Лимит повербанков не может быть отрицательным"
@@ -358,10 +336,10 @@ class CRUDEndpoints:
                                     "error": "Лимит повербанков должен быть числом"
                                 }, status=400)
                         else:
-                            powerbank_limit = None
+                            limit_value = None
                         
                         update_fields.append("powerbank_limit = %s")
-                        params.append(powerbank_limit)
+                        params.append(limit_value)
                     
                     if password_hash:
                         update_fields.append("password_hash = %s")
@@ -392,6 +370,11 @@ class CRUDEndpoints:
                         """, (user_id, data['role'], parent_org_unit_id))
                     
                     await conn.commit()
+
+                    # Получаем актуальный индивидуальный лимит после обновления
+                    await cur.execute("SELECT powerbank_limit FROM app_user WHERE user_id = %s", (user_id,))
+                    limit_row = await cur.fetchone()
+                    individual_limit_value = limit_row['powerbank_limit'] if limit_row else None
                     
                     return web.json_response({
                         "success": True,
@@ -403,7 +386,7 @@ class CRUDEndpoints:
                             "email": data['email'],
                             "role": data['role'],
                             "parent_org_unit_id": parent_org_unit_id,
-                            "статус": data['статус']
+                            "individual_limit": individual_limit_value
                         }
                     })
                     
