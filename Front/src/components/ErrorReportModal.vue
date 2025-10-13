@@ -2,7 +2,7 @@
   <div v-if="isVisible" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h3>🚨 Сообщить об ошибке</h3>
+        <h3>Сообщить об ошибке</h3>
         <button @click="closeModal" class="btn-close">×</button>
       </div>
       
@@ -25,7 +25,6 @@
               class="error-type-radio"
             />
             <div class="error-type-content">
-              <span class="error-type-icon">{{ errorType.icon }}</span>
               <div class="error-type-text">
                 <strong>{{ errorType.name }}</strong>
                 <p>{{ errorType.description }}</p>
@@ -56,8 +55,8 @@
           class="btn-submit"
           :disabled="!canSubmit || isSubmitting"
         >
-          <span v-if="isSubmitting">⏳ Отправка...</span>
-          <span v-else>📤 Отправить</span>
+          <span v-if="isSubmitting">Отправка...</span>
+          <span v-else>Отправить</span>
         </button>
       </div>
     </div>
@@ -95,25 +94,21 @@ const errorTypes = ref([
   {
     id: 'cable_type_c_damaged',
     name: 'Поврежден кабель Type-C',
-    icon: '🔌',
     description: 'Кабель Type-C поврежден или не работает'
   },
   {
     id: 'cable_lightning_damaged',
     name: 'Поврежден кабель Lightning',
-    icon: '⚡',
     description: 'Кабель Lightning поврежден или не работает'
   },
   {
     id: 'cable_micro_usb_damaged',
     name: 'Поврежден кабель MicroUSB',
-    icon: '📱',
     description: 'Кабель MicroUSB поврежден или не работает'
   },
   {
     id: 'powerbank_not_working',
     name: 'Повербанк не работает',
-    icon: '🔋',
     description: 'Повербанк не заряжается или не включается'
   }
 ])
@@ -287,13 +282,7 @@ watch(() => props.isVisible, (newValue) => {
 .error-type-content {
   display: flex;
   align-items: flex-start;
-  gap: 15px;
   flex: 1;
-}
-
-.error-type-icon {
-  font-size: 2rem;
-  line-height: 1;
 }
 
 .error-type-text strong {
@@ -406,14 +395,6 @@ watch(() => props.isVisible, (newValue) => {
   
   .error-type-option {
     padding: 15px;
-  }
-  
-  .error-type-content {
-    gap: 10px;
-  }
-  
-  .error-type-icon {
-    font-size: 1.5rem;
   }
   
   .modal-footer {

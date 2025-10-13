@@ -426,34 +426,20 @@ const handleErrorReport = async (errorReport) => {
 
 // Таймер возврата
 const startReturnTimer = (order) => {
-  returnTimer.value = 10
+  returnTimer.value = 0
   returnType.value = 'normal'
   
-  returnTimerInterval.value = setInterval(() => {
-    returnTimer.value--
-    
-    if (returnTimer.value <= 0) {
-      clearInterval(returnTimerInterval.value)
-      returnTimerInterval.value = null
-      executeReturn(order)
-    }
-  }, 1000)
+  // Сразу выполняем возврат без задержки
+  executeReturn(order)
 }
 
 // Таймер возврата с ошибкой
 const startReturnTimerWithError = (errorReport) => {
-  returnTimer.value = 10
+  returnTimer.value = 0
   returnType.value = 'error'
   
-  returnTimerInterval.value = setInterval(() => {
-    returnTimer.value--
-    
-    if (returnTimer.value <= 0) {
-      clearInterval(returnTimerInterval.value)
-      returnTimerInterval.value = null
-      executeReturnWithError(errorReport)
-    }
-  }, 1000)
+  // Сразу выполняем возврат с ошибкой без задержки
+  executeReturnWithError(errorReport)
 }
 
 const executeReturn = async (order) => {

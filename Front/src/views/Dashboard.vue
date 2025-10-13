@@ -142,6 +142,14 @@
       @borrow-powerbank="borrowPowerbank"
       @force-eject-powerbank="forceEjectPowerbank"
     />
+
+    <!-- Error Report Modal -->
+    <ErrorReportModal
+      :is-visible="showErrorReportModal"
+      :order="errorReportOrder"
+      @close="closeErrorReportModal"
+      @submit="handleErrorReportSubmit"
+    />
   </DefaultLayout>
 </template>
 
@@ -155,6 +163,7 @@ import DefaultLayout from '../layouts/DefaultLayout.vue'
 import QRScanner from '../components/QRScanner.vue'
 import StationCard from '../components/StationCard.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
+import ErrorReportModal from '../components/ErrorReportModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
 import websocketClient from '../utils/websocketClient'
@@ -183,6 +192,11 @@ const showPowerbanksModal = ref(false)
 const selectedStation = ref(null)
 const selectedStationPowerbanks = ref([])
 const isBorrowing = ref(false)
+
+// Модальное окно для сообщения об ошибке
+const showErrorReportModal = ref(false)
+const errorReportStation = ref(null)
+const errorReportOrder = ref(null)
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
@@ -383,14 +397,47 @@ const handleReturnWithError = async (station) => {
       return
     }
     
-    console.log('Запрос на возврат с ошибкой:', { stationId, userId })
+    console.log('Открытие модального окна для возврата с ошибкой:', { stationId, userId })
     
-    // TODO: Здесь нужно добавить вызов API для возврата с ошибкой
-    alert('Функция "Вернуть с ошибкой" будет реализована')
+    // Формируем базовый объект заказа для модального окна
+    // Конкретные данные о повербанке будут заполнены при отправке отчета
+    errorReportOrder.value = {
+      station_id: stationId,
+      user_id: userId
+    }
+    
+    errorReportStation.value = station
+    showErrorReportModal.value = true
     
   } catch (error) {
     console.error('Ошибка при возврате с ошибкой:', error)
-    alert('❌ Ошибка: ' + (error.message || 'Неизвестная ошибка'))
+    alert('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+const closeErrorReportModal = () => {
+  showErrorReportModal.value = false
+  errorReportStation.value = null
+  errorReportOrder.value = null
+}
+
+const handleErrorReportSubmit = async (errorReport) => {
+  try {
+    console.log('Отправка отчета об ошибке:', errorReport)
+    
+    // Отправляем отчет об ошибке через API
+    const response = await pythonAPI.reportPowerbankError(errorReport)
+    
+    if (response && response.success) {
+      alert('Отчет об ошибке успешно отправлен')
+      closeErrorReportModal()
+    } else {
+      alert('Ошибка при отправке отчета: ' + (response?.error || 'Неизвестная ошибка'))
+    }
+    
+  } catch (error) {
+    console.error('Ошибка при отправке отчета об ошибке:', error)
+    alert('Ошибка при отправке отчета: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
