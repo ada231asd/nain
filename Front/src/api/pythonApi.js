@@ -112,6 +112,34 @@ export const pythonAPI = {
     return handleResponse(apiClient.delete(`/users/${id}`), 'delete user')
   },
 
+  // МАССОВЫЙ ИМПОРТ ПОЛЬЗОВАТЕЛЕЙ
+  downloadBulkImportTemplate: () => {
+    return handleResponse(apiClient.get('/users/bulk-import/template', {
+      responseType: 'blob'
+    }), 'download bulk import template')
+  },
+  validateBulkImportFile: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return handleResponse(apiClient.post('/users/bulk-import/validate', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }), 'validate bulk import file')
+  },
+  bulkImportUsers: (file, orgUnitId = null) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (orgUnitId) {
+      formData.append('org_unit_id', orgUnitId)
+    }
+    return handleResponse(apiClient.post('/users/bulk-import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }), 'bulk import users')
+  },
+
   // ОРГАНИЗАЦИОННЫЕ ЕДИНИЦЫ (полный CRUD)
   getOrgUnits: (params = {}) => handleResponse(apiClient.get('/org-units', { params }), 'get org units'),
   getOrgUnit: (id) => {

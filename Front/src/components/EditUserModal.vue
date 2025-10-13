@@ -118,7 +118,8 @@ const onSave = async () => {
       formData.parent_org_unit_id = parseInt(formData.parent_org_unit_id)
     }
     
-    // Преобразуем статус в английский формат
+    // Сервер ожидает поле "статус" (кириллица), оставляем как есть
+    // Проверяем, что статус в правильном формате (pending/active/blocked)
     const statusMap = {
       'ожидает': 'pending',
       'активный': 'active', 
@@ -126,8 +127,7 @@ const onSave = async () => {
       'отклонен': 'rejected'
     }
     if (formData.статус && statusMap[formData.статус]) {
-      formData.status = statusMap[formData.статус]
-      delete formData.статус
+      formData.статус = statusMap[formData.статус]
     }
     
     emit('save', formData)

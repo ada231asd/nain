@@ -14,11 +14,12 @@
 
             <!-- Управление пользователями -->
             <div v-if="activeTab === 'users'" class="tab-pane">
-              <UsersTable 
+              <UsersTable
                 :users="users"
                 :org-units="orgUnits"
                 @add-user="() => showAddUserModal = true"
-                @edit-user="openEditUser"
+                @bulk-import="() => showBulkImportModal = true"
+                @user-updated="handleUserUpdated"
                 @approve-user="approveUser"
                 @block-user="blockUser"
                 @unblock-user="unblockUser"
@@ -252,20 +253,19 @@
     </main>
 
     <!-- Модальные окна -->
-    <AddUserModal 
+    <AddUserModal
       :is-visible="showAddUserModal"
       @close="showAddUserModal = false"
       @user-added="handleUserAdded"
     />
-    <EditUserModal
-      :is-visible="showEditUserModal"
-      :user="selectedUser"
-      @close="closeEditUser"
-      @save="saveEditedUser"
-      @approve="approveSelectedUser"
-      @reject="rejectSelectedUser"
+
+    <BulkImportModal
+      :is-visible="showBulkImportModal"
+      :org-units="orgUnits"
+      @close="showBulkImportModal = false"
+      @import-completed="handleBulkImportCompleted"
     />
-    
+
     <AddStationModal 
       :is-visible="showAddStationModal"
       @close="closeStationModal"
@@ -345,8 +345,8 @@ import { pythonAPI } from '../api/pythonApi'
 
 
 
-import EditUserModal from '../components/EditUserModal.vue'
 import AddUserModal from '../components/AddUserModal.vue'
+import BulkImportModal from '../components/BulkImportModal.vue'
 import AddStationModal from '../components/AddStationModal.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import StationActivationModal from '../components/StationActivationModal.vue'
@@ -374,11 +374,10 @@ const ordersViewMode = ref('cards') // 'cards' или 'table'
 
 // Модальные окна
 const showAddUserModal = ref(false)
+const showBulkImportModal = ref(false)
 const showAddStationModal = ref(false)
-const showEditUserModal = ref(false)
 const showStationActivationModal = ref(false)
 const stationToActivate = ref(null)
-const selectedUser = ref(null)
 const showPowerbanksModal = ref(false)
 const selectedStation = ref(null)
 const selectedStationPowerbanks = ref([])
@@ -510,54 +509,6 @@ const formatTime = (timestamp) => {
 }
 
 // User management methods
-const openEditUser = (user) => {
-  selectedUser.value = user
-  showEditUserModal.value = true
-}
-
-const closeEditUser = () => {
-  showEditUserModal.value = false
-  selectedUser.value = null
-}
-
-const saveEditedUser = async (updates) => {
-  if (!selectedUser.value) return
-  const id = selectedUser.value.user_id || selectedUser.value.id
-  try {
-    console.log('Отправляем данные пользователя:', { id, updates })
-    await adminStore.updateUser(id, updates)
-    closeEditUser()
-    await refreshAfterAction()
-  } catch (error) {
-    console.error('Ошибка при обновлении пользователя:', error)
-    alert('Ошибка при обновлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
-  }
-}
-
-const approveSelectedUser = async () => {
-  if (!selectedUser.value) return
-  const id = selectedUser.value.user_id || selectedUser.value.id
-  try {
-    await adminStore.approveUser(id)
-    closeEditUser()
-    await refreshAfterAction()
-  } catch (error) {
-    console.error('Ошибка при одобрении пользователя:', error)
-  }
-}
-
-const rejectSelectedUser = async () => {
-  if (!selectedUser.value) return
-  const id = selectedUser.value.user_id || selectedUser.value.id
-  try {
-    await adminStore.rejectUser(id)
-    closeEditUser()
-    await refreshAfterAction()
-  } catch (error) {
-    console.error('Ошибка при отклонении пользователя:', error)
-  }
-}
-
 const deleteUser = async (userId) => {
   if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
     try {
@@ -687,6 +638,53 @@ const handleUserAdded = async (userData) => {
     await refreshAfterAction()
   } catch (error) {
     // Error handled silently
+  }
+}
+
+const handleBulkImportCompleted = async (importResult) => {
+  try {
+    showBulkImportModal.value = false
+    // Автоматическое обновление данных пользователей
+    await refreshAfterAction()
+    // Можно добавить уведомление об успешном импорте
+    console.log('Импорт завершен:', importResult)
+  } catch (error) {
+    console.error('Ошибка после импорта:', error)
+  }
+}
+
+const handleUserUpdated = async (user) => {
+  try {
+    const id = user.user_id || user.id
+    const updates = {
+      fio: user.fio,
+      phone_e164: user.phone_e164,
+      email: user.email,
+      role: user.role,
+      parent_org_unit_id: user.parent_org_unit_id
+    }
+    
+    // Сервер ожидает поле "статус" (кириллица) в английском формате (pending/active/blocked)
+    const statusMap = {
+      'ожидает': 'pending',
+      'активный': 'active', 
+      'заблокирован': 'blocked',
+      'отклонен': 'rejected',
+      'pending': 'pending',
+      'active': 'active',
+      'blocked': 'blocked',
+      'rejected': 'rejected'
+    }
+    const status = user.статус || user.status
+    if (status && statusMap[status]) {
+      updates.статус = statusMap[status]
+    }
+    
+    await adminStore.updateUser(id, updates)
+    await refreshAfterAction()
+  } catch (error) {
+    console.error('Ошибка при обновлении пользователя:', error)
+    alert('Ошибка при обновлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 

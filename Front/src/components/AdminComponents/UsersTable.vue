@@ -14,9 +14,12 @@
             class="search-input"
           />
           <span class="search-icon">🔍</span>
-        </div>  
+        </div>
         <button @click="$emit('add-user')" class="btn-add-user">
           + Добавить пользователя
+        </button>
+        <button @click="$emit('bulk-import')" class="btn-bulk-import">
+          Импорт из Excel
         </button>
         <FilterButton 
           filter-type="users"
@@ -192,18 +195,21 @@
             <!-- Основная информация -->
             <div class="detail-section">
               <h4>Основная информация</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>ФИО:</label>
-                  <span>{{ selectedUser.fio || 'N/A' }}</span>
+              <div class="detail-rows">
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">ФИО:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ selectedUser.fio || 'N/A' }}</span>
+                  <input v-else v-model="editForm.fio" class="edit-input" type="text" placeholder="Введите ФИО" />
                 </div>
-                <div class="detail-item">
-                  <label>Телефон:</label>
-                  <span>{{ selectedUser.phone_e164 || 'N/A' }}</span>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Телефон:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ selectedUser.phone_e164 || 'N/A' }}</span>
+                  <input v-else v-model="editForm.phone_e164" class="edit-input" type="tel" placeholder="Введите телефон" />
                 </div>
-                <div class="detail-item">
-                  <label>Email:</label>
-                  <span>{{ selectedUser.email || 'N/A' }}</span>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Email:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ selectedUser.email || 'N/A' }}</span>
+                  <input v-else v-model="editForm.email" class="edit-input" type="email" placeholder="Введите email" />
                 </div>
               </div>
             </div>
@@ -211,33 +217,54 @@
             <!-- Роль и статус -->
             <div class="detail-section">
               <h4>Роль и статус</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>Роль:</label>
-                  <span>{{ getUserRoleText(selectedUser.role) }}</span>
+              <div class="detail-rows">
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Роль:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ getUserRoleText(selectedUser.role) }}</span>
+                  <select v-else v-model="editForm.role" class="edit-input">
+                    <option value="user">Пользователь</option>
+                    <option value="subgroup_admin">Администратор подгруппы</option>
+                    <option value="group_admin">Администратор группы</option>
+                    <option value="service_admin">Сервис-администратор</option>
+                  </select>
                 </div>
-                <div class="detail-item">
-                  <label>Статус:</label>
-                  <span>{{ getUserStatusText(selectedUser.статус || selectedUser.status) }}</span>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Статус:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ getUserStatusText(selectedUser.статус || selectedUser.status) }}</span>
+                  <select v-else v-model="editForm.статус" class="edit-input">
+                    <option value="pending">Ожидает</option>
+                    <option value="active">Активен</option>
+                    <option value="blocked">Заблокирован</option>
+                  </select>
                 </div>
-                <div class="detail-item">
-                  <label>Группа:</label>
-                  <span>{{ getUserGroupName(selectedUser.parent_org_unit_id || selectedUser.org_unit_id) }}</span>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Группа:</span>
+                  <span v-if="!isEditing" class="detail-value">{{ getUserGroupName(selectedUser.parent_org_unit_id || selectedUser.org_unit_id) }}</span>
+                  <select v-else v-model="editForm.parent_org_unit_id" class="edit-input">
+                    <option value="">Без группы</option>
+                    <option v-for="orgUnit in orgUnits" :key="orgUnit.org_unit_id" :value="orgUnit.org_unit_id">
+                      {{ orgUnit.name }}
+                    </option>
+                  </select>
                 </div>
               </div>
             </div>
 
             <!-- Дополнительная информация -->
-            <div class="detail-section">
+            <div class="detail-section" v-if="selectedUser.user_id || selectedUser.id">
               <h4>Дополнительная информация</h4>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <label>Дата создания:</label>
-                  <span>{{ selectedUser.created_at ? formatTime(selectedUser.created_at) : 'N/A' }}</span>
+              <div class="detail-rows">
+                <div class="detail-row">
+                  <span class="detail-label">ID пользователя:</span>
+                  <span class="detail-value">{{ selectedUser.user_id || selectedUser.id }}</span>
                 </div>
-                <div class="detail-item">
-                  <label>Последний вход:</label>
-                  <span>{{ selectedUser.last_login_at ? formatTime(selectedUser.last_login_at) : 'N/A' }}</span>
+                <div class="detail-row" v-if="selectedUser.created_at">
+                  <span class="detail-label">Дата создания:</span>
+                  <span class="detail-value">{{ formatTime(selectedUser.created_at) }}</span>
+                </div>
+                <div class="detail-row" v-if="selectedUser.last_login_at">
+                  <span class="detail-label">Последний вход:</span>
+                  <span class="detail-value">{{ formatTime(selectedUser.last_login_at) }}</span>
                 </div>
               </div>
             </div>
@@ -245,33 +272,43 @@
         </div>
 
         <div class="modal-footer">
-          <button @click="handleModalAction('edit')" class="btn-action">
-            ✏️ Редактировать
-          </button>
-          <button 
-            v-if="(selectedUser.статус || selectedUser.status) === 'ожидает' || (selectedUser.статус || selectedUser.status) === 'pending'"
-            @click="handleModalAction('approve')" 
-            class="btn-action btn-approve"
-          >
-            ✅ Одобрить
-          </button>
-          <button 
-            v-if="(selectedUser.статус || selectedUser.status) === 'активный' || (selectedUser.статус || selectedUser.status) === 'active'"
-            @click="handleModalAction('block')" 
-            class="btn-action btn-block"
-          >
-            🚫 Заблокировать
-          </button>
-          <button 
-            v-if="(selectedUser.статус || selectedUser.status) === 'заблокирован' || (selectedUser.статус || selectedUser.status) === 'blocked'"
-            @click="handleModalAction('unblock')" 
-            class="btn-action btn-unblock"
-          >
-            ✅ Разблокировать
-          </button>
-          <button @click="closeUserModal" class="btn-close">
-            Закрыть
-          </button>
+          <div v-if="isEditing" class="edit-actions">
+            <button @click="saveChanges" class="btn-action btn-save">
+              💾 Сохранить
+            </button>
+            <button @click="cancelEdit" class="btn-action btn-cancel">
+              ❌ Отменить
+            </button>
+          </div>
+          <div v-else class="view-actions">
+            <button @click="toggleEditMode" class="btn-action">
+              ✏️ Редактировать
+            </button>
+            <button 
+              v-if="(selectedUser.статус || selectedUser.status) === 'ожидает' || (selectedUser.статус || selectedUser.status) === 'pending'"
+              @click="handleModalAction('approve')" 
+              class="btn-action btn-approve"
+            >
+              ✅ Одобрить
+            </button>
+            <button 
+              v-if="(selectedUser.статус || selectedUser.status) === 'активный' || (selectedUser.статус || selectedUser.status) === 'active'"
+              @click="handleModalAction('block')" 
+              class="btn-action btn-block"
+            >
+              🚫 Заблокировать
+            </button>
+            <button 
+              v-if="(selectedUser.статус || selectedUser.status) === 'заблокирован' || (selectedUser.статус || selectedUser.status) === 'blocked'"
+              @click="handleModalAction('unblock')" 
+              class="btn-action btn-unblock"
+            >
+              ✅ Разблокировать
+            </button>
+            <button @click="closeUserModal" class="btn-close">
+              Закрыть
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -299,12 +336,12 @@ const props = defineProps({
 
 const emit = defineEmits([
   'add-user',
-  'edit-user',
   'approve-user',
   'block-user',
   'unblock-user',
   'delete-user',
   'user-clicked',
+  'user-updated',
   'bulk-approve',
   'bulk-block',
   'bulk-delete'
@@ -321,6 +358,17 @@ const activeFilters = ref({
   orgUnits: [],
   statuses: [],
   roles: []
+})
+
+// Состояние редактирования
+const isEditing = ref(false)
+const editForm = ref({
+  fio: '',
+  phone_e164: '',
+  email: '',
+  role: 'user',
+  parent_org_unit_id: '',
+  status: 'pending'
 })
 
 // Вычисляемые свойства
@@ -427,7 +475,11 @@ const handleFilterChange = (filters) => {
 const openUserModal = (user) => {
   selectedUser.value = user
   isModalOpen.value = true
+  isEditing.value = false
   emit('user-clicked', user)
+  
+  // Инициализируем форму редактирования
+  initEditForm(user)
 }
 
 // Selection methods
@@ -501,15 +553,22 @@ const handleBulkAction = (action) => {
 const closeUserModal = () => {
   isModalOpen.value = false
   selectedUser.value = null
+  isEditing.value = false
+  // Очищаем форму редактирования
+  editForm.value = {
+    fio: '',
+    phone_e164: '',
+    email: '',
+    role: 'user',
+    parent_org_unit_id: '',
+    status: 'pending'
+  }
 }
 
 const handleModalAction = (action) => {
   if (!selectedUser.value) return
   
   switch (action) {
-    case 'edit':
-      emit('edit-user', selectedUser.value)
-      break
     case 'approve':
       emit('approve-user', selectedUser.value)
       break
@@ -522,6 +581,83 @@ const handleModalAction = (action) => {
   }
   
   closeUserModal()
+}
+
+// Методы для редактирования
+const initEditForm = (user) => {
+  editForm.value = {
+    fio: user.fio || '',
+    phone_e164: user.phone_e164 || '',
+    email: user.email || '',
+    role: user.role || 'user',
+    parent_org_unit_id: user.parent_org_unit_id || user.org_unit_id || '',
+    status: user.статус || user.status || 'pending'
+  }
+}
+
+const toggleEditMode = () => {
+  if (!isEditing.value) {
+    // Включаем режим редактирования
+    initEditForm(selectedUser.value)
+  }
+  isEditing.value = !isEditing.value
+}
+
+const cancelEdit = () => {
+  isEditing.value = false
+  initEditForm(selectedUser.value)
+}
+
+const saveChanges = async () => {
+  const userId = selectedUser.value?.user_id || selectedUser.value?.id
+  if (!userId) return
+  
+  try {
+    // Подготавливаем данные для отправки
+    const formData = { ...editForm.value }
+    
+    // Преобразуем parent_org_unit_id в число или null
+    if (formData.parent_org_unit_id === '' || formData.parent_org_unit_id === null) {
+      delete formData.parent_org_unit_id
+    } else {
+      formData.parent_org_unit_id = parseInt(formData.parent_org_unit_id)
+    }
+    
+    // Преобразуем статус в английский формат
+    const statusMap = {
+      'ожидает': 'pending',
+      'активный': 'active', 
+      'заблокирован': 'blocked',
+      'отклонен': 'rejected',
+      'pending': 'pending',
+      'active': 'active',
+      'blocked': 'blocked',
+      'rejected': 'rejected'
+    }
+    if (formData.status && statusMap[formData.status]) {
+      formData.status = statusMap[formData.status]
+    }
+    
+    // Обновляем локальные данные
+    Object.assign(selectedUser.value, {
+      fio: formData.fio,
+      phone_e164: formData.phone_e164,
+      email: formData.email,
+      role: formData.role,
+      parent_org_unit_id: formData.parent_org_unit_id,
+      статус: formData.status,
+      status: formData.status
+    })
+    
+    isEditing.value = false
+    
+    // Эмитим событие для обновления данных на сервере
+    emit('user-updated', selectedUser.value)
+    
+  } catch (error) {
+    console.error('Ошибка сохранения изменений:', error)
+    alert('Ошибка сохранения: ' + error.message)
+  }
 }
 
 const getUserRoleText = (role) => {
@@ -710,6 +846,22 @@ watch(currentPage, () => {
 
 .btn-add-user:hover {
   background: #5a6fd8;
+}
+
+.btn-bulk-import {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  margin-left: 10px;
+}
+
+.btn-bulk-import:hover {
+  background: #218838;
 }
 
 /* Панель массовых действий */
@@ -1222,37 +1374,76 @@ watch(currentPage, () => {
   font-weight: 600;
 }
 
-.detail-grid {
+.detail-rows {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-.detail-item {
+.detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #e9ecef;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.detail-item:last-child {
+.detail-row:last-child {
   border-bottom: none;
 }
 
-.detail-item label {
+.detail-label {
   font-weight: 600;
   color: #666;
-  font-size: 0.95rem;
-  flex-shrink: 0;
-  min-width: 150px;
+  font-size: 0.9rem;
+  min-width: 140px;
 }
 
-.detail-item span {
+.detail-value {
   color: #333;
   font-size: 1rem;
   text-align: right;
-  word-break: break-word;
+  flex: 1;
+}
+
+.editable-field {
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 6px;
+  padding: 8px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.editable-field:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.edit-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  transition: border-color 0.3s ease;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.edit-input[type="number"] {
+  text-align: right;
+}
+
+.edit-input:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .status-badge-large {
@@ -1332,6 +1523,22 @@ watch(currentPage, () => {
   background: #218838;
 }
 
+.btn-save {
+  background: #28a745;
+}
+
+.btn-save:hover {
+  background: #218838;
+}
+
+.btn-cancel {
+  background: #dc3545;
+}
+
+.btn-cancel:hover {
+  background: #c82333;
+}
+
 .btn-close {
   padding: 10px 20px;
   background: #6c757d;
@@ -1345,6 +1552,22 @@ watch(currentPage, () => {
 
 .btn-close:hover {
   background: #5a6268;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.view-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 /* Responsive styles */
@@ -1480,19 +1703,18 @@ watch(currentPage, () => {
     padding: 20px;
   }
 
-  .detail-item {
+  .detail-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 4px;
   }
 
-  .detail-item label {
+  .detail-label {
     min-width: auto;
   }
 
-  .detail-item span {
+  .detail-value {
     text-align: left;
-    width: 100%;
   }
 
   .modal-footer {
