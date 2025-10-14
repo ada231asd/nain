@@ -235,13 +235,12 @@ class OptimizedServer:
                 return False
             
             elif command == 0x66:  # Return Power Bank
-                if len(data) >= 21:  # Ответ на возврат
-                    await self.return_handler.handle_return_response(data, connection)
-                else:  # Запрос на возврат
-                    response = await self.return_handler.handle_return_request(data, connection)
-                    if response:
-                        writer.write(response)
-                        await writer.drain()
+                # Станция отправляет данные о вставленном повербанке (Request 3.5.1)
+                # Сервер отвечает с Result (Response 3.5.2)
+                response = await self.return_handler.handle_return_request(data, connection)
+                if response:
+                    writer.write(response)
+                    await writer.drain()
                 return False
             
             elif command == 0x80:  # Force Eject Power Bank

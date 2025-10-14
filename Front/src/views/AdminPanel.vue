@@ -342,6 +342,7 @@ import { useRouter } from 'vue-router'
 import { useAdminStore } from '../stores/admin'
 import { useAuthStore } from '../stores/auth'
 import { pythonAPI } from '../api/pythonApi'
+import { formatMoscowTime } from '../utils/timeUtils'
 
 
 
@@ -496,17 +497,12 @@ const refreshOrders = async () => {
   }
 }
 
-const formatTime = (timestamp) => {
-  const date = new Date(timestamp)
-  // Московское время (UTC+3)
-  const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000))
-  return moscowTime.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+const formatTime = (timestamp) => formatMoscowTime(timestamp, {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit'
+})
 
 // User management methods
 const deleteUser = async (userId) => {

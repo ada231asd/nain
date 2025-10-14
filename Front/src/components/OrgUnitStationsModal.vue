@@ -71,6 +71,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useAdminStore } from '../stores/admin'
+import { formatMoscowTime } from '../utils/timeUtils'
 
 const props = defineProps({
   isVisible: {
@@ -138,21 +139,12 @@ const getStationStatusText = (status) => {
 }
 
 // Форматирование времени
-const formatTime = (timestamp) => {
-  if (!timestamp) return '—'
-  
-  try {
-    const date = new Date(timestamp)
-    return date.toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return '—'
-  }
-}
+const formatTime = (timestamp) => formatMoscowTime(timestamp, {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit'
+})
 
 // Закрытие модального окна
 const closeModal = () => {

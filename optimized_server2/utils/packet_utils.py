@@ -229,13 +229,21 @@ def build_return_power_bank(secret_key: str, slot: int = 1, vsn: int = 1):
     return packet
 
 def build_return_power_bank_response(slot: int, result: int, terminal_id: bytes, level: int, voltage: int, current: int, temperature: int, status: int, soh: int, vsn: int, token: int):
+    """
+    Строит ответ сервера на возврат повербанка (0x66)
+    
+    """
     command = 0x66
-    payload = struct.pack(">BB8sBHHBBB", slot, result, terminal_id, level, voltage, current, temperature, status, soh)
+    
+    payload = struct.pack(">BB8sBHHbBB", slot, result, terminal_id, level, voltage, current, temperature, status, soh)
+    
+    # Checksum - XOR payload
     checksum = compute_checksum(payload)
-    header = struct.pack(">HBBBL", len(payload)+7, command, vsn, checksum, token)
+   
+    packet_len = len(payload) + 7  
+    header = struct.pack(">HBBBI", packet_len, command, vsn, checksum, token)
+    
     packet = header + payload
-    
-    
     
     return packet
 
@@ -388,18 +396,32 @@ def parse_return_response(data: bytes) -> Dict[str, Any]:
 
 
 def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
-    """Парсит запрос на возврат повербанка от станции"""
+    """
+    Парсит запрос на возврат повербанка (команда 0x66)
+    """
     try:
-        packet_len = struct.unpack('<H', data[0:2])[0]
-        command = data[2]
-        vsn = struct.unpack('<I', data[3:7])[0]
-        checksum = data[7]
-        token = struct.unpack('<I', data[8:12])[0]
-        slot = data[12]
+        # Header
+        packet_format = ">HBBBI"
+        packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
         
-       
-        calculated_checksum = compute_checksum(data[0:7] + data[8:])
-        checksum_valid = calculated_checksum == checksum
+        # Payload - данные о повербанке
+        payload = data[9:]
+        
+        
+        
+        # Парсим payload
+        slot = payload[0]
+        terminal_id_bytes = payload[1:9]
+        terminal_id = parse_terminal_id(terminal_id_bytes)
+        level = payload[9]
+        voltage = struct.unpack(">H", payload[10:12])[0]
+        current = struct.unpack(">H", payload[12:14])[0]
+        temperature = struct.unpack("b", payload[14:15])[0]  # signed byte
+        status = payload[15]
+        soh = payload[16]
+        
+        # Проверяем checksum
+        checksum_valid = compute_checksum(payload) == checksum
         
         return {
             "Type": "ReturnRequest",
@@ -410,12 +432,19 @@ def parse_return_power_bank_request(data: bytes) -> Dict[str, Any]:
             "CheckSumValid": checksum_valid,
             "Token": f"0x{token:08X}",
             "Slot": slot,
+            "TerminalID": terminal_id,
+            "Level": level,
+            "Voltage": voltage,
+            "Current": current,
+            "Temperature": temperature,
+            "Status": status,
+            "SOH": soh,
             "ReceivedAt": get_moscow_time().isoformat(),
             "RawPacket": data.hex().upper()
         }
         
     except Exception as e:
-        return {"error": f"Ошибка парсинга запроса на возврат: {str(e)}"}
+        return {"error": f"Ошибка парсинга запроса на возврат: {str(e)}", "raw": data.hex().upper()}
 
 
 

@@ -483,6 +483,7 @@ import FilterButton from './FilterButton.vue'
 import QRCode from 'qrcode'
 import { getCurrentConfig } from '../../api/config.js'
 import { pythonAPI } from '../../api/pythonApi.js'
+import { formatMoscowTime, getRelativeTime as getRelativeTimeUtil } from '../../utils/timeUtils.js'
 
 const props = defineProps({
   stations: {
@@ -1094,40 +1095,15 @@ const getStationRowClass = (status) => {
   return `status-${status}`
 }
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return '—'
-  const date = new Date(timestamp)
-  // Московское время (UTC+3)
-  const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000))
-  return moscowTime.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+const formatTime = (timestamp) => formatMoscowTime(timestamp, {
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit'
+})
 
-const getRelativeTime = (timestamp) => {
-  if (!timestamp) return ''
-  const now = new Date()
-  const date = new Date(timestamp)
-  
-  // Учитываем московское время
-  const moscowNow = new Date(now.getTime() + (3 * 60 * 60 * 1000))
-  const moscowDate = new Date(date.getTime() + (3 * 60 * 60 * 1000))
-  
-  const diffMs = moscowNow - moscowDate
-  const diffMinutes = Math.floor(diffMs / (1000 * 60))
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  
-  if (diffMinutes < 1) return 'только что'
-  if (diffMinutes < 60) return `${diffMinutes} мин назад`
-  if (diffHours < 24) return `${diffHours} ч назад`
-  if (diffDays < 7) return `${diffDays} дн назад`
-  return 'давно'
-}
+const getRelativeTime = (timestamp) => getRelativeTimeUtil(timestamp)
 
 const getSlotsPercentage = (station) => {
   const total = station.slots_declared || station.totalPorts || 0

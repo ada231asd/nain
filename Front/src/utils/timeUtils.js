@@ -16,9 +16,6 @@ export function formatMoscowTime(dateString, options = {}) {
   // Проверяем, что дата валидна
   if (isNaN(date.getTime())) return '—'
   
-  // Московское время (UTC+3)
-  const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000))
-  
   const defaultOptions = {
     day: '2-digit',
     month: '2-digit',
@@ -32,7 +29,8 @@ export function formatMoscowTime(dateString, options = {}) {
   
   const formatOptions = { ...defaultOptions, ...options }
   
-  return moscowTime.toLocaleString('ru-RU', formatOptions)
+  // Используем встроенное форматирование по таймзоне Москвы
+  return new Intl.DateTimeFormat('ru-RU', formatOptions).format(date)
 }
 
 /**
@@ -72,11 +70,8 @@ export function getRelativeTime(dateString) {
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString
   const now = new Date()
   
-  // Учитываем московское время
-  const moscowNow = new Date(now.getTime() + (3 * 60 * 60 * 1000))
-  const moscowDate = new Date(date.getTime() + (3 * 60 * 60 * 1000))
-  
-  const diffMs = moscowNow - moscowDate
+  // Разницу считаем в UTC, чтобы не зависеть от локали
+  const diffMs = now.getTime() - date.getTime()
   const diffMinutes = Math.floor(diffMs / (1000 * 60))
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))

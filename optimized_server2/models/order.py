@@ -68,14 +68,14 @@ class Order:
                         ON DUPLICATE KEY UPDATE fio = new_user.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
 
-                # Определяем значения для borrow_time и return_time в зависимости от статуса
-                borrow_time = current_time if status == 'borrow' else None
-                return_time = current_time if status == 'return' else None
+                # Определяем значения для completed_at в зависимости от статуса
+                # Для 'return' устанавливаем completed_at = current_time
+                completed_at_value = current_time if status == 'return' else None
 
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, status, current_time, return_time))
+                """, (station_id, user_id, powerbank_id, status, current_time, completed_at_value))
 
                 order_id = cursor.lastrowid
 
@@ -86,8 +86,7 @@ class Order:
                     powerbank_id=powerbank_id,
                     status=status,
                     timestamp=current_time,
-                    borrow_time=borrow_time,
-                    return_time=return_time
+                    completed_at=completed_at_value
                 )
     
     @classmethod
@@ -125,7 +124,7 @@ class Order:
                     powerbank_id=powerbank_id,
                     status='borrow',
                     timestamp=current_time,
-                    borrow_time=current_time
+                    completed_at=None
                 )
     
     @classmethod
@@ -164,7 +163,7 @@ class Order:
                     powerbank_id=powerbank_id,
                     status='return',
                     timestamp=current_time,
-                    return_time=current_time
+                    completed_at=current_time
                 )
     
     @classmethod
@@ -467,7 +466,7 @@ class Order:
     async def update_order_status(cls, db_pool, order_id: int, new_status: str) -> bool:
         """Обновляет статус заказа"""
         # Проверяем, что статус соответствует допустимым значениям
-        allowed_statuses = ['borrow', 'return', 'completed', 'cancelled']
+        allowed_statuses = ['borrow', 'return', 'completed', 'cancelled', 'force_eject']
         if new_status not in allowed_statuses:
             print(f"Недопустимый статус заказа: {new_status}. Допустимые: {allowed_statuses}")
             return False
@@ -477,24 +476,24 @@ class Order:
             async with conn.cursor() as cursor:
                 # Обновляем статус и связанные поля времени
                 if new_status == 'return':
-                    # При возврате устанавливаем return_time и completed_at
+                    # При возврате устанавливаем completed_at
                     await cursor.execute("""
-                        UPDATE orders SET status = %s, completed_at = %s, return_time = %s WHERE id = %s
-                    """, (new_status, current_time, current_time, order_id))
+                        UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
+                    """, (new_status, current_time, order_id))
                 elif new_status == 'completed':
                     # При завершении устанавливаем completed_at
                     await cursor.execute("""
                         UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
                     """, (new_status, current_time, order_id))
                 elif new_status == 'cancelled':
-                    # При отмене сбрасываем все поля времени
+                    # При отмене сбрасываем completed_at
                     await cursor.execute("""
-                        UPDATE orders SET status = %s, completed_at = NULL, borrow_time = NULL, return_time = NULL WHERE id = %s
+                        UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
                     """, (new_status, order_id))
                 else:
-                    # Для других статусов (borrow) сбрасываем completed_at и return_time
+                    # Для других статусов (borrow, force_eject) сбрасываем completed_at
                     await cursor.execute("""
-                        UPDATE orders SET status = %s, completed_at = NULL, return_time = NULL WHERE id = %s
+                        UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
                     """, (new_status, order_id))
 
                 return cursor.rowcount > 0

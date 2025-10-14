@@ -166,6 +166,7 @@ import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import ErrorReportModal from '../components/ErrorReportModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
+import { formatMoscowTime } from '../utils/timeUtils'
 // WebSocket больше не используется для выдачи повербанков
 
 const router = useRouter()
@@ -327,10 +328,11 @@ const toggleFavorite = async (station) => {
 }
 
 const handleTakeBattery = async (station) => {
+  const stationId = station.station_id || station.id
+  const userId = user.value?.user_id
+  let didRefresh = false
+
   try {
-    const stationId = station.station_id || station.id
-    const userId = user.value?.user_id
-    
     if (!stationId) {
       console.error('Отсутствует ID станции')
       return
@@ -359,6 +361,7 @@ const handleTakeBattery = async (station) => {
       // Централизованное обновление данных после взятия павербанка
       console.log('🔄 Обновляем данные...')
       await refreshAllDataAfterBorrowLocal(stationId, userId)
+      didRefresh = true
       console.log('✅ Данные обновлены')
       
       // Показываем успешное сообщение
@@ -370,19 +373,27 @@ const handleTakeBattery = async (station) => {
     
   } catch (error) {
     console.error('Ошибка при запросе аккумулятора:', error)
+
+    const readableMessage = (() => {
+      if (typeof error?.message === 'string') return error.message
+      if (typeof error?.message === 'object') { try { return JSON.stringify(error.message) } catch {} }
+      if (typeof error?.error === 'string') return error.error
+      if (typeof error?.originalError?.message === 'string') return error.originalError.message
+      try { return JSON.stringify(error) } catch { return 'Неизвестная ошибка' }
+    })()
     
     // Специальная обработка ошибок доступа
-    if (error.status === 403 || (error.message && error.message.includes('недоступна вашему подразделению'))) {
-      alert('❌ Доступ запрещен: ' + (error.message || 'Эта станция недоступна вашему подразделению'))
+    if (error.status === 403 || (readableMessage && readableMessage.includes('недоступна вашему подразделению'))) {
+      alert('❌ Доступ запрещен: ' + (readableMessage || 'Эта станция недоступна вашему подразделению'))
       return
     }
 
     // Фолбэк при сетевом таймауте/нет ответа: проверяем, не выдался ли повербанк фактически
     const isNetworkTimeout = !error.status || error.status === 0 ||
-      (error.message && (
-        error.message.includes('Сервер не отвечает') ||
-        error.message.toLowerCase().includes('timeout') ||
-        error.message.includes('Превышено время ожидания')
+      (readableMessage && (
+        readableMessage.includes('Сервер не отвечает') ||
+        readableMessage.toLowerCase().includes('timeout') ||
+        readableMessage.includes('Превышено время ожидания')
       ))
 
     if (isNetworkTimeout) {
@@ -390,6 +401,7 @@ const handleTakeBattery = async (station) => {
         const confirmed = await confirmBorrowAfterNetworkError(stationId, userId)
         if (confirmed) {
           await refreshAllDataAfterBorrowLocal(stationId, userId)
+          didRefresh = true
           alert('✅ Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
           return
         }
@@ -398,10 +410,20 @@ const handleTakeBattery = async (station) => {
       }
     }
 
-    if (error.status === 400 && error.message) {
-      alert('❌ Ошибка: ' + error.message)
+    if (error.status === 400 && readableMessage) {
+      alert('❌ Ошибка: ' + readableMessage)
     } else {
-      alert('❌ Ошибка при запросе аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+      alert('❌ Ошибка при запросе аккумулятора: ' + (readableMessage || 'Неизвестная ошибка'))
+    }
+  } finally {
+    // Даже если сервер вернул 4xx/5xx, синхронизируем данные — станция могла
+    // фактически выдать повербанк
+    try {
+      if (!didRefresh && stationId && userId) {
+        await refreshAllDataAfterBorrowLocal(stationId, userId)
+      }
+    } catch (e) {
+      console.warn('Не удалось обновить данные после ошибки запроса:', e)
     }
   }
 }
@@ -945,17 +967,12 @@ const getTotalPorts = (station) => {
   return station.totalPorts || 0
 }
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return '—'
-  const date = new Date(timestamp)
-  return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Moscow'
-  })
-}
+const formatTime = (timestamp) => formatMoscowTime(timestamp, {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit'
+})
 
 // WebSocket уведомления удалены; фронтенд ожидает ответ API
 
