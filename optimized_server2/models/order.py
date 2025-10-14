@@ -10,9 +10,10 @@ from utils.time_utils import get_moscow_time
 class Order:
     """Модель заказа"""
     
-    def __init__(self, order_id: int, station_id: int, user_id: int, 
+    def __init__(self, order_id: int, station_id: int, user_id: int,
                  powerbank_id: Optional[int] = None, status: str = 'borrow',
-                 timestamp: Optional[datetime] = None, completed_at: Optional[datetime] = None):
+                 timestamp: Optional[datetime] = None, completed_at: Optional[datetime] = None,
+                 borrow_time: Optional[datetime] = None, return_time: Optional[datetime] = None):
         self.order_id = order_id
         self.station_id = station_id
         self.user_id = user_id
@@ -20,6 +21,9 @@ class Order:
         self.status = status
         self.timestamp = timestamp or get_moscow_time()
         self.completed_at = completed_at
+        # Используем логику для borrow_time и return_time на основе существующих полей
+        self.borrow_time = borrow_time or (timestamp if status == 'borrow' else None)
+        self.return_time = return_time or (completed_at if status == 'return' else None)
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует заказ в словарь"""
@@ -30,21 +34,24 @@ class Order:
             'powerbank_id': self.powerbank_id,
             'status': self.status,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'borrow_time': self.borrow_time.isoformat() if self.borrow_time else None,
+            'return_time': self.return_time.isoformat() if self.return_time else None
         }
     
     @classmethod
-    async def create_pending_order(cls, db_pool, user_id: int, powerbank_id: int, 
+    async def create_pending_order(cls, db_pool, user_id: int, powerbank_id: int,
                                  station_id: int) -> 'Order':
-        """Создает заказ со статусом бороу"""
+        """Создает заказ со статусом pending (ожидание)"""
 
-        return await cls.create(db_pool, station_id, user_id, powerbank_id, 
-                              status='borrow')
+        return await cls.create(db_pool, station_id, user_id, powerbank_id,
+                              status='pending')
     
     @classmethod
-    async def create(cls, db_pool, station_id: int, user_id: int, 
+    async def create(cls, db_pool, station_id: int, user_id: int,
                     powerbank_id: int = None, status: str = 'borrow') -> 'Order':
         """Создает заказ с указанными параметрами"""
+        current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Проверяем существование пользователя
@@ -52,35 +59,42 @@ class Order:
                     SELECT user_id FROM app_user WHERE user_id = %s
                 """, (user_id,))
                 user_exists = await cursor.fetchone()
-                
+
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (fio, email, phone_e164, status, created_at, powerbank_limit)
                         VALUES (%s, %s, %s, %s, %s, %s) AS new_user
                         ON DUPLICATE KEY UPDATE fio = new_user.fio
-                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time(), 1))
-                
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
+
+                # Определяем значения для borrow_time и return_time в зависимости от статуса
+                borrow_time = current_time if status == 'borrow' else None
+                return_time = current_time if status == 'return' else None
+
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, status, get_moscow_time(), None))
-                
+                """, (station_id, user_id, powerbank_id, status, current_time, return_time))
+
                 order_id = cursor.lastrowid
-                
+
                 return cls(
                     order_id=order_id,
                     station_id=station_id,
                     user_id=user_id,
                     powerbank_id=powerbank_id,
                     status=status,
-                    timestamp=get_moscow_time()
+                    timestamp=current_time,
+                    borrow_time=borrow_time,
+                    return_time=return_time
                 )
     
     @classmethod
-    async def create_borrow_order(cls, db_pool, station_id: int, user_id: int, 
+    async def create_borrow_order(cls, db_pool, station_id: int, user_id: int,
                                  powerbank_id: int) -> 'Order':
         """Создает заказ на выдачу повербанка"""
+        current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Проверяем существование пользователя
@@ -88,35 +102,37 @@ class Order:
                     SELECT user_id FROM app_user WHERE user_id = %s
                 """, (user_id,))
                 user_exists = await cursor.fetchone()
-                
+
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (fio, email, phone_e164, status, created_at, powerbank_limit)
                         VALUES (%s, %s, %s, %s, %s, %s) AS new_values
                         ON DUPLICATE KEY UPDATE fio = new_values.fio
-                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time(), 1))
-                
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
+
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'borrow', get_moscow_time(), None))
-                
+                """, (station_id, user_id, powerbank_id, 'borrow', current_time, None))
+
                 order_id = cursor.lastrowid
-                
+
                 return cls(
                     order_id=order_id,
                     station_id=station_id,
                     user_id=user_id,
                     powerbank_id=powerbank_id,
                     status='borrow',
-                    timestamp=get_moscow_time()
+                    timestamp=current_time,
+                    borrow_time=current_time
                 )
     
     @classmethod
-    async def create_return_order(cls, db_pool, station_id: int, user_id: int, 
+    async def create_return_order(cls, db_pool, station_id: int, user_id: int,
                                 powerbank_id: int) -> 'Order':
         """Создает заказ на возврат повербанка"""
+        current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Проверяем существование пользователя
@@ -124,31 +140,31 @@ class Order:
                     SELECT user_id FROM app_user WHERE user_id = %s
                 """, (user_id,))
                 user_exists = await cursor.fetchone()
-                
+
                 if not user_exists:
                     # Создаем системного пользователя для административных операций
                     await cursor.execute("""
                         INSERT INTO app_user (fio, email, phone_e164, status, created_at, powerbank_limit)
                         VALUES (%s, %s, %s, %s, %s, %s) AS new_values
                         ON DUPLICATE KEY UPDATE fio = new_values.fio
-                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', get_moscow_time(), 1))
-                
+                    """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
+
                 # Для заказов на возврат сразу устанавливаем completed_at
-                completed_time = get_moscow_time()
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'return', get_moscow_time(), completed_time))
-                
+                """, (station_id, user_id, powerbank_id, 'return', current_time, current_time))
+
                 order_id = cursor.lastrowid
-                
+
                 return cls(
                     order_id=order_id,
                     station_id=station_id,
                     user_id=user_id,
                     powerbank_id=powerbank_id,
                     status='return',
-                    timestamp=get_moscow_time()
+                    timestamp=current_time,
+                    return_time=current_time
                 )
     
     @classmethod
@@ -157,12 +173,12 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at
                     FROM orders WHERE id = %s
                 """, (order_id,))
-                
+
                 result = await cursor.fetchone()
-                
+
                 if result:
                     return cls(
                         order_id=result[0],
@@ -170,7 +186,8 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     )
                 return None
     
@@ -180,15 +197,14 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
-                    WHERE user_id = %s 
-                    ORDER BY timestamp DESC 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
+                    WHERE user_id = %s
+                    ORDER BY timestamp DESC
                     LIMIT %s
                 """, (user_id, limit))
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -197,9 +213,10 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
     
     @classmethod
@@ -208,14 +225,13 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
                     WHERE user_id = %s AND status IN ('borrow', 'return_damage')
                     ORDER BY timestamp DESC
                 """, (user_id,))
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -224,9 +240,10 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
     
     @classmethod
@@ -235,15 +252,14 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
-                    WHERE station_id = %s 
-                    ORDER BY timestamp DESC 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
+                    WHERE station_id = %s
+                    ORDER BY timestamp DESC
                     LIMIT %s
                 """, (station_id, limit))
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -252,9 +268,10 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
 
     @classmethod
@@ -263,14 +280,13 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
-                    WHERE user_id = %s 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
+                    WHERE user_id = %s
                     ORDER BY timestamp DESC
                 """, (user_id,))
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -279,9 +295,10 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
 
     @classmethod
@@ -290,14 +307,13 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
                     WHERE user_id = %s AND status = 'active'
                     ORDER BY timestamp DESC
                 """, (user_id,))
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -306,9 +322,10 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
 
     @classmethod
@@ -317,14 +334,13 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
                     WHERE powerbank_id = %s AND status = 'active'
                     LIMIT 1
                 """, (powerbank_id,))
-                
+
                 result = await cursor.fetchone()
-                
+
                 if result:
                     return cls(
                         order_id=result[0],
@@ -332,7 +348,8 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     )
                 return None
 
@@ -342,14 +359,13 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
                     WHERE station_id = %s AND status = 'active'
                     ORDER BY timestamp DESC
                 """, (station_id,))
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -358,9 +374,10 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
 
     @classmethod
@@ -403,15 +420,14 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
                     WHERE powerbank_id = %s AND status = 'borrow'
-                    ORDER BY timestamp DESC 
+                    ORDER BY timestamp DESC
                     LIMIT 1
                 """, (powerbank_id,))
-                
+
                 result = await cursor.fetchone()
-                
+
                 if result:
                     return cls(
                         order_id=result[0],
@@ -419,7 +435,8 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     )
                 return None
     
@@ -450,24 +467,36 @@ class Order:
     async def update_order_status(cls, db_pool, order_id: int, new_status: str) -> bool:
         """Обновляет статус заказа"""
         # Проверяем, что статус соответствует допустимым значениям
-        allowed_statuses = ['borrow', 'return']
+        allowed_statuses = ['borrow', 'return', 'completed', 'cancelled']
         if new_status not in allowed_statuses:
             print(f"Недопустимый статус заказа: {new_status}. Допустимые: {allowed_statuses}")
             return False
-            
+
+        current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                # Обновляем статус и устанавливаем completed_at для завершенных заказов
+                # Обновляем статус и связанные поля времени
                 if new_status == 'return':
+                    # При возврате устанавливаем return_time и completed_at
+                    await cursor.execute("""
+                        UPDATE orders SET status = %s, completed_at = %s, return_time = %s WHERE id = %s
+                    """, (new_status, current_time, current_time, order_id))
+                elif new_status == 'completed':
+                    # При завершении устанавливаем completed_at
                     await cursor.execute("""
                         UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
-                    """, (new_status, get_moscow_time(), order_id))
-                else:
-                    # При смене на другие статусы сбрасываем completed_at
+                    """, (new_status, current_time, order_id))
+                elif new_status == 'cancelled':
+                    # При отмене сбрасываем все поля времени
                     await cursor.execute("""
-                        UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
+                        UPDATE orders SET status = %s, completed_at = NULL, borrow_time = NULL, return_time = NULL WHERE id = %s
                     """, (new_status, order_id))
-                
+                else:
+                    # Для других статусов (borrow) сбрасываем completed_at и return_time
+                    await cursor.execute("""
+                        UPDATE orders SET status = %s, completed_at = NULL, return_time = NULL WHERE id = %s
+                    """, (new_status, order_id))
+
                 return cursor.rowcount > 0
     
     @classmethod
@@ -476,14 +505,13 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp
-                    FROM orders 
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
                     WHERE status IN ('borrow', 'pending', 'return_damage')
                     ORDER BY timestamp DESC
                 """)
-                
+
                 results = await cursor.fetchall()
-                
+
                 orders = []
                 for result in results:
                     orders.append(cls(
@@ -492,7 +520,8 @@ class Order:
                         user_id=result[2],
                         powerbank_id=result[3],
                         status=result[4],
-                        timestamp=result[5]
+                        timestamp=result[5],
+                        completed_at=result[6],
                     ))
-                
+
                 return orders
