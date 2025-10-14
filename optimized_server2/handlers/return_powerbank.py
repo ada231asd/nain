@@ -44,24 +44,29 @@ class ReturnPowerbankHandler:
             if terminal_id:
                 logger.info(f"Повербанк {terminal_id} вставлен в станцию {station_id}, слот {slot_number}")
                 
-                # Получаем информацию о повербанке из слота станции
+                # 1) Пытаемся закрыть активный заказ напрямую по TerminalID (серийному номеру повербанка)
+                try:
+                    powerbank_by_serial = await Powerbank.get_by_serial(self.db_pool, terminal_id)
+                except Exception as e:
+                    powerbank_by_serial = None
+                    logger.warning(f"Не удалось получить повербанк по серийному номеру {terminal_id}: {e}")
+
+                if powerbank_by_serial:
+                    try:
+                        active_order_direct = await Order.get_active_borrow_order(self.db_pool, powerbank_by_serial.powerbank_id)
+                        if active_order_direct:
+                            await Order.update_order_status(self.db_pool, active_order_direct.order_id, 'return')
+                            logger.info(f"Заказ {active_order_direct.order_id} закрыт по возврату через TerminalID={terminal_id} (powerbank_id={powerbank_by_serial.powerbank_id})")
+                        else:
+                            logger.info(f"Активный заказ по TerminalID={terminal_id} (powerbank_id={powerbank_by_serial.powerbank_id}) не найден — продолжаем проверку по слоту")
+                    except Exception as e:
+                        logger.error(f"Ошибка при закрытии заказа по TerminalID={terminal_id}: {e}")
+
+                # Дополнительно можно проверить наличие записи в station_powerbank (для диагностики),
+                # но без повторного закрытия заказа
                 from models.station_powerbank import StationPowerbank
                 station_powerbank = await StationPowerbank.get_by_station_and_slot(self.db_pool, station_id, slot_number)
-                
-                if station_powerbank:
-                    # Есть повербанк в слоте - проверяем активные заказы
-                    logger.info(f"Повербанк {station_powerbank.powerbank_id} найден в слоте {slot_number}")
-                    
-                    # Ищем активный заказ на выдачу для этого повербанка
-                    active_order = await Order.get_active_borrow_order(self.db_pool, station_powerbank.powerbank_id)
-                    
-                    if active_order:
-                        # Есть активный заказ - меняем статус на 'return' (закрываем)
-                        await Order.update_order_status(self.db_pool, active_order.order_id, 'return')
-                        logger.info(f"Заказ {active_order.order_id} изменен на статус 'return' - повербанк {station_powerbank.powerbank_id} возвращен")
-                    else:
-                        logger.info(f"Активный заказ для повербанка {station_powerbank.powerbank_id} не найден")
-                else:
+                if not station_powerbank:
                     logger.warning(f"Повербанк не найден в слоте {slot_number} станции {station_id}")
                 
                 # Обновляем last_seen станции

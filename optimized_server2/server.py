@@ -445,9 +445,12 @@ class OptimizedServer:
             self.set_server_address_handler = SetServerAddressHandler(self.db_pool, self.connection_manager)
             self.query_server_address_handler = QueryServerAddressHandler(self.db_pool, self.connection_manager)
             
-            # Создаем HTTP сервер
+            # Создаем HTTP сервер и передаем общий borrow_handler внутрь, чтобы HTTP API и TCP
+            # обрабатывали выдачу одним и тем же экземпляром (общий pending_requests)
             self.http_server = HTTPServer()
             self.http_server.db_pool = self.db_pool
+            # Инъекция общего обработчика для последующего использования в BorrowEndpoints/BorrowPowerbankAPI
+            setattr(self.http_server, 'shared_borrow_handler', self.borrow_handler)
             
     
            

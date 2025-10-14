@@ -21,7 +21,17 @@ const handleResponse = async (requestPromise, operation = 'operation') => {
     const res = await requestPromise
     return res  // apiClient already returns data
   } catch (error) {
-    throw new Error(error.message || `Failed ${operation}`)
+    // Сохраняем стандартизированные поля ошибки из axios перехватчика
+    if (error && (error.status !== undefined || error.code !== undefined)) {
+      throw error
+    }
+    // Фолбэк, если пришел неожиданный формат ошибки
+    throw {
+      message: (error && error.message) || `Failed ${operation}`,
+      status: (error && error.status) || 0,
+      code: error && error.code,
+      originalError: error
+    }
   }
 }
 
@@ -138,6 +148,18 @@ export const pythonAPI = {
         'Content-Type': 'multipart/form-data'
       }
     }), 'bulk import users')
+  },
+  bulkImportUsersWithWebSocket: (file, orgUnitId = null) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (orgUnitId) {
+      formData.append('org_unit_id', orgUnitId)
+    }
+    return handleResponse(apiClient.post('/users/bulk-import-ws', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }), 'bulk import users with websocket')
   },
 
   // ОРГАНИЗАЦИОННЫЕ ЕДИНИЦЫ (полный CRUD)
@@ -259,7 +281,7 @@ export const pythonAPI = {
     return handleResponse(apiClient.post(`/borrow/stations/${station_id}/request`, {
       user_id,
       slot_number
-    }), 'request borrow powerbank')
+    }, { timeout: 90000 }), 'request borrow powerbank')
   },
   requestBorrowPowerbankGet: (params) => {
     return handleResponse(apiClient.get('/borrow-powerbank', { params }), 'request borrow powerbank (GET)')
@@ -268,7 +290,7 @@ export const pythonAPI = {
     validateId(station_id, 'station ID')
     validateId(user_id, 'user ID')
     return handleResponse(
-      apiClient.post(`/borrow/stations/${station_id}/request-optimal`, { user_id }),
+      apiClient.post(`/borrow/stations/${station_id}/request-optimal`, { user_id }, { timeout: 90000 }),
       'request optimal borrow powerbank'
     )
   },
@@ -497,12 +519,12 @@ export const pythonAPI = {
   getUserPowerbanks: () => handleResponse(apiClient.get('/user/powerbanks'), 'get user powerbanks'),
   borrowPowerbank: (stationId) => {
     validateId(stationId, 'station ID')
-    return handleResponse(apiClient.post(`/borrow/stations/${stationId}/borrow`), 'borrow powerbank')
+    return handleResponse(apiClient.post(`/borrow/stations/${stationId}/borrow`, undefined, { timeout: 90000 }), 'borrow powerbank')
   },
   returnPowerbank: (stationId, powerbankId) => {
     validateId(stationId, 'station ID')
     validateId(powerbankId, 'powerbank ID')
-    return handleResponse(apiClient.post(`/return/stations/${stationId}/powerbanks/${powerbankId}`), 'return powerbank')
+    return handleResponse(apiClient.post(`/return/stations/${stationId}/powerbanks/${powerbankId}`, undefined, { timeout: 90000 }), 'return powerbank')
   },
 
   // ДРУГОЕ

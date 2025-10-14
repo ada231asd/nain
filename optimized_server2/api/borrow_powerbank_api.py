@@ -17,11 +17,12 @@ from utils.station_resolver import StationResolver
 class BorrowPowerbankAPI:
     """API для управления выдачей повербанков"""
     
-    def __init__(self, db_pool, connection_manager):
+    def __init__(self, db_pool, connection_manager, borrow_handler: BorrowPowerbankHandler = None):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.station_resolver = StationResolver(connection_manager) if connection_manager else None
-        self.borrow_handler = BorrowPowerbankHandler(db_pool, connection_manager)
+        # Важно: используем общий экземпляр обработчика, если он передан
+        self.borrow_handler = borrow_handler if borrow_handler is not None else BorrowPowerbankHandler(db_pool, connection_manager)
     
     async def get_available_powerbanks(self, station_id: int, user_id: int = None) -> Dict[str, Any]:
         """

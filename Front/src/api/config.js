@@ -16,7 +16,7 @@ export const API_CONFIG = {
   baseURL: import.meta.env.VITE_API_BASE_URL || getDefaultBaseURL(),
   
   // Таймаут для запросов (в миллисекундах)
-  timeout: 1000,
+  timeout: 30000,  // 30 секунд для долгих операций (импорт, отправка email)
   
   // Заголовки по умолчанию
   headers: {
@@ -28,7 +28,7 @@ export const API_CONFIG = {
   environments: {
     development: {
       baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-      timeout: 10000,
+      timeout: 60000,  // 60 секунд для development (для отладки долгих операций)
       enableLogging: true
     },
   },

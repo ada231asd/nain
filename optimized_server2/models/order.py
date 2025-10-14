@@ -36,7 +36,8 @@ class Order:
     @classmethod
     async def create_pending_order(cls, db_pool, user_id: int, powerbank_id: int, 
                                  station_id: int) -> 'Order':
-        """Создает заказ со статусом 'pending' (ожидание ответа от станции)"""
+        """Создает заказ со статусом бороу"""
+
         return await cls.create(db_pool, station_id, user_id, powerbank_id, 
                               status='borrow')
     
@@ -424,13 +425,13 @@ class Order:
     
     @classmethod
     async def confirm_borrow(cls, db_pool, order_id: int) -> bool:
-        """Подтверждает заказ на выдачу (меняет статус с 'pending' на 'borrow')"""
+        """Подтверждает заказ на выдачу ('borrow')"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    UPDATE orders SET status = 'borrow', borrow_time = %s 
-                    WHERE id = %s AND status = 'pending'
-                """, (get_moscow_time(), order_id))
+                    UPDATE orders SET status = 'borrow' 
+                    WHERE id = %s
+                """, (order_id,))
                 
                 return cursor.rowcount > 0
     

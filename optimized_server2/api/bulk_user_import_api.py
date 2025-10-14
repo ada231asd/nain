@@ -2,6 +2,8 @@
 API endpoints для пакетного импорта пользователей из Excel файлов
 """
 import aiomysql
+import asyncio
+import uuid
 from aiohttp import web
 from aiohttp.web import Request, Response
 from typing import Dict, Any
@@ -16,9 +18,14 @@ class BulkUserImportAPI:
     def __init__(self, db_pool):
         self.db_pool = db_pool
         self.bulk_import = BulkUserImport(db_pool)
+        # WebSocket для импорта больше не используется
+    
+    # WebSocket-вариант импорта удален: используем только REST метод ниже
+    
+    # Фоновый импорт и события WebSocket удалены
     
     async def import_users_from_excel(self, request: Request) -> Response:
-        """POST /api/users/bulk-import - Импорт пользователей из Excel файла"""
+        """POST /api/users/bulk-import - Импорт пользователей из Excel файла (старый метод без WebSocket)"""
         try:
             logger = get_logger('bulk_user_import_api')
             
@@ -94,14 +101,21 @@ class BulkUserImportAPI:
             
             logger.info(f"Начало импорта пользователей из файла {filename} (размер: {len(file_content)} байт)")
             
+            # Засекаем время начала
+            import time
+            start_time = time.time()
+            
             # Выполняем импорт
             result = await self.bulk_import.import_users_from_excel(file_content, org_unit_id)
             
+            # Вычисляем затраченное время
+            elapsed_time = time.time() - start_time
+            
             # Логируем результат
             if result['success']:
-                logger.info(f"Импорт успешно завершен: {result['message']}")
+                logger.info(f"Импорт успешно завершен за {elapsed_time:.2f} секунд: {result['message']}")
             else:
-                logger.warning(f"Импорт завершен с ошибками: {result['message']}")
+                logger.warning(f"Импорт завершен с ошибками за {elapsed_time:.2f} секунд: {result['message']}")
             
             return web.json_response(serialize_for_json(result))
             
@@ -275,7 +289,7 @@ class BulkUserImportAPI:
     def setup_routes(self, app):
         """Настраивает маршруты API для пакетного импорта пользователей"""
         
-        # Bulk import routes
+        # Bulk import routes (только REST)
         app.router.add_post('/api/users/bulk-import', self.import_users_from_excel)
         app.router.add_get('/api/users/bulk-import/template', self.get_import_template)
         app.router.add_post('/api/users/bulk-import/validate', self.validate_excel_file)

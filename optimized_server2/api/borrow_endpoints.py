@@ -11,10 +11,11 @@ from api.borrow_powerbank_api import BorrowPowerbankAPI
 class BorrowEndpoints:
     """HTTP endpoints для выдачи повербанков"""
     
-    def __init__(self, db_pool, connection_manager):
+    def __init__(self, db_pool, connection_manager, borrow_handler=None):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        self.borrow_api = BorrowPowerbankAPI(db_pool, connection_manager)
+        # Протаскиваем общий handler в API, чтобы использовать единый pending_requests
+        self.borrow_api = BorrowPowerbankAPI(db_pool, connection_manager, borrow_handler=borrow_handler)
     
     def setup_routes(self, app):
         """Настраивает маршруты для выдачи повербанков"""

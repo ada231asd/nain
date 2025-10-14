@@ -166,7 +166,7 @@ import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import ErrorReportModal from '../components/ErrorReportModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
-import websocketClient from '../utils/websocketClient'
+// WebSocket больше не используется для выдачи повербанков
 
 const router = useRouter()
 const route = useRoute()
@@ -374,12 +374,61 @@ const handleTakeBattery = async (station) => {
     // Специальная обработка ошибок доступа
     if (error.status === 403 || (error.message && error.message.includes('недоступна вашему подразделению'))) {
       alert('❌ Доступ запрещен: ' + (error.message || 'Эта станция недоступна вашему подразделению'))
-    } else if (error.status === 400 && error.message) {
+      return
+    }
+
+    // Фолбэк при сетевом таймауте/нет ответа: проверяем, не выдался ли повербанк фактически
+    const isNetworkTimeout = !error.status || error.status === 0 ||
+      (error.message && (
+        error.message.includes('Сервер не отвечает') ||
+        error.message.toLowerCase().includes('timeout') ||
+        error.message.includes('Превышено время ожидания')
+      ))
+
+    if (isNetworkTimeout) {
+      try {
+        const confirmed = await confirmBorrowAfterNetworkError(stationId, userId)
+        if (confirmed) {
+          await refreshAllDataAfterBorrowLocal(stationId, userId)
+          alert('✅ Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
+          return
+        }
+      } catch (confirmErr) {
+        console.log('Подтверждение выдачи не удалось:', confirmErr)
+      }
+    }
+
+    if (error.status === 400 && error.message) {
       alert('❌ Ошибка: ' + error.message)
     } else {
       alert('❌ Ошибка при запросе аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
+}
+
+// Фолбэк: при сетевом таймауте проверяем по данным пользователя, не появилась ли у него выдача
+const confirmBorrowAfterNetworkError = async (stationId, userId, timeoutMs = 20000, intervalMs = 2000) => {
+  const startedAt = Date.now()
+  let initialCount = null
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const res = await pythonAPI.getUserPowerbanks()
+      const list = Array.isArray(res?.powerbanks) ? res.powerbanks : (Array.isArray(res) ? res : [])
+
+      if (initialCount === null) {
+        initialCount = list.length
+      } else if (list.length > initialCount) {
+        return true
+      }
+    } catch (e) {
+      // игнорируем ошибки опроса
+    }
+
+    await new Promise(r => setTimeout(r, intervalMs))
+  }
+
+  return false
 }
 
 const handleReturnWithError = async (station) => {
@@ -584,7 +633,7 @@ const borrowPowerbank = async (powerbank) => {
 
     const result = await pythonAPI.requestBorrowPowerbank(requestData)
 
-    if (result && (result.status === 'success' || result.status === 'accepted')) {
+    if (result && result.success) {
       alert('Повербанк успешно выдан!')
       
       // Централизованное обновление данных после выдачи павербанка
@@ -595,7 +644,7 @@ const borrowPowerbank = async (powerbank) => {
       const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
       selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
     } else {
-      alert('Ошибка при выдаче повербанка')
+      alert('❌ Ошибка при выдаче повербанка: ' + (result?.error || 'Неизвестная ошибка сервера'))
     }
   } catch (error) {
     console.error('Ошибка при выдаче повербанка:', error)
@@ -897,55 +946,18 @@ const getTotalPorts = (station) => {
 }
 
 const formatTime = (timestamp) => {
+  if (!timestamp) return '—'
   const date = new Date(timestamp)
-  // Московское время (UTC+3)
-  const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000))
-  return moscowTime.toLocaleString('ru-RU', {
+  return date.toLocaleString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Europe/Moscow'
   })
 }
 
-// WebSocket уведомления о выдаче повербанков
-const setupWebSocketNotifications = () => {
-  try {
-    // Подключаемся к WebSocket (URL определяется динамически внутри клиента)
-    websocketClient.connect()
-    
-    // Обрабатываем успешную выдачу
-    websocketClient.on('borrow_success', (data) => {
-      console.log('✅ WebSocket: Получено уведомление об успешной выдаче:', data)
-      
-      // Показываем уведомление пользователю
-      alert(`✅ ${data.message}`)
-      
-      // Обновляем данные станции
-      if (data.station_id) {
-        refreshAllDataAfterBorrowLocal(data.station_id, user.value?.user_id)
-      }
-    })
-    
-    // Обрабатываем неудачную выдачу
-    websocketClient.on('borrow_failure', (data) => {
-      console.log('❌ WebSocket: Получено уведомление о неудачной выдаче:', data)
-      
-      // Показываем уведомление пользователю
-      alert(`❌ ${data.message}`)
-    })
-    
-    // Обрабатываем ошибки WebSocket
-    websocketClient.on('error', (error) => {
-      console.warn('WebSocket ошибка:', error)
-    })
-    
-    console.log('WebSocket уведомления настроены для Dashboard')
-    
-  } catch (error) {
-    console.warn('Не удалось настроить WebSocket уведомления:', error)
-  }
-}
+// WebSocket уведомления удалены; фронтенд ожидает ответ API
 
 // Жизненный цикл
 onMounted(async () => {
@@ -956,8 +968,7 @@ onMounted(async () => {
     // Загружаем QR-станцию если есть параметры
     await loadQRStation()
     
-    // Настраиваем WebSocket для получения уведомлений о выдаче повербанков
-    setupWebSocketNotifications()
+    // WebSocket больше не используется — полагаемся на синхронные ответы API
     
     // Не запускаем автоматическое обновление по таймеру
     // Обновление происходит только после действий
@@ -974,8 +985,7 @@ onUnmounted(() => {
   // Останавливаем автоматическое обновление
   stopAutoRefresh()
   
-  // Отключаем WebSocket
-  websocketClient.disconnect()
+  // WebSocket не используется
 })
 </script>
 

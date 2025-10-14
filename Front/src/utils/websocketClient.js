@@ -16,14 +16,31 @@ class WebSocketClient {
     let resolvedUrl = url
     if (!resolvedUrl) {
       try {
-        const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
-        const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8001'
-        const protocol = isHttps ? 'wss:' : 'ws:'
-        // Используем относительный путь к стандартному маршруту WS бекенда
-        resolvedUrl = `${protocol}//${host}/ws`
+        // Проверяем переменную окружения для WebSocket URL
+        const envWsUrl = import.meta.env.VITE_WS_URL
+        if (envWsUrl) {
+          resolvedUrl = envWsUrl
+        } else {
+          // В dev режиме используем прокси на том же хосте что и API
+        
+          const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+          const protocol = isHttps ? 'wss:' : 'ws:'
+          
+          // Используем адрес API сервера для WebSocket (порт 8001)
+          // В dev режиме это будет текущий хост
+     
+          if (import.meta.env.DEV) {
+        
+            resolvedUrl = 'ws://192.168.10.38:8001/ws'
+          } else {
+       
+            const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8001'
+            resolvedUrl = `${protocol}//${host}/ws`
+          }
+        }
       } catch (e) {
         // Fallback на localhost если что-то пошло не так
-        resolvedUrl = 'ws://localhost:8001/ws'
+        resolvedUrl = 'ws://192.168.10.38:8001/ws'
       }
     }
     // Предотвращаем множественные соединения

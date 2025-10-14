@@ -128,7 +128,17 @@ class HTTPServer:
         # Создаем обработчики
         self.auth_handler = AuthHandler(self.db_pool)
         self.admin_endpoints = AdminEndpoints(self.db_pool, connection_manager)  
-        self.borrow_endpoints = BorrowEndpoints(self.db_pool, connection_manager)  
+        # Используем общий экземпляр borrow_handler из серверного слоя, если доступен
+        shared_borrow_handler = None
+        try:
+            # server.py создаёт self.borrow_handler; если create_app вызывается оттуда,
+            # мы можем получить общий экземпляр из connection_manager-хранилища или передать явно.
+            # Здесь пробуем взять из self (если атрибут внедрён извне)
+            shared_borrow_handler = getattr(self, 'shared_borrow_handler', None)
+        except Exception:
+            shared_borrow_handler = None
+
+        self.borrow_endpoints = BorrowEndpoints(self.db_pool, connection_manager, borrow_handler=shared_borrow_handler)  
         self.crud_endpoints = CRUDEndpoints(self.db_pool)
         self.powerbank_crud = PowerbankCRUD(self.db_pool)
         self.orders_crud = OrdersCRUD(self.db_pool)

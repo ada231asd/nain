@@ -68,7 +68,16 @@ apiClient.interceptors.response.use(
     let errorMessage = 'Произошла ошибка'
     let errorStatus = 500
     
-    if (error.response) {
+    // Специальная обработка таймаута (axios code ECONNABORTED)
+    if (error?.code === 'ECONNABORTED' || (typeof error?.message === 'string' && error.message.toLowerCase().includes('timeout'))) {
+      errorMessage = 'Превышено время ожидания ответа от сервера'
+      errorStatus = 0
+      try {
+        window.dispatchEvent(new CustomEvent('api:timeout', {
+          detail: { message: errorMessage }
+        }))
+      } catch {}
+    } else if (error.response) {
       // Сервер ответил с ошибкой
       errorStatus = error.response.status
       errorMessage = error.response.data?.error || error.response.data?.message || error.response.statusText

@@ -27,7 +27,7 @@
               <div v-if="!selectedFile" class="file-upload-content">
                 <div class="upload-icon">📄</div>
                 <p>Перетащите Excel файл сюда</p>
-                <p class="upload-hint">или <button class="btn-select-file" @click="$refs.fileInput.click()">выберите файл</button></p>
+                <p class="upload-hint">или <button class="btn-select-file" @click="fileInput && fileInput.click()">выберите файл</button></p>
                 <p class="file-format">Поддерживаемые форматы: .xlsx, .xls (макс. 10MB)</p>
               </div>
 
@@ -44,7 +44,7 @@
             </div>
 
             <input
-              ref="fileInput"
+              ref="setFileInputRef"
               type="file"
               accept=".xlsx,.xls"
               @change="onFileSelect"
@@ -158,6 +158,49 @@
           </div>
         </div>
 
+        <!-- Шаг 2.5: Прогресс импорта -->
+        <div v-else-if="currentStep === 2.5" class="import-step">
+          <div class="step-header">
+            <h4>🔄 Импорт в процессе...</h4>
+          </div>
+
+          <div class="progress-section">
+            <div class="progress-bar-container">
+              <div 
+                class="progress-bar" 
+                :style="{ width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%` }"
+              ></div>
+            </div>
+            
+            <div class="progress-info">
+              <p class="progress-counter">
+                <strong>Обработано: {{ importProgress.current }} из {{ importProgress.total }}</strong>
+              </p>
+              
+              <div v-if="importProgress.user" class="current-user">
+                <p>👤 Текущий пользователь: <strong>{{ importProgress.user }}</strong></p>
+                
+                <p v-if="importProgress.status === 'creating'" class="status-text">
+                  ⏳ Создание пользователя в базе данных...
+                </p>
+                <p v-else-if="importProgress.status === 'sending_email'" class="status-text">
+                  📧 Отправка письма с паролем...
+                </p>
+                <p v-else-if="importProgress.status === 'completed'" class="status-text">
+                  ✅ Пользователь создан{{ importProgress.email_sent ? ' и письмо отправлено' : '' }}
+                </p>
+                <p v-else-if="importProgress.status === 'error'" class="status-text error">
+                  ❌ Ошибка: {{ importProgress.error }}
+                </p>
+              </div>
+              
+              <div v-else class="loading-text">
+                <p>⏳ Начинаем импорт...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Шаг 3: Результаты импорта -->
         <div v-else-if="currentStep === 3" class="import-step">
           <div class="step-header">
@@ -240,7 +283,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { pythonAPI } from '../api/pythonApi.js'
 
 const props = defineProps({
@@ -257,8 +300,24 @@ const selectedFile = ref(null)
 const orgUnitId = ref('')
 const isDragOver = ref(false)
 
+// Template ref for hidden file input (Vue 3 script setup)
+let fileInputEl = null
+const setFileInputRef = (el) => { fileInputEl = el }
+const fileInput = {
+  click: () => { if (fileInputEl) fileInputEl.click() },
+  clear: () => { if (fileInputEl) fileInputEl.value = '' }
+}
+
 const validationResult = ref({})
 const importResult = ref({})
+
+// Прогресс импорта (оставляем структуру для шаблона, но без WebSocket)
+const importProgress = ref({
+  current: 0,
+  total: 0,
+  user: '',
+  status: ''
+})
 
 // Функции работы с файлами
 const onDragOver = () => {
@@ -304,9 +363,7 @@ const handleFileSelect = (file) => {
 
 const clearFile = () => {
   selectedFile.value = null
-  if ($refs.fileInput) {
-    $refs.fileInput.value = ''
-  }
+  fileInput.clear()
 }
 
 const formatFileSize = (bytes) => {
@@ -360,24 +417,28 @@ const validateFile = async () => {
   }
 }
 
-// Импорт пользователей
+// WebSocket больше не используется для импорта; работаем через REST API
+
+// Импорт пользователей (REST, без WebSocket)
 const importUsers = async () => {
   try {
     isLoading.value = true
-
-    const response = await pythonAPI.bulkImportUsers(selectedFile.value, orgUnitId.value)
-
+    // Выполняем импорт через HTTP API
+    const response = await pythonAPI.bulkImportUsers(
+      selectedFile.value,
+      orgUnitId.value
+    )
     importResult.value = response
     currentStep.value = 3
-
-    // Уведомляем родительский компонент об успешном импорте
     if (response.success) {
       emit('import-completed', response)
     }
-
+    
   } catch (error) {
-    console.error('Ошибка импорта:', error)
-    alert('Ошибка импорта: ' + (error.message || 'Неизвестная ошибка'))
+    console.error('Ошибка запуска импорта:', error)
+    alert('Ошибка запуска импорта: ' + (error.message || 'Неизвестная ошибка'))
+    isLoading.value = false
+    currentStep.value = 1
   } finally {
     isLoading.value = false
   }
@@ -390,10 +451,12 @@ const resetModal = () => {
   orgUnitId.value = ''
   validationResult.value = {}
   importResult.value = {}
-  if ($refs.fileInput) {
-    $refs.fileInput.value = ''
-  }
+  importProgress.value = { current: 0, total: 0, user: '', status: '' }
+  fileInput.clear()
 }
+
+// Lifecycle hooks
+onMounted(() => {})
 
 // Сброс при закрытии
 watch(() => props.isVisible, (newValue) => {
@@ -925,6 +988,86 @@ watch(() => props.isVisible, (newValue) => {
   background: rgba(255, 255, 255, 0.5);
   padding: 2px 4px;
   border-radius: 3px;
+}
+
+/* Прогресс импорта */
+.progress-section {
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 32px;
+  background: #e9ecef;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.progress-info {
+  text-align: center;
+}
+
+.progress-counter {
+  font-size: 18px;
+  color: #333;
+  margin: 0 0 16px 0;
+}
+
+.current-user {
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  margin-top: 16px;
+}
+
+.current-user p {
+  margin: 8px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.status-text {
+  color: #666;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.status-text.error {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.loading-text {
+  padding: 24px;
+  text-align: center;
+}
+
+.loading-text p {
+  font-size: 16px;
+  color: #666;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* Адаптивность */

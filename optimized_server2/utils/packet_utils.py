@@ -245,7 +245,7 @@ def parse_borrow_request(data: bytes) -> Dict[str, Any]:
     packet_format = ">H B B B I"
     packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
     
-    # Payload строго по PacketLen (PacketLen включает 7 байт заголовка)
+    
     payload_len = max(0, packet_len - 7)
     payload = data[9:9 + payload_len]
     
@@ -275,11 +275,11 @@ def parse_borrow_response(data: bytes) -> Dict[str, Any]:
         packet_format = ">H B B B I"
         packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
 
-        # Payload строго по PacketLen (PacketLen включает 7 байт заголовка)
+        
         payload_len = max(0, packet_len - 7)
         payload = data[9:9 + payload_len]
 
-        # Минимальный ожидаемый payload: 10 байт (slot, result, 8 байт TerminalID)
+        
         # Некоторые ревизии присылают 12 байт (доп. 2 байта статусов)
         slot = payload[0] if len(payload) >= 1 else 0
         result_code = payload[1] if len(payload) >= 2 else 0
@@ -500,7 +500,7 @@ def parse_slot_abnormal_report_request(data: bytes) -> Dict[str, Any]:
     packet_format = ">H B B B I"
     packet_len, command, vsn, checksum, token = struct.unpack(packet_format, data[:9])
 
-    # Payload строго по PacketLen (PacketLen включает 7 байт заголовка)
+    
     payload_len = max(0, packet_len - 7)
     payload = data[9:9 + payload_len]
 
