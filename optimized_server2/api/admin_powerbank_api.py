@@ -10,6 +10,7 @@ import aiomysql
 from models.powerbank import Powerbank
 from models.station_powerbank import StationPowerbank
 from models.action_log import ActionLog
+from models.order import Order
 
 
 
@@ -134,6 +135,74 @@ class AdminPowerbankAPI:
             return {
                 "success": False,
                 "message": f"Ошибка деактивации: {str(e)}"
+            }
+
+    async def write_off_powerbank_lost(self, user_id: int, powerbank_id: int, admin_user_id: int, note: str | None = None) -> dict:
+        """Списывает повербанк у пользователя как утерянный.
+
+        Действия:
+        - Закрывает активный заказ пользователя на этот повербанк (status='return', completed_at=NOW)
+        - Удаляет повербанк из всех станций
+        - Обновляет статус повербанка на 'written_off' и причину списания 'lost'
+        - Пишет запись в action_logs
+        """
+        try:
+            # Проверяем существование повербанка
+            powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
+            if not powerbank:
+                return {
+                    "success": False,
+                    "error": "Повербанк не найден"
+                }
+
+            # Закрываем активный заказ на этот повербанк (если есть), независимо от user_id
+            active_order = await Order.get_active_borrow_order(self.db_pool, powerbank_id)
+            if active_order:
+                await Order.update_order_status(self.db_pool, active_order.order_id, 'return')
+
+            # Удаляем повербанк из всех станций и пересчитываем remain_num
+            await self._remove_powerbank_from_all_stations(powerbank_id)
+
+            # Обновляем статус и причину списания
+            await powerbank.update_status(self.db_pool, 'written_off')
+            await powerbank.update_write_off_reason(self.db_pool, 'lost')
+
+            # Логируем действие
+            description_parts = [
+                f"Списание повербанка ID {powerbank_id} как утерянного",
+                f"пользователь ID {user_id}" if user_id else None,
+                f"примечание: {note}" if note else None
+            ]
+            description = ", ".join([p for p in description_parts if p])
+            try:
+                await ActionLog.create(
+                    self.db_pool,
+                    user_id=admin_user_id,
+                    action_type='powerbank_update',
+                    entity_type='powerbank',
+                    entity_id=powerbank_id,
+                    description=description,
+                    ip_address=None,
+                    user_agent=None
+                )
+            except Exception:
+                # Логирование не критично для основного потока
+                pass
+
+            return {
+                "success": True,
+                "message": "Повербанк списан как утерянный",
+                "powerbank_id": powerbank_id,
+                "user_id": user_id,
+                "admin_user_id": admin_user_id,
+                "status": 'written_off',
+                "write_off_reason": 'lost'
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Ошибка списания: {str(e)}"
             }
     
     async def get_powerbank_status(self, powerbank_id: int) -> Dict[str, Any]:

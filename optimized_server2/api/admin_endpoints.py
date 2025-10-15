@@ -240,6 +240,40 @@ class AdminEndpoints:
                 "error": str(e)
             }, status=500)
     
+    async def write_off_powerbank(self, request: Request) -> Response:
+        """POST /api/admin/write-off-powerbank - списать повербанк у пользователя как утерянный
+
+        Body JSON: { user_id, powerbank_id, admin_user_id, note? }
+        """
+        try:
+            data = await request.json()
+            required = ['user_id', 'powerbank_id', 'admin_user_id']
+            for f in required:
+                if f not in data:
+                    return web.json_response({
+                        "success": False,
+                        "error": f"Отсутствует обязательное поле: {f}"
+                    }, status=400)
+
+            user_id = int(data['user_id'])
+            powerbank_id = int(data['powerbank_id'])
+            admin_user_id = int(data['admin_user_id'])
+            note = data.get('note')
+
+            result = await self.admin_api.write_off_powerbank_lost(user_id, powerbank_id, admin_user_id, note)
+
+            return web.json_response(result, status=200 if result.get('success') else 400)
+        except (ValueError, TypeError):
+            return web.json_response({
+                "success": False,
+                "error": "user_id, powerbank_id и admin_user_id должны быть числами"
+            }, status=400)
+        except Exception as e:
+            return web.json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
     def setup_routes(self, app):
         """Настраивает маршруты для администратора"""
         app.router.add_get('/api/admin/unknown-powerbanks', self.get_unknown_powerbanks)
@@ -249,3 +283,4 @@ class AdminEndpoints:
         app.router.add_post('/api/admin/bulk-activate-powerbanks', self.bulk_activate_powerbanks)
         app.router.add_get('/api/admin/powerbank-statistics', self.get_powerbank_statistics)
         app.router.add_post('/api/admin/force-eject-powerbank', self.force_eject_powerbank)
+        app.router.add_post('/api/admin/write-off-powerbank', self.write_off_powerbank)
