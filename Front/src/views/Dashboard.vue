@@ -501,6 +501,34 @@ const handleErrorReportSubmit = async (errorReport) => {
     
     if (response && response.success) {
       alert('Отчет об ошибке успешно отправлен')
+      
+      // После отчета об ошибке запускаем ожидание подтверждения возврата (10 сек)
+      try {
+        const stationId = errorReport.station_id || (errorReportStation.value && (errorReportStation.value.station_id || errorReportStation.value.id))
+        const userId = errorReport.user_id || (user.value && (user.value.user_id || user.value.id))
+        if (stationId && userId) {
+          const waitPayload = {
+            station_id: stationId,
+            user_id: userId,
+            powerbank_id: errorReport.powerbank_id,
+            timeout_seconds: 10,
+            message: 'error-return-wait'
+          }
+          const waitRes = await pythonAPI.waitReturnConfirmation(waitPayload)
+          if (waitRes && waitRes.success && waitRes.confirmed) {
+            alert('✅ Возврат подтверждён станцией. Спасибо!')
+            // Обновляем данные по станции/пользователю
+            try {
+              await refreshAllDataAfterBorrowLocal(stationId, userId)
+            } catch {}
+          } else if (waitRes && waitRes.timeout) {
+            alert('⏱ Не удалось подтвердить возврат в течение 10 секунд. Попробуйте ещё раз.')
+          }
+        }
+      } catch (waitErr) {
+        console.warn('Ошибка ожидания подтверждения возврата:', waitErr)
+      }
+
       closeErrorReportModal()
     } else {
       alert('Ошибка при отправке отчета: ' + (response?.error || 'Неизвестная ошибка'))

@@ -48,8 +48,8 @@ class SlotAbnormalReport:
     ) -> 'SlotAbnormalReport':
         """Создает отчет об аномалии."""
         async with db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                   now = datetime.now()
+            async with conn.cursor() as cur:
+                now = datetime.now()
                 reported_at_value = reported_at or now
                 await cur.execute(
                     """
@@ -88,6 +88,7 @@ class SlotAbnormalReport:
                     (station_id, limit),
                 )
                 rows = await cur.fetchall()
+        
         reports: List[SlotAbnormalReport] = []
         for row in rows:
             reports.append(
@@ -126,6 +127,7 @@ class SlotAbnormalReport:
                     (limit,),
                 )
                 rows = await cur.fetchall()
+        
         return [
             cls(
                 report_id=row[0],
@@ -155,6 +157,7 @@ class SlotAbnormalReport:
                 rows = await cur.fetchall()
                 await cur.execute("SELECT COUNT(*) FROM slot_abnormal_reports")
                 total_row = await cur.fetchone()
+        
         stats = {"by_event_type": {}}
         for row in rows:
             stats["by_event_type"][row[0]] = row[1]
@@ -178,6 +181,7 @@ class SlotAbnormalReport:
                     (event_type, limit),
                 )
                 rows = await cur.fetchall()
+        
         return [
             cls(
                 report_id=row[0],
@@ -206,11 +210,12 @@ class SlotAbnormalReport:
                     LEFT JOIN station s ON s.station_id = r.station_id
                     WHERE r.created_at BETWEEN %s AND %s
                     ORDER BY r.created_at DESC
-                        LIMIT %s
+                    LIMIT %s
                     """,
                     (start_date, end_date, limit),
                 )
                 rows = await cur.fetchall()
+        
         return [
             cls(
                 report_id=row[0],
@@ -250,15 +255,17 @@ class SlotAbnormalReport:
                     (report_id,),
                 )
                 row = await cur.fetchone()
+        
         if not row:
             return None
+        
         return cls(
-                        report_id=row[0],
-                        station_id=row[1],
-                        slot_number=row[2],
-                        terminal_id=row[3],
-                        event_type=row[4],
-                        reported_at=row[5],
+            report_id=row[0],
+            station_id=row[1],
+            slot_number=row[2],
+            terminal_id=row[3],
+            event_type=row[4],
+            reported_at=row[5],
             created_at=row[6],
             box_id=row[7] if len(row) > 7 else None,
         )

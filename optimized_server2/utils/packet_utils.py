@@ -214,19 +214,7 @@ def build_borrow_power_bank(secret_key: str, slot: int = 1, vsn: int = 1):
     
     return packet
 
-def build_return_power_bank(secret_key: str, slot: int = 1, vsn: int = 1):
-    """Создает команду на возврат повербанка (команда 0x66)"""
-    command = 0x66
-    packet_len = 8
-    payload = struct.pack(">B", slot)
-    checksum = compute_checksum(payload)
-    token = generate_session_token(payload, secret_key)
-    header = struct.pack(">HBBBI", packet_len, command, vsn, checksum, token)
-    packet = header + payload
-    
-    
-    
-    return packet
+
 
 def build_return_power_bank_response(slot: int, result: int, terminal_id: bytes, level: int, voltage: int, current: int, temperature: int, status: int, soh: int, vsn: int, token: int):
     """
@@ -287,8 +275,6 @@ def parse_borrow_response(data: bytes) -> Dict[str, Any]:
         payload_len = max(0, packet_len - 7)
         payload = data[9:9 + payload_len]
 
-        
-        # Некоторые ревизии присылают 12 байт (доп. 2 байта статусов)
         slot = payload[0] if len(payload) >= 1 else 0
         result_code = payload[1] if len(payload) >= 2 else 0
         terminal_id_bytes = payload[2:10] if len(payload) >= 10 else b"\x00" * 8

@@ -512,6 +512,17 @@ class BorrowPowerbankAPI:
                     "error": f"Пользователь с ID {user_id} не найден"
                 }
             
+            # Проверяем лимит повербанков пользователя (индивидуальный или групповой по умолчанию)
+            from utils.order_utils import check_user_powerbank_limit, get_user_limit_info
+            limit_ok, limit_message = await check_user_powerbank_limit(self.db_pool, int(user_id))
+            limit_info = await get_user_limit_info(self.db_pool, int(user_id))
+            if not limit_ok:
+                return {
+                    "success": False,
+                    "error": limit_message,
+                    "limit": limit_info
+                }
+            
             # Создаем заказ на выдачу
             order = await Order.create_borrow_order(
                 self.db_pool, station_id, int(user_id), selected['powerbank_id']
@@ -554,6 +565,7 @@ class BorrowPowerbankAPI:
                 "powerbank_id": selected['powerbank_id'],
                 "serial_number": selected['serial_number'],
                 "user_id": user_id,
+                "limit": limit_info,
                 "selection_info": {
                     "reason": selection_result['selection_reason'],
                     "total_available": selection_result['total_available'],

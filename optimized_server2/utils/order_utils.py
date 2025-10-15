@@ -1,7 +1,7 @@
 """
 Утилиты для работы с заказами и защиты от дублирования
 """
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 from models.order import Order
 from utils.centralized_logger import get_logger
 
@@ -112,6 +112,22 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
         # Получаем информацию о пользователе с лимитами
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
+                # Проверяем роль пользователя: администраторы не ограничены лимитом
+                await cur.execute(
+                    """
+                    SELECT COALESCE(ur.role, 'user') as role
+                    FROM app_user au
+                    LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                    WHERE au.user_id = %s
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                )
+                role_row = await cur.fetchone()
+                role = role_row[0] if role_row else 'user'
+                if role in ('service_admin', 'group_admin', 'subgroup_admin'):
+                    return True, f"Лимит не применяется для роли: {role}"
+
                 await cur.execute("""
                     SELECT 
                         au.user_id,
@@ -170,6 +186,129 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
         logger = get_logger('order_utils')
         logger.error(f"Ошибка проверки лимита пользователя {user_id}: {e}")
         return False, f"Ошибка проверки лимита: {e}"
+
+
+async def get_user_limit_info(db_pool, user_id: int) -> Dict[str, Any]:
+    """
+    Возвращает подробную информацию о лимите пользователя:
+    { user_id, individual_limit, group_default_limit, group_name, effective_limit, limit_type, active_count }
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                # Проверяем роль: для админов показываем, что лимит отключён
+                await cur.execute(
+                    """
+                    SELECT COALESCE(ur.role, 'user') as role
+                    FROM app_user au
+                    LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                    WHERE au.user_id = %s
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                )
+                role_row = await cur.fetchone()
+                role = role_row[0] if role_row else 'user'
+                if role in ('service_admin', 'group_admin', 'subgroup_admin'):
+                    return {
+                        "user_id": user_id,
+                        "individual_limit": None,
+                        "group_default_limit": None,
+                        "group_name": None,
+                        "effective_limit": None,
+                        "limit_type": "role_exempt",
+                        "role": role,
+                        "active_count": await _get_active_count(conn, user_id),
+                    }
+                await cur.execute(
+                    """
+                    SELECT 
+                        au.user_id,
+                        au.powerbank_limit as individual_limit,
+                        ou.default_powerbank_limit as group_default_limit,
+                        ou.name as group_name,
+                        CASE 
+                            WHEN au.powerbank_limit IS NOT NULL THEN au.powerbank_limit
+                            WHEN ou.default_powerbank_limit IS NOT NULL THEN ou.default_powerbank_limit
+                            ELSE 0
+                        END as effective_limit,
+                        CASE 
+                            WHEN au.powerbank_limit IS NOT NULL THEN 'individual'
+                            WHEN ou.default_powerbank_limit IS NOT NULL THEN 'group'
+                            ELSE 'no_group'
+                        END as limit_type
+                    FROM app_user au
+                    LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                    LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
+                    WHERE au.user_id = %s
+                    """,
+                    (user_id,),
+                )
+
+                row = await cur.fetchone()
+                if not row:
+                    return {
+                        "user_id": user_id,
+                        "individual_limit": None,
+                        "group_default_limit": None,
+                        "group_name": None,
+                        "effective_limit": 0,
+                        "limit_type": "no_user",
+                        "active_count": 0,
+                    }
+
+                await cur.execute(
+                    """
+                    SELECT COUNT(*) as active_count
+                    FROM orders o
+                    WHERE o.user_id = %s 
+                      AND o.status = 'borrow' 
+                      AND o.completed_at IS NULL
+                    """,
+                    (user_id,),
+                )
+                active_row = await cur.fetchone()
+                active_count = active_row[0] if active_row else 0
+
+                return {
+                    "user_id": row[0],
+                    "individual_limit": row[1],
+                    "group_default_limit": row[2],
+                    "group_name": row[3],
+                    "effective_limit": row[4],
+                    "limit_type": row[5],
+                    "active_count": active_count,
+                }
+    except Exception as e:
+        logger = get_logger('order_utils')
+        logger.error(f"Ошибка получения информации о лимите пользователя {user_id}: {e}")
+        # Возвращаем безопасный дефолт, чтобы не ломать клиент
+        return {
+            "user_id": user_id,
+            "individual_limit": None,
+            "group_default_limit": None,
+            "group_name": None,
+            "effective_limit": 0,
+            "limit_type": "error",
+            "active_count": 0,
+            "error": str(e),
+        }
+
+
+async def _get_active_count(conn, user_id: int) -> int:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*) as active_count
+            FROM orders o
+            WHERE o.user_id = %s 
+              AND o.status = 'borrow' 
+              AND o.completed_at IS NULL
+            """,
+            (user_id,),
+        )
+        row = await cur.fetchone()
+        return row[0] if row else 0
 
 
 async def validate_borrow_request(db_pool, user_id: int, powerbank_id: int, 

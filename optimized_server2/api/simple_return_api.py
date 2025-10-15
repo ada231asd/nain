@@ -67,12 +67,7 @@ class SimpleReturnAPI:
             if not free_slot:
                 return {"error": "Нет свободных слотов для возврата", "success": False}
             
-            from utils.packet_utils import build_return_power_bank
-            return_command = build_return_power_bank(
-                secret_key=secret_key,
-                slot=free_slot,  
-                vsn=1
-            )
+
             
             # Запускаем процесс возврата
             result = await return_handler.start_return_process(station_id, powerbank_id, user_id)

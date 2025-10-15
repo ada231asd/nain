@@ -526,6 +526,17 @@ export const pythonAPI = {
     validateId(powerbankId, 'powerbank ID')
     return handleResponse(apiClient.post(`/return/stations/${stationId}/powerbanks/${powerbankId}`, undefined, { timeout: 90000 }), 'return powerbank')
   },
+  waitReturnConfirmation: (payload) => {
+    if (!payload || typeof payload !== 'object') {
+      throw new Error('Invalid wait confirmation payload')
+    }
+    const { station_id, user_id } = payload
+    if (!station_id || !user_id) {
+      throw new Error('waitReturnConfirmation requires station_id and user_id')
+    }
+    const timeout = Math.max(1000, Math.min(60000, (payload.timeout_seconds || 10) * 1000))
+    return handleResponse(apiClient.post('/return/wait-confirmation', payload, { timeout }), 'wait return confirmation')
+  },
 
   // ДРУГОЕ
   getConnections: () => handleResponse(apiClient.get('/connections'), 'get connections')

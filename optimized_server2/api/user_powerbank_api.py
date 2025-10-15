@@ -148,6 +148,14 @@ class UserPowerbankAPI:
             if active_order:
                 return json_fail("Повербанк уже выдан другому пользователю", status=400)
 
+            # Проверяем лимит повербанков пользователя (индивидуальный или групповой по умолчанию)
+            from utils.order_utils import check_user_powerbank_limit
+            limit_ok, limit_message = await check_user_powerbank_limit(self.db_pool, user_id)
+            from utils.order_utils import get_user_limit_info
+            limit_info = await get_user_limit_info(self.db_pool, user_id)
+            if not limit_ok:
+                return json_fail(limit_message, status=403, limit=limit_info)
+
             # Проверяем онлайн статус станции
             from models.connection import ConnectionManager
             connection_manager = self.connection_manager
@@ -213,7 +221,7 @@ class UserPowerbankAPI:
                     "order_id": order.order_id,
                     "powerbank_serial": powerbank.serial_number,
                     "station_box_id": station.box_id
-                })
+                }, limit=limit_info)
             else:
                 # Станция отклонила выдачу - отменяем заказ
                 await Order.cancel(self.db_pool, order.order_id)
