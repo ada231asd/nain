@@ -366,6 +366,7 @@ class UserPowerbankAPI:
             station_id = data.get('station_id')
             user_id = data.get('user_id')
             description = data.get('description', '')
+            error_type = data.get('error_type', 'other')
 
             if not station_id:
                 return json_fail("Не указан ID станции", status=400)
@@ -376,7 +377,12 @@ class UserPowerbankAPI:
             if not description:
                 return json_fail("Не указано описание проблемы", status=400)
 
-            self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой")
+            # Проверяем допустимые типы ошибок
+            valid_error_types = ['broken', 'lost', 'other']
+            if error_type not in valid_error_types:
+                return json_fail(f"Недопустимый тип ошибки. Допустимые значения: {', '.join(valid_error_types)}", status=400)
+
+            self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой: {error_type}")
 
             # Проверяем, что станция существует
             station = await Station.get_by_id(self.db_pool, station_id)
@@ -387,17 +393,96 @@ class UserPowerbankAPI:
             from handlers.return_powerbank import ReturnPowerbankHandler
             return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
             
-            result = await return_handler.start_damage_return_process(station_id, user_id, description)
+            result = await return_handler.start_damage_return_process(station_id, user_id, description, error_type)
             
             if result.get('success'):
                 return json_ok({
                     "message": result.get('message'),
                     "station_id": station_id,
-                    "user_id": user_id
+                    "user_id": user_id,
+                    "error_type": error_type,
+                    "powerbank_id": result.get('powerbank_id'),
+                    "new_status": result.get('new_status'),
+                    "write_off_reason": result.get('write_off_reason')
                 })
             else:
                 return json_fail(result.get('message', 'Ошибка возврата с поломкой'), status=400)
 
         except Exception as e:
             self.logger.error(f"Ошибка возврата повербанка с поломкой для пользователя {user_id}: {e}", exc_info=True)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
+    
+    async def return_error_powerbank(self, request: web.Request):
+        """
+        Возврат повербанка с ошибкой (удерживает соединение до получения данных о вставке)
+        POST /api/return-error
+        """
+        try:
+            data = await request.json()
+            station_id = data.get('station_id')
+            user_id = data.get('user_id')
+            error_type_id = data.get('error_type_id', 1)  # По умолчанию ID = 1
+
+            if not station_id:
+                return json_fail("Не указан ID станции", status=400)
+
+            if not user_id:
+                return json_fail("Не указан ID пользователя", status=400)
+
+            # Валидируем ID типа ошибки
+            try:
+                error_type_id = int(error_type_id)
+                if error_type_id <= 0:
+                    return json_fail("ID типа ошибки должен быть положительным числом", status=400)
+            except (ValueError, TypeError):
+                return json_fail("Неверный формат ID типа ошибки", status=400)
+
+            self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с ошибкой: ID={error_type_id}")
+
+            # Проверяем, что станция существует
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return json_fail("Станция не найдена", status=404)
+
+            # Используем обработчик возврата с ошибкой
+            from handlers.return_powerbank import ReturnPowerbankHandler
+            return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+            
+            result = await return_handler.start_error_return_process(station_id, user_id, error_type_id)
+            
+            if result.get('success'):
+                return json_ok({
+                    "message": result.get('message'),
+                    "station_id": station_id,
+                    "user_id": user_id,
+                    "error_type_id": error_type_id,
+                    "error_description": result.get('error_description'),
+                    "slot": result.get('slot'),
+                    "terminal_id": result.get('terminal_id'),
+                    "powerbank_id": result.get('powerbank_id'),
+                    "order_id": result.get('order_id')
+                })
+            else:
+                return json_fail(result.get('message'), status=400)
+                
+        except Exception as e:
+            self.logger.error(f"Ошибка возврата с ошибкой: {e}", exc_info=True)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
+    
+    async def get_powerbank_error_types(self, request: web.Request):
+        """
+        Получение доступных типов ошибок повербанков
+        GET /api/powerbank-error-types
+        """
+        try:
+            from models.powerbank_error import PowerbankError
+            
+            error_types = await PowerbankError.get_all(self.db_pool)
+            
+            return json_ok({
+                "error_types": [error.to_dict() for error in error_types]
+            })
+                
+        except Exception as e:
+            self.logger.error(f"Ошибка получения типов ошибок: {e}", exc_info=True)
             return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)

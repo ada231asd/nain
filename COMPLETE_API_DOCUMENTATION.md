@@ -418,9 +418,23 @@
 {
   "station_id": 13,
   "user_id": 33,
-  "error_type": ""
+  "description": "Повербанк не заряжается",
+  "error_type": "broken"
 }
 ```
+
+**Обязательные поля:**
+- `station_id` (int) - ID станции возврата
+- `user_id` (int) - ID пользователя
+- `description` (string) - Описание проблемы
+
+**Опциональные поля:**
+- `error_type` (string) - Тип ошибки (по умолчанию: "other")
+
+**Допустимые типы ошибок:**
+- `"broken"` - Повербанк сломан
+- `"lost"` - Повербанк утерян
+- `"other"` - Другая причина
 
 **Ответ (успех):**
 ```json
@@ -428,7 +442,11 @@
   "success": true,
   "message": "Возврат с поломкой инициирован",
   "station_id": 13,
-  "user_id": 33
+  "user_id": 33,
+  "error_type": "broken",
+  "powerbank_id": 53,
+  "new_status": "user_reported_broken",
+  "write_off_reason": "broken"
 }
 ```
 
@@ -442,23 +460,6 @@
 
 **Примечание:** После вызова этого API пользователь может просто вставить повербанк в станцию. Станция автоматически определит возврат через TCP протокол.
 
-### POST /powerbank-error-report
-Создание отчёта об ошибке повербанка (альтернативный способ для детального отчёта).
-
-**Параметры:**
-```json
-{
-  "order_id": 123,           // обязателен
-  "powerbank_id": 53,        // обязателен
-  "station_id": 13,          // обязателен
-  "user_id": 33,             // обязателен
-  "error_type": "broken",    // обязателен
-  "additional_notes": "..."  // необязателен
-}
-```
-
-**Типы ошибок:**
-- `cable_type_c_damaged` — повреждён кабель Type-C
 - `cable_lightning_damaged` — повреждён кабель Lightning
 - `cable_micro_usb_damaged` — повреждён кабель Micro-USB
 - `powerbank_not_working` — повербанк не работает

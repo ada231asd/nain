@@ -25,7 +25,6 @@ from api.set_voice_volume_api import SetVoiceVolumeAPI
 from api.set_server_address_api import SetServerAddressAPI
 from api.query_server_address_api import QueryServerAddressAPI
 from api.user_powerbank_api import UserPowerbankAPI
-from api.powerbank_error_endpoints import PowerbankErrorEndpoints
 from api.powerbank_status_api import PowerbankStatusAPI
 from api.bulk_user_import_api import BulkUserImportAPI
 from api.logo_upload_api import LogoUploadAPI
@@ -54,7 +53,6 @@ class HTTPServer:
         self.set_server_address_api: SetServerAddressAPI = None
         self.query_server_address_api: QueryServerAddressAPI = None
         self.user_powerbank_api: UserPowerbankAPI = None
-        self.powerbank_error_endpoints: PowerbankErrorEndpoints = None
         self.powerbank_status_api: PowerbankStatusAPI = None
         self.bulk_user_import_api: BulkUserImportAPI = None
         
@@ -150,7 +148,6 @@ class HTTPServer:
         self.set_server_address_api = SetServerAddressAPI(self.db_pool, connection_manager)
         self.query_server_address_api = QueryServerAddressAPI(self.db_pool, connection_manager)
         self.user_powerbank_api = UserPowerbankAPI(self.db_pool, connection_manager)
-        self.powerbank_error_endpoints = PowerbankErrorEndpoints(self.db_pool)
         self.powerbank_status_api = PowerbankStatusAPI(self.db_pool)
         self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
         self.logo_upload_api = LogoUploadAPI(self.db_pool)
@@ -218,11 +215,11 @@ class HTTPServer:
         app.router.add_post('/api/user/powerbanks/return', self.user_powerbank_api.return_powerbank)
         # app.router.add_post('/api/return-powerbank', self.user_powerbank_api.return_powerbank)  # Удален неправильный алиас
         app.router.add_post('/api/return-damage', self.user_powerbank_api.return_damage_powerbank)  # Возврат с поломкой
+        app.router.add_post('/api/return-error', self.user_powerbank_api.return_error_powerbank)  # Возврат с ошибкой
+        app.router.add_get('/api/powerbank-error-types', self.user_powerbank_api.get_powerbank_error_types)  # Типы ошибок
         app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
         app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)
         
-        # API для отчетов об ошибках
-        self.powerbank_error_endpoints.setup_routes(app)
         
         # API для статусов повербанков
         self.powerbank_status_api.setup_routes(app)
