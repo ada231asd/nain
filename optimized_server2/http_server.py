@@ -29,6 +29,7 @@ from api.powerbank_error_endpoints import PowerbankErrorEndpoints
 from api.simple_return_endpoints import SimpleReturnEndpoints
 from api.powerbank_status_api import PowerbankStatusAPI
 from api.bulk_user_import_api import BulkUserImportAPI
+from api.logo_upload_api import LogoUploadAPI
 
 
 
@@ -155,6 +156,7 @@ class HTTPServer:
         self.simple_return_endpoints = SimpleReturnEndpoints(self.db_pool, connection_manager)
         self.powerbank_status_api = PowerbankStatusAPI(self.db_pool)
         self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
+        self.logo_upload_api = LogoUploadAPI(self.db_pool)
         
         # Регистрируем маршруты
         self._setup_routes(app, connection_manager)
@@ -231,6 +233,9 @@ class HTTPServer:
         
         # API для пакетного импорта пользователей
         self.bulk_user_import_api.setup_routes(app)
+        
+        # API для загрузки логотипов
+        self.logo_upload_api.setup_routes(app)
         
         # API для отчетов об аномалиях слотов
         from api.slot_abnormal_report_endpoints import SlotAbnormalReportEndpoints

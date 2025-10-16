@@ -7,10 +7,7 @@ from aiohttp import web
 from typing import Dict, Any
 from datetime import datetime, timezone, timedelta
 import os
-
-
-JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-here')
-JWT_ALGORITHM = 'HS256'
+from config.settings import JWT_SECRET_KEY as JWT_SECRET, JWT_ALGORITHM
 
 def jwt_middleware(handler):
     """
@@ -137,6 +134,73 @@ def refresh_jwt_token(token: str, expires_hours: int = 24) -> str:
     }
     
     return create_jwt_token(user_data, expires_hours)
+
+async def require_auth(request: web.Request) -> Dict[str, Any]:
+    """
+    Проверяет авторизацию пользователя и возвращает результат
+    """
+    try:
+        # Получаем токен из заголовка Authorization
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return {
+                'success': False,
+                'error': 'Отсутствует заголовок Authorization'
+            }
+        
+        # Проверяем формат Bearer token
+        if not auth_header.startswith('Bearer '):
+            return {
+                'success': False,
+                'error': 'Неверный формат токена. Используйте Bearer <token>'
+            }
+        
+        # Извлекаем токен
+        token = auth_header[7:]  # Убираем "Bearer "
+        
+        if not token:
+            return {
+                'success': False,
+                'error': 'Пустой токен'
+            }
+        
+        # Декодируем JWT токен
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        except jwt.ExpiredSignatureError:
+            return {
+                'success': False,
+                'error': 'Токен истек'
+            }
+        except jwt.InvalidTokenError as e:
+            return {
+                'success': False,
+                'error': f'Неверный токен: {str(e)}'
+            }
+        
+        # Проверяем, что токен содержит необходимые поля
+        if 'user_id' not in payload or 'phone_e164' not in payload:
+            return {
+                'success': False,
+                'error': 'Неверная структура токена'
+            }
+        
+        # Возвращаем успешный результат с данными пользователя
+        return {
+            'success': True,
+            'user': {
+                'user_id': payload['user_id'],
+                'phone_e164': payload.get('phone_e164', 'unknown'),
+                'role': payload.get('role', 'user'),
+                'exp': payload.get('exp')
+            }
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Ошибка аутентификации: {str(e)}'
+        }
 
 @web.middleware
 async def jwt_aiohttp_middleware(request, handler):

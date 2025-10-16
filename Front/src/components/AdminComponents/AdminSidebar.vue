@@ -2,9 +2,16 @@
   <aside class="admin-sidebar">
     <!-- Логотип и название группы -->
     <div class="group-header">
-      <div class="group-logo">
-        <div class="logo-placeholder">
+      <div class="group-logo" @click="openLogoUpload">
+        <div class="logo-placeholder" v-if="!getCurrentGroupLogo()">
           <span class="logo-text">🏢</span>
+        </div>
+        <div class="logo-image" v-else>
+          <img :src="getCurrentGroupLogo()" :alt="getCurrentGroupName()" />
+          <div class="logo-overlay">
+            <span class="edit-icon">📷</span>
+            <span class="edit-text">Изменить</span>
+          </div>
         </div>
       </div>
       <div class="group-info">
@@ -33,11 +40,20 @@
         🏠 На главную
       </button>
     </div>
+
+    <!-- Скрытый input для загрузки логотипа -->
+    <input 
+      ref="logoInput"
+      type="file"
+      accept="image/*"
+      @change="handleLogoChange"
+      style="display: none;"
+    />
   </aside>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useAdminStore } from '../../stores/admin'
 
@@ -55,6 +71,9 @@ const emit = defineEmits(['tab-change', 'go-home'])
 // Stores
 const authStore = useAuthStore()
 const adminStore = useAdminStore()
+
+// Refs
+const logoInput = ref(null)
 
 // Computed
 const availableTabs = computed(() => {
@@ -215,6 +234,117 @@ const getGroupStats = () => {
   
   return `${activeUsers}/${groupUsers.length} пользователей`
 }
+
+// Вычисляет текущий org_unit_id по тем же правилам, что и getCurrentGroupName
+const getCurrentOrgUnitId = () => {
+  const user = authStore.user
+  if (!user) return null
+
+  // Прямые поля
+  const directId = user.parent_org_unit_id || user.org_unit_id || user.group_id || user.organization_id
+  if (directId) return directId
+
+  // Поиск по user_id в orgUnits
+  let group = adminStore.orgUnits.find(ou => ou.user_id === user.user_id)
+  if (!group) {
+    // Поиск по users списку
+    const userInList = adminStore.users.find(u => u.user_id === user.user_id)
+    if (userInList) {
+      const userOrgUnitId = userInList.parent_org_unit_id || userInList.org_unit_id
+      if (userOrgUnitId) {
+        group = adminStore.orgUnits.find(ou => ou.org_unit_id === userOrgUnitId)
+      }
+    }
+  }
+
+  // Поиск по роли
+  if (!group) {
+    if (user.role === 'subgroup_admin') {
+      group = adminStore.orgUnits.find(ou => ou.unit_type === 'subgroup' && (ou.admin_user_id === user.user_id || ou.user_id === user.user_id))
+    } else if (user.role === 'group_admin') {
+      group = adminStore.orgUnits.find(ou => ou.unit_type === 'group' && (ou.admin_user_id === user.user_id || ou.user_id === user.user_id))
+    }
+  }
+
+  return group ? group.org_unit_id : null
+}
+
+const getCurrentGroupLogo = () => {
+  const orgUnitId = getCurrentOrgUnitId()
+  if (!orgUnitId) return null
+
+  // Ищем группу в списке организационных единиц
+  const group = adminStore.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
+  if (!group || !group.logo_url) return null
+
+  // Если это относительный путь, добавляем базовый URL
+  if (group.logo_url.startsWith('/api/logos/')) {
+    return `${import.meta.env.VITE_PY_BACKEND_URL || 'http://localhost:8000'}${group.logo_url}`
+  }
+
+  return group.logo_url
+}
+
+// Открытие диалога выбора файла
+const openLogoUpload = () => {
+  if (logoInput.value) {
+    logoInput.value.click()
+  }
+}
+
+// Обработка выбора файла логотипа
+const handleLogoChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // Проверяем размер файла (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Размер файла не должен превышать 5MB')
+    return
+  }
+
+  // Проверяем тип файла
+  if (!file.type.startsWith('image/')) {
+    alert('Выберите файл изображения')
+    return
+  }
+
+  const orgUnitId = getCurrentOrgUnitId()
+  if (!orgUnitId) return
+
+  try {
+    const formData = new FormData()
+    formData.append('logo', file)
+
+    const response = await fetch(`/api/org-units/${orgUnitId}/logo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Ошибка загрузки логотипа')
+    }
+
+    const result = await response.json()
+    console.log('Логотип загружен:', result)
+
+    // Обновляем данные организационных единиц
+    await adminStore.fetchOrgUnits()
+
+    // Очищаем input
+    if (logoInput.value) {
+      logoInput.value.value = ''
+    }
+
+  } catch (error) {
+    console.error('Ошибка загрузки логотипа:', error)
+    alert('Ошибка загрузки логотипа: ' + error.message)
+  }
+}
 </script>
 
 <style scoped>
@@ -239,25 +369,91 @@ const getGroupStats = () => {
 }
 
 .group-logo {
-  margin-bottom: 10px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.group-logo:hover {
+  opacity: 0.8;
 }
 
 .logo-placeholder {
-  width: 80px;
-  height: 80px;
+  width: 64px;
+  height: 64px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  border: 2px solid #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  position: relative;
 }
 
 .logo-text {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
+  color: #6b7280;
+}
+
+.upload-hint {
+  font-size: 0.6rem;
+  color: #9ca3af;
+  text-align: center;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+.logo-image {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  overflow: hidden;
+  position: relative;
+}
+
+.logo-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 11px;
+}
+
+.logo-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 11px;
+}
+
+.logo-image:hover .logo-overlay {
+  opacity: 1;
+}
+
+.edit-icon {
+  font-size: 1rem;
   color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 2px;
+}
+
+.edit-text {
+  font-size: 0.6rem;
+  color: white;
+  font-weight: 400;
 }
 
 .group-info {

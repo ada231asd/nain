@@ -63,14 +63,28 @@
         </div>
 
         <div class="form-group">
-          <label for="logo_url">URL логотипа</label>
-          <input 
-            id="logo_url" 
-            v-model="formData.logo_url" 
-            type="url"
-            class="form-input"
-            placeholder="Введите URL логотипа"
-          />
+          <label for="logo">Логотип группы</label>
+          <div class="logo-upload-section">
+            <div v-if="logoPreview" class="logo-preview">
+              <img :src="logoPreview" alt="Предварительный просмотр логотипа" />
+              <button type="button" @click="removeLogo" class="remove-logo-btn">×</button>
+            </div>
+            <div v-else class="logo-upload-placeholder">
+              <div class="upload-icon">📷</div>
+              <p>Выберите файл логотипа</p>
+            </div>
+            <input 
+              id="logo" 
+              ref="logoInput"
+              type="file"
+              accept="image/*"
+              @change="handleLogoChange"
+              class="logo-input"
+            />
+            <label for="logo" class="logo-upload-btn">
+              {{ logoFile ? 'Изменить логотип' : 'Выбрать логотип' }}
+            </label>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -106,12 +120,15 @@ const emit = defineEmits(['close', 'org-unit-added', 'org-unit-edited'])
 const adminStore = useAdminStore()
 
 const isSubmitting = ref(false)
+const logoFile = ref(null)
+const logoPreview = ref(null)
+const logoInput = ref(null)
+
 const formData = ref({
   unit_type: '',
   parent_org_unit_id: '',
   name: '',
-  adress: '',
-  logo_url: ''
+  adress: ''
 })
 
 const isEditing = computed(() => !!props.orgUnit)
@@ -134,8 +151,12 @@ const resetForm = () => {
     unit_type: '',
     parent_org_unit_id: '',
     name: '',
-    adress: '',
-    logo_url: ''
+    adress: ''
+  }
+  logoFile.value = null
+  logoPreview.value = null
+  if (logoInput.value) {
+    logoInput.value.value = ''
   }
 }
 
@@ -146,8 +167,14 @@ const fillForm = () => {
       unit_type: props.orgUnit.unit_type || '',
       parent_org_unit_id: props.orgUnit.parent_org_unit_id || '',
       name: props.orgUnit.name || '',
-      adress: props.orgUnit.adress || '',
-      logo_url: props.orgUnit.logo_url || ''
+      adress: props.orgUnit.adress || ''
+    }
+    
+    // Устанавливаем предварительный просмотр существующего логотипа
+    if (props.orgUnit.logo_url) {
+      logoPreview.value = props.orgUnit.logo_url.startsWith('/api/logos/') 
+        ? `${import.meta.env.VITE_PY_BACKEND_URL || 'http://localhost:8000'}${props.orgUnit.logo_url}`
+        : props.orgUnit.logo_url
     }
   }
 }
@@ -168,16 +195,21 @@ const handleSubmit = async () => {
     if (!data.adress) {
       delete data.adress
     }
-    if (!data.logo_url) {
-      delete data.logo_url
-    }
+    
+    let orgUnitId
     
     if (isEditing.value) {
       await adminStore.updateOrgUnit(props.orgUnit.org_unit_id, data)
-      emit('org-unit-edited', { id: props.orgUnit.org_unit_id, data })
+      orgUnitId = props.orgUnit.org_unit_id
+      emit('org-unit-edited', { id: orgUnitId, data })
     } else {
-      const id = await adminStore.createOrgUnit(data)
-      emit('org-unit-added', { id, data })
+      orgUnitId = await adminStore.createOrgUnit(data)
+      emit('org-unit-added', { id: orgUnitId, data })
+    }
+    
+    // Загружаем логотип если он был выбран
+    if (logoFile.value) {
+      await uploadLogo(orgUnitId)
     }
     
     closeModal()
@@ -185,6 +217,71 @@ const handleSubmit = async () => {
     alert('Ошибка сохранения группы: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isSubmitting.value = false
+  }
+}
+
+// Обработка выбора файла логотипа
+const handleLogoChange = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    // Проверяем размер файла (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Размер файла не должен превышать 5MB')
+      return
+    }
+    
+    // Проверяем тип файла
+    if (!file.type.startsWith('image/')) {
+      alert('Выберите файл изображения')
+      return
+    }
+    
+    logoFile.value = file
+    
+    // Создаем предварительный просмотр
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      logoPreview.value = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+// Удаление логотипа
+const removeLogo = () => {
+  logoFile.value = null
+  logoPreview.value = null
+  if (logoInput.value) {
+    logoInput.value.value = ''
+  }
+}
+
+// Загрузка логотипа на сервер
+const uploadLogo = async (orgUnitId) => {
+  if (!logoFile.value) return
+  
+  const formData = new FormData()
+  formData.append('logo', logoFile.value)
+  
+  try {
+    const response = await fetch(`/api/org-units/${orgUnitId}/logo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Ошибка загрузки логотипа')
+    }
+    
+    const result = await response.json()
+    console.log('Логотип загружен:', result)
+  } catch (error) {
+    console.error('Ошибка загрузки логотипа:', error)
+    throw error
   }
 }
 
@@ -362,6 +459,96 @@ watch(() => props.isVisible, (isVisible) => {
 
 .btn-secondary:hover {
   background: #5a6268;
+}
+
+/* Стили для загрузки логотипа */
+.logo-upload-section {
+  position: relative;
+}
+
+.logo-preview {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+.logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-logo-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(220, 53, 69, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.remove-logo-btn:hover {
+  background: rgba(220, 53, 69, 1);
+}
+
+.logo-upload-placeholder {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  background: #f8f9fa;
+  color: #666;
+  text-align: center;
+  padding: 10px;
+}
+
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.logo-upload-placeholder p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.logo-input {
+  display: none;
+}
+
+.logo-upload-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.logo-upload-btn:hover {
+  background: #0056b3;
 }
 
 /* Мобильные стили */
