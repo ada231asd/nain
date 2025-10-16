@@ -241,7 +241,7 @@ class CRUDEndpoints:
             data = await request.json()
             
             # Валидация обязательных полей
-            required_fields = ['fio', 'phone_e164', 'email', 'role', 'status']
+            required_fields = ['fio', 'phone_e164', 'email', 'role']
             for field in required_fields:
                 if field not in data:
                     return web.json_response({
@@ -251,7 +251,7 @@ class CRUDEndpoints:
             
             # Валидация enum значений
             valid_statuses = ['pending', 'active', 'blocked']
-            if data['status'] not in valid_statuses:
+            if 'status' in data and data['status'] not in valid_statuses:
                 return web.json_response({
                     "success": False,
                     "error": f"Недопустимый статус пользователя. Допустимые значения: {', '.join(valid_statuses)}"
@@ -318,8 +318,10 @@ class CRUDEndpoints:
                     update_fields.append("email = %s")
                     params.append(data['email'])
                     
-                    update_fields.append("status = %s")
-                    params.append(data['status'])
+                    # Обновляем статус только если он передан
+                    if 'status' in data:
+                        update_fields.append("status = %s")
+                        params.append(data['status'])
                     
                     # Добавляем поддержку обновления лимита повербанков
                     if 'individual_limit' in data or 'powerbank_limit' in data:

@@ -116,10 +116,12 @@ class PowerbankCRUD:
                     # Получаем powerbanks
                     query = f"""
                         SELECT p.id, p.org_unit_id, p.serial_number, p.soh, 
-                               p.status, p.write_off_reason, p.created_at,
-                               ou.name as org_unit_name
+                               p.status, p.write_off_reason, p.created_at, p.power_er,
+                               ou.name as org_unit_name,
+                               pe.type_error as error_type
                         FROM powerbank p
                         LEFT JOIN org_unit ou ON p.org_unit_id = ou.org_unit_id
+                        LEFT JOIN powerbank_error pe ON p.power_er = pe.id_er
                         {where_clause}
                         ORDER BY p.created_at DESC
                         LIMIT %s OFFSET %s
@@ -153,10 +155,12 @@ class PowerbankCRUD:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     await cur.execute("""
                         SELECT p.id, p.org_unit_id, p.serial_number, p.soh, 
-                               p.status, p.write_off_reason, p.created_at,
-                               ou.name as org_unit_name
+                               p.status, p.write_off_reason, p.created_at, p.power_er,
+                               ou.name as org_unit_name,
+                               pe.type_error as error_type
                         FROM powerbank p
                         LEFT JOIN org_unit ou ON p.org_unit_id = ou.org_unit_id
+                        LEFT JOIN powerbank_error pe ON p.power_er = pe.id_er
                         WHERE p.id = %s
                     """, (powerbank_id,))
                     

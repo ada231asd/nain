@@ -85,6 +85,14 @@
             </select>
           </div>
           
+          <!-- Отображение ошибки системы -->
+          <div v-if="powerbank && powerbank.status === 'system_error' && powerbank.error_type" class="form-group">
+            <label>Ошибка системы:</label>
+            <div class="error-display">
+              <span class="error-text">{{ powerbank.error_type }}</span>
+            </div>
+          </div>
+          
           <div class="form-actions">
             <button type="button" @click="closeModal" class="btn btn-secondary">
               Отмена
@@ -330,6 +338,19 @@ const savePowerbank = async () => {
 
 .btn-secondary:hover {
   background-color: #545b62;
+}
+
+.error-display {
+  padding: 10px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-top: 5px;
+}
+
+.error-text {
+  color: #721c24;
+  font-weight: 500;
 }
 
 </style>

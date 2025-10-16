@@ -29,6 +29,8 @@ from api.powerbank_status_api import PowerbankStatusAPI
 from api.bulk_user_import_api import BulkUserImportAPI
 from api.logo_upload_api import LogoUploadAPI
 from api.return_endpoints import ReturnEndpoints
+from api.invitation_api import InvitationAPI
+from middleware.auth_middleware import AuthMiddleware
 
 
 
@@ -57,6 +59,8 @@ class HTTPServer:
         self.powerbank_status_api: PowerbankStatusAPI = None
         self.bulk_user_import_api: BulkUserImportAPI = None
         self.return_endpoints: ReturnEndpoints = None
+        self.invitation_api: InvitationAPI = None
+        self.auth_middleware: AuthMiddleware = None
         
     
     async def initialize_database(self):
@@ -124,6 +128,10 @@ class HTTPServer:
         
         app.middlewares.append(cors_middleware)
         
+        # Добавляем middleware авторизации
+        auth_middleware = AuthMiddleware(self.db_pool)
+        app.middlewares.append(auth_middleware.create_auth_middleware())
+        
         # Создаем обработчики
         self.auth_handler = AuthHandler(self.db_pool)
         self.admin_endpoints = AdminEndpoints(self.db_pool, connection_manager)  
@@ -154,6 +162,8 @@ class HTTPServer:
         self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
         self.logo_upload_api = LogoUploadAPI(self.db_pool)
         self.return_endpoints = ReturnEndpoints(self.db_pool, connection_manager)
+        self.invitation_api = InvitationAPI(self.db_pool)
+        self.auth_middleware = AuthMiddleware(self.db_pool)
         
         # Регистрируем маршруты
         self._setup_routes(app, connection_manager)
@@ -174,6 +184,12 @@ class HTTPServer:
         app.router.add_post('/api/admin/approve-user', self.auth_handler.approve_user)
         app.router.add_post('/api/admin/reject-user', self.auth_handler.reject_user)
         app.router.add_post('/api/admin/reset-email', self.auth_handler.reset_email_service)
+        
+        # API для приглашений
+        app.router.add_post('/api/invitations/generate', self.invitation_api.generate_invitation_link)
+        app.router.add_get('/api/invitations/{token}', self.invitation_api.get_invitation_info)
+        app.router.add_post('/api/invitations/register', self.invitation_api.register_with_invitation)
+        app.router.add_get('/api/invitations', self.invitation_api.list_invitations)
         
         # Административные функции для повербанков
         self.admin_endpoints.setup_routes(app)

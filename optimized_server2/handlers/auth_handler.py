@@ -60,7 +60,13 @@ class AuthHandler:
             phone_e164 = data['phone_e164']
             email = data['email']
             fio = data.get('fio')
+            invitation_token = data.get('invitation_token')
             
+            # Если есть токен приглашения, регистрируем через приглашение
+            if invitation_token:
+                return await self._register_with_invitation(phone_e164, email, fio, invitation_token)
+            
+            # Обычная регистрация
             # Создаем пользователя
             user, password = await User.create_user(
                 self.db_pool, phone_e164, email, fio
@@ -89,6 +95,60 @@ class AuthHandler:
         except Exception as e:
             return web.json_response({
                 'error': f'Ошибка регистрации: {str(e)}'
+            }, status=500)
+    
+    async def _register_with_invitation(self, phone_e164: str, email: str, fio: str, invitation_token: str):
+        """Регистрация по приглашению"""
+        try:
+            from api.invitation_api import InvitationAPI
+            invitation_api = InvitationAPI(self.db_pool)
+            
+            # Получаем информацию о приглашении
+            invitation_info = await invitation_api._get_invitation_info(invitation_token)
+            
+            if not invitation_info:
+                return web.json_response({
+                    'error': 'Приглашение не найдено'
+                }, status=404)
+            
+            # Приглашения теперь постоянные, проверка срока действия не нужна
+            
+            # Проверяем, не использовано ли уже приглашение
+            if invitation_info.get('used', False):
+                return web.json_response({
+                    'error': 'Приглашение уже использовано'
+                }, status=409)
+            
+            # Создаем пользователя с привязкой к группе
+            user, password = await invitation_api._create_user_with_invitation(
+                phone_e164, email, fio, invitation_info
+            )
+            
+            # Отправляем пароль на email
+            email_sent = await notification_service.send_password_email(
+                email, password, fio, phone_e164
+            )
+            
+            if not email_sent:
+                return web.json_response({
+                    'error': 'Ошибка отправки email с паролем'
+                }, status=500)
+            
+            # Помечаем приглашение как использованное
+            await invitation_api._mark_invitation_as_used(invitation_token)
+            
+            return web.json_response({
+                'success': True,
+                'message': 'Регистрация по приглашению прошла успешно. Пароль отправлен на email. Ожидает подтверждения администратора.',
+                'user_id': user.user_id,
+                'status': user.status,
+                'org_unit_id': invitation_info['org_unit_id'],
+                'role': invitation_info['role']
+            })
+            
+        except Exception as e:
+            return web.json_response({
+                'error': f'Ошибка регистрации по приглашению: {str(e)}'
             }, status=500)
     
     async def login_user(self, request):

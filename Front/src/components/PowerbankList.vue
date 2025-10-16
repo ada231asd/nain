@@ -121,6 +121,10 @@
               <span class="info-label">Причина списания:</span>
               <span class="info-value">{{ getWriteOffReasonText(powerbank.write_off_reason) }}</span>
             </div>
+            <div v-if="powerbank.status === 'system_error' && powerbank.error_type" class="info-row">
+              <span class="info-label">Ошибка системы:</span>
+              <span class="info-value error-text">{{ powerbank.error_type }}</span>
+            </div>
             <div class="info-row">
               <span class="info-label">Создан:</span>
               <span class="info-value">{{ formatDate(powerbank.created_at) }}</span>
@@ -529,6 +533,11 @@ const deletePowerbank = async (powerbank) => {
 .status-badge.status-active {
   background-color: #d4edda;
   color: #155724;
+}
+
+.error-text {
+  color: #dc3545;
+  font-weight: 500;
 }
 
 .status-badge.status-user_reported_broken,
