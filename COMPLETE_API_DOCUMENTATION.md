@@ -410,15 +410,92 @@
 
 ## Возврат повербанков
 
-### POST /api/return/wait-confirmation
-Ожидание подтверждения возврата
+### POST /api/return-powerbank
+Запуск процесса возврата повербанка. Возвращает мгновенный ответ о старте процесса (а не подтверждение факта возврата).
 
 **Параметры:**
 ```json
 {
   "station_id": 13,
   "user_id": 33,
-  "timeout": 30
+  "powerbank_id": 53
+}
+```
+
+**Ответ (успех):**
+```json
+{
+  "success": true,
+  "message": "Процесс возврата запущен. Вставьте повербанк в станцию в течение 10 секунд.",
+  "powerbank_id": 53,
+  "serial_number": "4443484154000016",
+  "station_id": 13,
+  "timestamp": "2025-10-16T10:00:00+03:00"
+}
+```
+
+---
+
+### POST /api/return/wait-confirmation
+Ожидание подтверждения, что повербанк действительно появился в станции (подтверждение возврата).
+
+Таймаут ожидания задаётся ТОЛЬКО на сервере (см. `config/settings.py` → `RETURN_CONFIRMATION_TIMEOUT_SECONDS`, по умолчанию 10 секунд). Клиент не должен и не может переопределять таймаут.
+
+**Параметры:**
+```json
+{
+  "station_id": 13,
+  "user_id": 33,
+  "powerbank_id": 53,        // необязательное
+  "message": "опционально"   // необязательное
+}
+```
+
+**Ответ (подтверждение найдено до тайм-аута):**
+```json
+{
+  "success": true,
+  "station_id": 13,
+  "user_id": 33,
+  "confirmed": true,
+  "powerbank_id": 53,
+  "slot_number": 7,
+  "timeout": false
+}
+```
+
+**Ответ (истёк тайм-аут ожидания, HTTP 408):**
+```json
+{
+  "success": false,
+  "station_id": 13,
+  "user_id": 33,
+  "confirmed": false,
+  "timeout": true,
+  "error": "Не удалось подтвердить возврат в отведенное время"
+}
+```
+
+---
+
+### GET /api/return/stations/{station_id}/active-orders
+Список активных заказов со статусом выдачи/возврата для указанной станции.
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "orders": [
+    {
+      "order_id": 987,
+      "station_id": 13,
+      "user_id": 33,
+      "powerbank_id": 53,
+      "status": "borrow",
+      "timestamp": "2025-10-16T09:58:00+03:00"
+    }
+  ],
+  "count": 1
 }
 ```
 
@@ -428,12 +505,12 @@
 **Параметры:**
 ```json
 {
-  "order_id": 123,
-  "powerbank_id": 53,
-  "station_id": 13,
-  "user_id": 33,
-  "error_type": "broken",
-  "additional_notes": "Повербанк не заряжается"
+  "order_id": 123,                 // обязателен
+  "powerbank_id": 53,              // обязателен
+  "station_id": 13,                // обязателен
+  "user_id": 33,                   // обязателен
+  "error_type": "broken",         // обязателен
+  "additional_notes": "..."       // необязателен
 }
 ```
 

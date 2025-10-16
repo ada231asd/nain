@@ -64,3 +64,7 @@ NOTIFICATION_CONFIG = {
 }
 
 MAX_PACKET_SIZE = 1024  # Максимальный размер пакета в байтах
+
+# Таймаут ожидания подтверждения возврата (в секундах), используется сервером
+# Клиент не может переопределять это значение через API
+RETURN_CONFIRMATION_TIMEOUT_SECONDS = int(os.getenv("RETURN_CONFIRMATION_TIMEOUT_SECONDS", "10"))

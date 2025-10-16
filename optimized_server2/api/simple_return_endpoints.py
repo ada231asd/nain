@@ -113,7 +113,8 @@ class SimpleReturnEndpoints:
                 station_id = data.get('station_id')
                 user_id = data.get('user_id')
                 powerbank_id = data.get('powerbank_id')
-                timeout_seconds = int(data.get('timeout_seconds') or 10)
+                # Таймаут регулируется только на сервере через настройки
+                from config.settings import RETURN_CONFIRMATION_TIMEOUT_SECONDS as _RETURN_TIMEOUT
                 message = data.get('message')
 
                 if not station_id or not user_id:
@@ -125,7 +126,8 @@ class SimpleReturnEndpoints:
                 import asyncio
                 from utils.time_utils import get_moscow_time
 
-                deadline = get_moscow_time().timestamp() + max(1, min(60, timeout_seconds))
+                # Игнорируем любой таймаут, переданный клиентом
+                deadline = get_moscow_time().timestamp() + max(1, min(60, _RETURN_TIMEOUT))
 
                 async def _fetch_active_user_powerbank_ids(conn):
                     async with conn.cursor() as cur:
