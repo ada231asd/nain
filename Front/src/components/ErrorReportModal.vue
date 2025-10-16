@@ -73,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 
 const props = defineProps({
   isVisible: {
@@ -102,29 +102,40 @@ const canSubmit = computed(() => {
   return !!selectedErrorType.value
 })
 
-// Типы ошибок
-const errorTypes = ref([
-  {
-    id: 'cable_type_c_damaged',
-    name: 'Поврежден кабель Type-C',
-    description: 'Кабель Type-C поврежден или не работает'
-  },
-  {
-    id: 'cable_lightning_damaged',
-    name: 'Поврежден кабель Lightning',
-    description: 'Кабель Lightning поврежден или не работает'
-  },
-  {
-    id: 'cable_micro_usb_damaged',
-    name: 'Поврежден кабель MicroUSB',
-    description: 'Кабель MicroUSB поврежден или не работает'
-  },
-  {
-    id: 'powerbank_not_working',
-    name: 'Повербанк не работает',
-    description: 'Повербанк не заряжается или не включается'
+// Типы ошибок (загружаются с сервера)
+const errorTypes = ref([])
+const isLoadingErrorTypes = ref(false)
+
+// Загружаем типы ошибок с сервера
+const loadErrorTypes = async () => {
+  try {
+    isLoadingErrorTypes.value = true
+    const response = await pythonAPI.getPowerbankErrorTypes()
+    if (response && response.success) {
+      errorTypes.value = response.error_types.map(error => ({
+        id: parseInt(error.id_er), // Принудительно конвертируем в число
+        name: error.type_error,
+        description: error.type_error
+      }))
+    }
+  } catch (error) {
+    console.error('❌ Ошибка загрузки типов ошибок:', error)
+    // Fallback к старым типам в случае ошибки
+    errorTypes.value = [
+      { id: 1, name: 'Аккумулятор не заряжает', description: 'Аккумулятор не заряжает' },
+      { id: 2, name: 'Сломан Type C', description: 'Сломан Type C' },
+      { id: 3, name: 'Сломан Micro usb', description: 'Сломан Micro usb' },
+      { id: 4, name: 'Сломан liting', description: 'Сломан liting' }
+    ]
+  } finally {
+    isLoadingErrorTypes.value = false
   }
-])
+}
+
+// Загружаем типы ошибок при создании компонента
+onMounted(() => {
+  loadErrorTypes()
+})
 
 // Методы
 const closeModal = () => {

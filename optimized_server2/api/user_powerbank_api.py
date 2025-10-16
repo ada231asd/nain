@@ -365,7 +365,6 @@ class UserPowerbankAPI:
             data = await request.json()
             station_id = data.get('station_id')
             user_id = data.get('user_id')
-            description = data.get('description', '')
             error_type = data.get('error_type', 'other')
 
             if not station_id:
@@ -374,13 +373,6 @@ class UserPowerbankAPI:
             if not user_id:
                 return json_fail("Не указан ID пользователя", status=400)
 
-            if not description:
-                return json_fail("Не указано описание проблемы", status=400)
-
-            # Проверяем допустимые типы ошибок
-            valid_error_types = ['broken', 'lost', 'other']
-            if error_type not in valid_error_types:
-                return json_fail(f"Недопустимый тип ошибки. Допустимые значения: {', '.join(valid_error_types)}", status=400)
 
             self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой: {error_type}")
 
@@ -393,7 +385,7 @@ class UserPowerbankAPI:
             from handlers.return_powerbank import ReturnPowerbankHandler
             return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
             
-            result = await return_handler.start_damage_return_process(station_id, user_id, description, error_type)
+            result = await return_handler.start_damage_return_process(station_id, user_id, error_type)
             
             if result.get('success'):
                 return json_ok({
@@ -431,9 +423,11 @@ class UserPowerbankAPI:
 
             # Валидируем ID типа ошибки
             try:
+                self.logger.info(f"🔍 Получен error_type_id: {error_type_id}, тип: {type(error_type_id)}")
                 error_type_id = int(error_type_id)
                 if error_type_id <= 0:
                     return json_fail("ID типа ошибки должен быть положительным числом", status=400)
+                self.logger.info(f"✅ error_type_id после конвертации: {error_type_id}")
             except (ValueError, TypeError):
                 return json_fail("Неверный формат ID типа ошибки", status=400)
 

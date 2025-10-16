@@ -514,13 +514,13 @@ const handleErrorReportSubmit = async (errorReport) => {
     }
     
     // Показываем сообщение о том, что идет возврат
-    console.log('⏳ Ожидание подтверждения возврата от станции (до 11 секунд)...')
+    console.log('⏳ Ожидание подтверждения возврата от станции (до 30 секунд)...')
     
-    // Отправляем запрос на возврат с ошибкой (долгий HTTP запрос на 11 секунд)
-    const response = await pythonAPI.returnDamaged({
+    // Отправляем запрос на возврат с ошибкой (долгий HTTP запрос на 30 секунд)
+    const response = await pythonAPI.returnError({
       station_id: stationId,
       user_id: userId,
-      error_type: errorReport.error_type
+      error_type_id: parseInt(errorReport.error_type) // Принудительно конвертируем в число
     })
     
     console.log('✅ Ответ от сервера:', response)

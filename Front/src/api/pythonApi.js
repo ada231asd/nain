@@ -507,6 +507,39 @@ export const pythonAPI = {
     )
   },
 
+  // ПОЛУЧЕНИЕ ТИПОВ ОШИБОК ПОВЕРБАНКОВ
+  getPowerbankErrorTypes: () => {
+    return handleResponse(apiClient.get('/powerbank-error-types'), 'get powerbank error types')
+  },
+
+  // ВОЗВРАТ С ОШИБКОЙ (новый API с типами из БД)
+  returnError: (data) => {
+    validateData(data, 'return error data')
+    const { station_id, user_id, error_type_id } = data
+
+    if (!station_id) {
+      throw new Error('Отсутствует обязательное поле: station_id')
+    }
+    if (!user_id) {
+      throw new Error('Отсутствует обязательное поле: user_id')
+    }
+    if (!error_type_id) {
+      throw new Error('Отсутствует обязательное поле: error_type_id')
+    }
+
+    const payload = {
+      station_id,
+      user_id,
+      error_type_id
+    }
+
+    // Долгий HTTP запрос: сервер ждет подтверждения от станции до ~30 секунд
+    return handleResponse(
+      apiClient.post('/return-error', payload, { timeout: 35000 }),
+      'return error powerbank'
+    )
+  },
+
   // ОТЧЕТЫ ОБ АНОМАЛИЯХ СЛОТОВ
   getSlotAbnormalReports: (params = {}) => {
     const queryParams = new URLSearchParams()

@@ -76,13 +76,20 @@ class ReturnPowerbankHandler:
             
             # Проверяем, есть ли ожидающий возврат с ошибкой для этой станции
             pending_key = None
+            self.logger.info(f"🔍 Проверяем ожидающие возвраты с ошибкой для станции {station_id}")
+            self.logger.info(f"🔍 Всего ожидающих возвратов: {len(self.pending_error_returns)}")
+            self.logger.info(f"🔍 Ключи ожидающих возвратов: {list(self.pending_error_returns.keys())}")
+            
             for key, pending_data in self.pending_error_returns.items():
+                self.logger.info(f"🔍 Проверяем ключ {key}: station_id={pending_data.get('station_id')}")
                 if pending_data['station_id'] == station_id:
                     pending_key = key
+                    self.logger.info(f"🔍 Найден ожидающий возврат: {key}")
                     break
             
             if pending_key:
                 # Это возврат с ошибкой - обрабатываем специально
+                self.logger.info(f"🔍 Найден ожидающий возврат с ошибкой: {pending_key}")
                 await self.handle_error_return_response(data, connection)
                 # Отвечаем станции успешно
                 return self._build_response(
@@ -266,21 +273,20 @@ class ReturnPowerbankHandler:
         
         return response
     
-    async def start_damage_return_process(self, station_id: int, user_id: int, description: str, error_type: str = 'other') -> Dict[str, Any]:
+    async def start_damage_return_process(self, station_id: int, user_id: int, error_type: str = 'other') -> Dict[str, Any]:
         """
         Инициирует процесс возврата повербанка с поломкой
         
         Args:
             station_id: ID станции
             user_id: ID пользователя
-            description: Описание проблемы
             error_type: Тип ошибки (broken, lost, other)
             
         Returns:
             Dict с результатом операции
         """
         try:
-            self.logger.info(f"Инициация возврата с поломкой: станция {station_id}, пользователь {user_id}, описание: {description}, тип ошибки: {error_type}")
+            self.logger.info(f"Инициация возврата с поломкой: станция {station_id}, пользователь {user_id}, тип ошибки: {error_type}")
             
             # Проверяем, что станция существует
             station = await Station.get_by_id(self.db_pool, station_id)
@@ -343,9 +349,12 @@ class ReturnPowerbankHandler:
             
             # Валидируем тип ошибки
             try:
+                self.logger.info(f"🔍 Валидация типа ошибки: error_type_id={error_type_id}, тип={type(error_type_id)}")
                 powerbank_error = await PowerbankError.get_by_id(self.db_pool, error_type_id)
                 if not powerbank_error:
+                    self.logger.error(f"❌ Тип ошибки с ID {error_type_id} не найден в БД")
                     return {"success": False, "message": f"Тип ошибки с ID {error_type_id} не найден"}
+                self.logger.info(f"✅ Тип ошибки найден: {powerbank_error.type_error}")
             except Exception as e:
                 self.logger.error(f"Ошибка валидации типа ошибки: {e}")
                 return {"success": False, "message": "Ошибка валидации типа ошибки"}
@@ -445,9 +454,13 @@ class ReturnPowerbankHandler:
             
             # Ищем ожидающий возврат для этой станции
             pending_key = None
+            self.logger.info(f"🔍 Ищем ожидающий возврат для станции {station_id}")
+            self.logger.info(f"🔍 Доступные ожидающие возвраты: {list(self.pending_error_returns.keys())}")
+            
             for key, pending_data in self.pending_error_returns.items():
                 if pending_data['station_id'] == station_id:
                     pending_key = key
+                    self.logger.info(f"🔍 Найден ожидающий возврат: {key}")
                     break
             
             if not pending_key:
@@ -533,7 +546,7 @@ class ReturnPowerbankHandler:
                 self.logger.error(f"Ошибка обновления станции: {e}")
             
             # Уведомляем о успешном возврате
-            future.set_result({
+            result = {
                 "success": True,
                 "message": "Возврат с ошибкой успешно обработан",
                 "station_id": station_id,
@@ -543,7 +556,10 @@ class ReturnPowerbankHandler:
                 "order_id": pending_data['order_id'],
                 "error_type_id": pending_data.get('error_type_id'),
                 "error_description": pending_data.get('error_description')
-            })
+            }
+            
+            self.logger.info(f"🔍 Уведомляем фронтенд о результате: {result}")
+            future.set_result(result)
             
             self.logger.info(f"✅ Возврат с ошибкой успешно обработан для станции {station_id}")
             

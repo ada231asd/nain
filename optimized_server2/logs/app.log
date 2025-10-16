@@ -131,3 +131,80 @@
 2025-10-16 12:13:05 - http_server - INFO - Остановка HTTP сервера...
 2025-10-16 12:13:05 - server - INFO - Логгеры закрыты
 2025-10-16 15:39:47 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-16 16:11:06 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-16 16:11:50 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:11:50 +0300] "POST /api/auth/login HTTP/1.1" 200 1080 "http://localhost:5173/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-16 16:11:51 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:11:50 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-16 16:11:51 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:11:51 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-16 16:11:51 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:11:51 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-16 16:12:08 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:12:08 +0300] "POST /api/return-damage HTTP/1.1" 400 692 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:11 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:11 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:11 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:11 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:11 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:11 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:27 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:27 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:30 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:30 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:31 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:31 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:51 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:51 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:51 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:51 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:13:52 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:13:52 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:00 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:00 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:00 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:00 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:00 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:00 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:40 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:40 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:40 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:40 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:40 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:40 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:40 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:40 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:40 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:40 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:40 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:40 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:14:45 - userpowerbankapi - INFO - Пользователь 33 запросил возврат повербанка с ошибкой: ID=1
+2025-10-16 16:14:45 - return_powerbank - INFO - Инициация возврата с ошибкой: станция 13, пользователь 33, тип ошибки ID: 1
+2025-10-16 16:14:45 - return_powerbank - ERROR - Ошибка валидации типа ошибки: (1146, "Table 'zaryd.powerbank_error' doesn't exist")
+2025-10-16 16:14:45 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:14:45 +0300] "POST /api/return-error HTTP/1.1" 400 585 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:15:42 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:15:42 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:15:45 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:15:45 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:15:46 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:15:46 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:16:38 - server - INFO - Остановка серверов...
+2025-10-16 16:16:38 - server - INFO - Деактивация всех станций...
+2025-10-16 16:16:38 - server - INFO - Активных станций не найдено
+2025-10-16 16:16:38 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-16 16:16:38 - server - INFO - Активных станций в БД не найдено
+2025-10-16 16:16:38 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-16 16:16:38 - http_server - INFO - Остановка HTTP сервера...
+2025-10-16 16:16:38 - server - INFO - Логгеры закрыты
+2025-10-16 16:16:38 - server - INFO - Остановка серверов...
+2025-10-16 16:16:38 - server - INFO - Деактивация всех станций...
+2025-10-16 16:16:38 - server - INFO - Активных станций не найдено
+2025-10-16 16:16:38 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-16 16:16:38 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-16 16:16:38 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-16 16:16:38 - http_server - INFO - Остановка HTTP сервера...
+2025-10-16 16:16:38 - server - INFO - Логгеры закрыты
+2025-10-16 16:16:47 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-16 16:16:57 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:16:57 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:16:58 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:16:58 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:16:58 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:16:58 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:16:58 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:16:58 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 594 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:16:58 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:16:58 +0300] "GET /api/stations/13 HTTP/1.1" 200 729 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:16:58 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:16:58 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 461 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:17:02 - userpowerbankapi - INFO - 🔍 Получен error_type_id: 1, тип: <class 'int'>
+2025-10-16 16:17:02 - userpowerbankapi - INFO - ✅ error_type_id после конвертации: 1
+2025-10-16 16:17:02 - userpowerbankapi - INFO - Пользователь 33 запросил возврат повербанка с ошибкой: ID=1
+2025-10-16 16:17:02 - return_powerbank - INFO - Инициация возврата с ошибкой: станция 13, пользователь 33, тип ошибки ID: 1
+2025-10-16 16:17:02 - return_powerbank - INFO - 🔍 Валидация типа ошибки: error_type_id=1, тип=<class 'int'>
+2025-10-16 16:17:02 - return_powerbank - ERROR - Ошибка валидации типа ошибки: (1146, "Table 'zaryd.powerbank_error' doesn't exist")
+2025-10-16 16:17:02 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:16:17:02 +0300] "POST /api/return-error HTTP/1.1" 400 585 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 16:17:59 - server - INFO - Остановка серверов...
+2025-10-16 16:17:59 - server - INFO - Деактивация всех станций...
+2025-10-16 16:17:59 - server - INFO - Активных станций не найдено
+2025-10-16 16:17:59 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-16 16:17:59 - server - INFO - Активных станций в БД не найдено
+2025-10-16 16:17:59 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-16 16:17:59 - http_server - INFO - Остановка HTTP сервера...
+2025-10-16 16:17:59 - server - INFO - Логгеры закрыты
+2025-10-16 16:17:59 - server - INFO - Остановка серверов...
+2025-10-16 16:17:59 - server - INFO - Деактивация всех станций...
+2025-10-16 16:17:59 - server - INFO - Активных станций не найдено
+2025-10-16 16:17:59 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-16 16:17:59 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-16 16:17:59 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-16 16:17:59 - http_server - INFO - Остановка HTTP сервера...
+2025-10-16 16:17:59 - server - INFO - Логгеры закрыты
