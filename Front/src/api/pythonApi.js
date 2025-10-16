@@ -168,6 +168,15 @@ export const pythonAPI = {
     validateId(id, 'org unit ID')
     return handleResponse(apiClient.get(`/org-units/${id}`), 'get org unit')
   },
+  // Получение логотипа группы
+  getOrgUnitLogo: (logoUrl) => {
+    if (!logoUrl) {
+      throw new Error('Logo URL is required')
+    }
+    // Извлекаем имя файла из URL
+    const filename = logoUrl.split('/').pop()
+    return handleResponse(apiClient.get(`/logos/${filename}`, { responseType: 'blob' }), 'get org unit logo')
+  },
   getOrgUnitStations: (id) => {
     validateId(id, 'org unit ID')
     return handleResponse(apiClient.get('/stations', { params: { org_unit_id: id } }), 'get org unit stations')

@@ -1,6 +1,29 @@
 <template>
-  <DefaultLayout title="Главная">
+  <DefaultLayout :title="userOrgUnit?.name || 'Главная'">
     <div class="dashboard-content">
+      <!-- Логотип группы пользователя -->
+      <div v-if="userOrgUnit" class="org-unit-header">
+        <div class="org-unit-logo-container">
+          <img 
+            v-if="orgUnitLogo" 
+            :src="orgUnitLogo" 
+            :alt="userOrgUnit.name"
+            class="org-unit-logo"
+            @error="handleLogoError"
+          />
+          <div v-else-if="isLoadingOrgUnit" class="org-unit-logo-placeholder loading">
+            <div class="loading-spinner"></div>
+          </div>
+          <div v-else class="org-unit-logo-placeholder">
+            <span class="org-unit-initials">{{ getOrgUnitInitials(userOrgUnit.name) }}</span>
+          </div>
+        </div>
+        <div class="org-unit-info">
+          <h2 class="org-unit-name">{{ userOrgUnit.name }}</h2>
+          <p v-if="userOrgUnit.description" class="org-unit-description">{{ userOrgUnit.description }}</p>
+        </div>
+      </div>
+
       <!-- Информация о станции из QR-кода -->
       <div v-if="qrStationData" class="qr-station-section">
         <div class="qr-station-card">
@@ -67,9 +90,7 @@
         
         <div v-if="favoriteStations.length === 0" class="empty-state">
           <p>У вас пока нет избранных станций</p>
-          <button @click="showQRScanner = true" class="btn-primary">
-            Добавить станцию
-          </button>
+          <p class="empty-state-hint">Чтобы добавить станцию, нажмите "Добавить станцию"</p>
         </div>
         
         <div v-else class="stations-grid">
@@ -206,6 +227,11 @@ const showErrorReportModal = ref(false)
 const errorReportStation = ref(null)
 const errorReportOrder = ref(null)
 
+// Состояние для данных группы и логотипа
+const userOrgUnit = ref(null)
+const orgUnitLogo = ref(null)
+const isLoadingOrgUnit = ref(false)
+
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
 const autoRefreshEnabled = ref(false) // Отключаем автоматическое обновление по таймеру
@@ -216,6 +242,14 @@ const user = computed(() => auth.user)
 const isLoading = computed(() => stationsStore.isLoading)
 const favoriteStations = computed(() => stationsStore.favoriteStations)
 const isAdmin = computed(() => auth.user?.role?.includes('admin') || false)
+
+// Получение org_unit_id пользователя
+const userOrgUnitId = computed(() => {
+  if (!user.value) return null
+  
+  // Проверяем все возможные поля для ID группы
+  return user.value.parent_org_unit_id || user.value.org_unit_id || user.value.group_id || user.value.organization_id
+})
 
 // QR-станция computed
 const canBorrowFromQR = computed(() => {
@@ -235,6 +269,55 @@ const refreshFavorites = async () => {
     await stationsStore.fetchFavoriteStations(user.value?.user_id)
   } catch (err) {
     // Error handled silently
+  }
+}
+
+// Загрузка данных группы пользователя
+const loadUserOrgUnit = async () => {
+  if (!userOrgUnitId.value) {
+    console.log('Нет org_unit_id для пользователя')
+    return
+  }
+
+  isLoadingOrgUnit.value = true
+  try {
+    console.log('Загружаем данные группы для org_unit_id:', userOrgUnitId.value)
+    
+    // Получаем данные группы
+    const orgUnitResponse = await pythonAPI.getOrgUnit(userOrgUnitId.value)
+    console.log('Ответ API группы:', orgUnitResponse)
+    
+    // Извлекаем данные группы
+    const orgUnitData = orgUnitResponse?.data || orgUnitResponse
+    if (orgUnitData) {
+      userOrgUnit.value = orgUnitData
+      console.log('Данные группы загружены:', orgUnitData)
+      
+      // Если есть логотип, загружаем его
+      if (orgUnitData.logo_url) {
+        try {
+          console.log('Загружаем логотип:', orgUnitData.logo_url)
+          const logoBlob = await pythonAPI.getOrgUnitLogo(orgUnitData.logo_url)
+          
+          // Создаем URL для blob
+          const logoUrl = URL.createObjectURL(logoBlob)
+          orgUnitLogo.value = logoUrl
+          console.log('Логотип загружен:', logoUrl)
+        } catch (logoError) {
+          console.error('Ошибка загрузки логотипа:', logoError)
+          orgUnitLogo.value = null
+        }
+      } else {
+        console.log('У группы нет логотипа')
+        orgUnitLogo.value = null
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки данных группы:', error)
+    userOrgUnit.value = null
+    orgUnitLogo.value = null
+  } finally {
+    isLoadingOrgUnit.value = false
   }
 }
 
@@ -1038,6 +1121,25 @@ const formatTime = (timestamp) => formatMoscowTime(timestamp, {
   minute: '2-digit'
 })
 
+// Функции для работы с логотипом группы
+const getOrgUnitInitials = (name) => {
+  if (!name) return 'Г'
+  
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length >= 2) {
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase()
+  } else if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase()
+  }
+  
+  return 'Г'
+}
+
+const handleLogoError = () => {
+  console.error('Ошибка загрузки логотипа группы')
+  orgUnitLogo.value = null
+}
+
 // WebSocket уведомления удалены; фронтенд ожидает ответ API
 
 // Жизненный цикл
@@ -1048,6 +1150,9 @@ onMounted(async () => {
     
     // Загружаем QR-станцию если есть параметры
     await loadQRStation()
+    
+    // Загружаем данные группы пользователя
+    await loadUserOrgUnit()
     
     // WebSocket больше не используется — полагаемся на синхронные ответы API
     
@@ -1184,6 +1289,13 @@ onUnmounted(() => {
   color: #666;
   margin-bottom: 20px;
   font-size: 1.1rem;
+}
+
+.empty-state-hint {
+  color: #999;
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-top: 10px;
 }
 
 .stations-grid {
@@ -1565,6 +1677,121 @@ onUnmounted(() => {
   
   .action-btn {
     min-width: auto;
+  }
+}
+
+/* Стили для логотипа группы */
+.org-unit-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.org-unit-logo-container {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.org-unit-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.org-unit-logo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+}
+
+.org-unit-logo-placeholder.loading {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.org-unit-initials {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.org-unit-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.org-unit-name {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.org-unit-description {
+  margin: 0;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Мобильные стили для логотипа группы */
+@media (max-width: 768px) {
+  .org-unit-header {
+    flex-direction: column;
+    text-align: center;
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+  
+  .org-unit-logo-container {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .org-unit-initials {
+    font-size: 1.5rem;
+  }
+  
+  .org-unit-name {
+    font-size: 1.25rem;
+  }
+  
+  .org-unit-description {
+    font-size: 0.9rem;
   }
 }
 </style>

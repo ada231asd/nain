@@ -1,18 +1,18 @@
 <template>
   <div class="profile-container">
     <div class="profile-header">
-      <button @click="goBack" class="btn-back">
-        ← Назад
+      <button @click="goToDashboard" class="btn-back">
+        На главную
       </button>
-      <h1>👤 Профиль пользователя</h1>
+      <h1>Профиль пользователя</h1>
     </div>
 
     <div class="profile-content">
       <!-- Обработка ошибок -->
       <div v-if="error" class="error-message">
-        <h3>❌ Ошибка загрузки</h3>
+        <h3>Ошибка загрузки</h3>
         <p>{{ error }}</p>
-        <button @click="loadUserProfile" class="btn-retry">🔄 Попробовать снова</button>
+        <button @click="loadUserProfile" class="btn-retry">Попробовать снова</button>
       </div>
 
       <!-- Индикатор загрузки -->
@@ -24,9 +24,9 @@
       <!-- Основная информация о пользователе -->
       <div v-else class="user-info-card">
         <div class="card-header">
-          <h2>📋 Личная информация</h2>
+          <h2>Личная информация</h2>
           <button @click="toggleEditMode" class="btn-edit" :disabled="isLoading">
-            {{ isEditing ? '💾 Сохранить' : '✏️ Редактировать' }}
+            {{ isEditing ? 'Сохранить' : 'Редактировать' }}
           </button>
         </div>
         <div class="info-grid">
@@ -78,7 +78,7 @@
           </select>
           
           <button @click="refreshHistory" class="btn-refresh" :disabled="isLoading">
-            🔄 Обновить
+            Обновить
           </button>
         </div>
 
@@ -115,7 +115,7 @@
                   class="btn-action btn-return"
                   :disabled="isLoading"
                 >
-                  🔌 Вернуть
+                  Вернуть
                 </button>
                 <button 
                   v-if="item.status === 'borrow'"
@@ -123,7 +123,7 @@
                   class="btn-action btn-error"
                   :disabled="isLoading"
                 >
-                  🚨 Сообщить об ошибке
+                  Сообщить об ошибке
                 </button>
               </div>
             </div>
@@ -133,7 +133,7 @@
 
       <!-- Статистика -->
       <div class="stats-card">
-        <h2>📊 Статистика использования</h2>
+        <h2>Статистика использования</h2>
         <div class="stats-grid">
           <div class="stat-item">
             <span class="stat-number">{{ totalOrders }}</span>
@@ -156,16 +156,16 @@
 
       <!-- Быстрые действия -->
       <div class="quick-actions">
-        <h2>⚡ Быстрые действия</h2>
+        <h2>Быстрые действия</h2>
         <div class="action-buttons">
           <button @click="goToDashboard" class="btn-action btn-primary">
-            🏠 На главную
+            На главную
           </button>
           <button @click="goToQRScanner" class="btn-action btn-secondary">
-            📱 Сканировать QR
+            Сканировать QR
           </button>
           <button @click="logout" class="btn-action btn-logout">
-            🚪 Выйти
+            Выйти
           </button>
         </div>
       </div>
@@ -183,8 +183,8 @@
     <div v-if="returnTimer > 0" class="return-timer-overlay">
       <div class="return-timer">
         <div class="timer-content">
-          <h3 v-if="returnType === 'normal'">⏰ Возврат через {{ returnTimer }}с</h3>
-          <h3 v-else>🚨 Возврат с ошибкой через {{ returnTimer }}с</h3>
+          <h3 v-if="returnType === 'normal'">Возврат через {{ returnTimer }}с</h3>
+          <h3 v-else>Возврат с ошибкой через {{ returnTimer }}с</h3>
           <p v-if="returnType === 'normal'">Подготовьте повербанк к возврату</p>
           <p v-else>Подготовьте повербанк к возврату с отчетом об ошибке</p>
           <div class="timer-progress">
@@ -213,7 +213,7 @@ const adminStore = useAdminStore()
 
 // Состояние
 const isLoading = ref(false)
-const statusFilter = ref('all')
+const statusFilter = ref('borrow')
 const error = ref(null)
 const isEditing = ref(false)
 
@@ -579,25 +579,47 @@ onUnmounted(() => {
   align-items: center;
   gap: 20px;
   margin-bottom: 30px;
-  padding: 20px;
+  padding: 30px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 20px;
   color: white;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%);
+  pointer-events: none;
 }
 
 .btn-back {
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
-  padding: 10px 15px;
-  border-radius: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.3s ease;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 1;
 }
 
 .btn-back:hover {
   background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .profile-header h1 {
@@ -605,6 +627,10 @@ onUnmounted(() => {
   margin: 0;
   font-size: 2.5rem;
   color: white;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
 }
 
 .profile-content {
@@ -638,21 +664,24 @@ onUnmounted(() => {
   background: #667eea;
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: 10px;
+  padding: 12px 24px;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 .btn-edit:hover:not(:disabled) {
   background: #5a6fd8;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-edit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .info-grid {
@@ -769,18 +798,21 @@ onUnmounted(() => {
 }
 
 .btn-refresh {
-  padding: 10px 20px;
+  padding: 12px 24px;
   background: #17a2b8;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.3s ease;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .btn-refresh:hover:not(:disabled) {
   background: #138496;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .history-list {
@@ -895,18 +927,19 @@ onUnmounted(() => {
 }
 
 .btn-action {
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   transition: all 0.3s ease;
 }
 
 .btn-action:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-return {
@@ -916,6 +949,8 @@ onUnmounted(() => {
 
 .btn-return:hover:not(:disabled) {
   background: #138496;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-faulty {
@@ -925,6 +960,8 @@ onUnmounted(() => {
 
 .btn-faulty:hover:not(:disabled) {
   background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-error {
@@ -934,6 +971,8 @@ onUnmounted(() => {
 
 .btn-error:hover:not(:disabled) {
   background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Статистика */
@@ -1005,6 +1044,8 @@ onUnmounted(() => {
 
 .btn-primary:hover {
   background: #5a6fd8;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-secondary {
@@ -1014,6 +1055,8 @@ onUnmounted(() => {
 
 .btn-secondary:hover {
   background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-info {
@@ -1023,6 +1066,8 @@ onUnmounted(() => {
 
 .btn-info:hover {
   background: #138496;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-logout {
@@ -1032,6 +1077,8 @@ onUnmounted(() => {
 
 .btn-logout:hover {
   background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Индикатор загрузки */
@@ -1090,15 +1137,17 @@ onUnmounted(() => {
   color: white;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 1rem;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .btn-retry:hover {
   background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Мобильные стили */
