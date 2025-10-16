@@ -12,7 +12,6 @@ from models.powerbank import Powerbank
 from models.station import Station
 from models.order import Order
 from handlers.borrow_powerbank import BorrowPowerbankHandler
-from api.simple_return_api import SimpleReturnAPI
 from utils.auth_middleware import jwt_middleware
 
 class UserPowerbankAPI:
@@ -22,7 +21,6 @@ class UserPowerbankAPI:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.borrow_handler = BorrowPowerbankHandler(db_pool, connection_manager)
-        self.return_api = SimpleReturnAPI(db_pool, connection_manager)
         self.logger = get_logger('userpowerbankapi')
 
     @jwt_middleware
@@ -358,25 +356,27 @@ class UserPowerbankAPI:
             self.logger.error(f"Ошибка получения профиля пользователя {user_id}: {e}", exc_info=True)
             return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
     
-    @jwt_middleware
     async def return_damage_powerbank(self, request: web.Request):
         """
         Возврат повербанка с поломкой
         POST /api/return-damage
         """
-        user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой")
-
         try:
             data = await request.json()
             station_id = data.get('station_id')
+            user_id = data.get('user_id')
             description = data.get('description', '')
 
             if not station_id:
                 return json_fail("Не указан ID станции", status=400)
 
+            if not user_id:
+                return json_fail("Не указан ID пользователя", status=400)
+
             if not description:
                 return json_fail("Не указано описание проблемы", status=400)
+
+            self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой")
 
             # Проверяем, что станция существует
             station = await Station.get_by_id(self.db_pool, station_id)

@@ -26,7 +26,6 @@ from api.set_server_address_api import SetServerAddressAPI
 from api.query_server_address_api import QueryServerAddressAPI
 from api.user_powerbank_api import UserPowerbankAPI
 from api.powerbank_error_endpoints import PowerbankErrorEndpoints
-from api.simple_return_endpoints import SimpleReturnEndpoints
 from api.powerbank_status_api import PowerbankStatusAPI
 from api.bulk_user_import_api import BulkUserImportAPI
 from api.logo_upload_api import LogoUploadAPI
@@ -56,7 +55,6 @@ class HTTPServer:
         self.query_server_address_api: QueryServerAddressAPI = None
         self.user_powerbank_api: UserPowerbankAPI = None
         self.powerbank_error_endpoints: PowerbankErrorEndpoints = None
-        self.simple_return_endpoints: SimpleReturnEndpoints = None
         self.powerbank_status_api: PowerbankStatusAPI = None
         self.bulk_user_import_api: BulkUserImportAPI = None
         
@@ -153,7 +151,6 @@ class HTTPServer:
         self.query_server_address_api = QueryServerAddressAPI(self.db_pool, connection_manager)
         self.user_powerbank_api = UserPowerbankAPI(self.db_pool, connection_manager)
         self.powerbank_error_endpoints = PowerbankErrorEndpoints(self.db_pool)
-        self.simple_return_endpoints = SimpleReturnEndpoints(self.db_pool, connection_manager)
         self.powerbank_status_api = PowerbankStatusAPI(self.db_pool)
         self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
         self.logo_upload_api = LogoUploadAPI(self.db_pool)
@@ -224,9 +221,8 @@ class HTTPServer:
         app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
         app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)
         
-        # Новые API для возврата повербанков
+        # API для отчетов об ошибках
         self.powerbank_error_endpoints.setup_routes(app)
-        self.simple_return_endpoints.setup_routes(app)
         
         # API для статусов повербанков
         self.powerbank_status_api.setup_routes(app)
