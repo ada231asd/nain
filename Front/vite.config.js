@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Python backend serves API under /api. Default to 8000, override via VITE_PY_BACKEND_URL
         '/api': {
-          target: env.VITE_PY_BACKEND_URL || 'http://192.168.10.38:8000',
+          target: env.VITE_PY_BACKEND_URL || 'http://192.168.10.39:8000',
           changeOrigin: true,
           secure: false,
           configure: (proxy, options) => {
