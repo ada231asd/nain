@@ -97,3 +97,36 @@
 2025-10-16 11:38:54 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:11:38:54 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
 2025-10-16 11:38:54 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:11:38:54 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
 2025-10-16 11:38:54 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:11:38:54 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/auth/profile HTTP/1.1" 200 749 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3189 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1115 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 8661 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:14 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:14 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:15 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:15 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1851 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:17 - logo_upload_api - INFO - Запрос загрузки логотипа: org_unit_id=1, user_id=33
+2025-10-16 12:04:17 - logo_upload_api - INFO - Файл сохранен: uploads/logos\1_9e46fc43703147218af030e22d3bf0e0.png
+2025-10-16 12:04:17 - logo_upload_api - INFO - Логотип загружен для org_unit_id=1, файл: 1_9e46fc43703147218af030e22d3bf0e0.png
+2025-10-16 12:04:17 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:17 +0300] "POST /api/org-units/1/logo HTTP/1.1" 200 687 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:17 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:17 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1898 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:04:17 - logo_upload_api - INFO - Файл отправлен: 1_9e46fc43703147218af030e22d3bf0e0.png
+2025-10-16 12:04:17 - aiohttp.access - INFO - 127.0.0.1 [16/Oct/2025:12:04:17 +0300] "GET /api/logos/1_9e46fc43703147218af030e22d3bf0e0.png HTTP/1.1" 200 2923550 "http://localhost:5173/" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-16 12:13:05 - server - INFO - Остановка серверов...
+2025-10-16 12:13:05 - server - INFO - Деактивация всех станций...
+2025-10-16 12:13:05 - server - INFO - Активных станций не найдено
+2025-10-16 12:13:05 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-16 12:13:05 - server - INFO - Активных станций в БД не найдено
+2025-10-16 12:13:05 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-16 12:13:05 - http_server - INFO - Остановка HTTP сервера...
+2025-10-16 12:13:05 - server - INFO - Логгеры закрыты
+2025-10-16 12:13:05 - server - INFO - Остановка серверов...
+2025-10-16 12:13:05 - server - INFO - Деактивация всех станций...
+2025-10-16 12:13:05 - server - INFO - Активных станций не найдено
+2025-10-16 12:13:05 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-16 12:13:05 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-16 12:13:05 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-16 12:13:05 - http_server - INFO - Остановка HTTP сервера...
+2025-10-16 12:13:05 - server - INFO - Логгеры закрыты
