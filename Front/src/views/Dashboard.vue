@@ -79,6 +79,7 @@
             :station="station"
             :isFavorite="true"
             :isHighlighted="isStationHighlighted(station)"
+            :isExpanded="isStationExpanded(station)"
             :showFavoriteButton="true"
             :showTakeBatteryButton="true"
             :showAdminActions="isAdmin"
@@ -86,6 +87,7 @@
             @takeBattery="handleTakeBattery"
             @returnWithError="handleReturnWithError"
             @adminClick="handleAdminStationClick"
+            @toggleExpansion="toggleStationExpansion"
           />
         </div>
       </section>
@@ -96,6 +98,7 @@
         <StationCard
           :station="scannedStation"
           :isFavorite="isStationFavorite(scannedStation)"
+          :isExpanded="isStationExpanded(scannedStation)"
           :showFavoriteButton="true"
           :showTakeBatteryButton="true"
           :showAdminActions="isAdmin"
@@ -103,6 +106,7 @@
           @takeBattery="handleTakeBattery"
           @returnWithError="handleReturnWithError"
           @adminClick="handleAdminStationClick"
+          @toggleExpansion="toggleStationExpansion"
         />
       </section>
 
@@ -147,7 +151,6 @@
     <ErrorReportModal
       :is-visible="showErrorReportModal"
       :order="errorReportOrder"
-      :is-loading="isReturningWithError"
       @close="closeErrorReportModal"
       @submit="handleErrorReportSubmit"
     />
@@ -183,6 +186,9 @@ const searchTimeout = ref(null)
 const scannedStation = ref(null)
 const isScanning = ref(false)
 
+// Состояние для развернутых карточек станций
+const expandedStations = ref(new Set())
+
 // QR-станция
 const qrStationData = ref(null)
 const userPowerbanks = ref([])
@@ -199,7 +205,6 @@ const isBorrowing = ref(false)
 const showErrorReportModal = ref(false)
 const errorReportStation = ref(null)
 const errorReportOrder = ref(null)
-const isReturningWithError = ref(false)
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
@@ -300,6 +305,23 @@ const isStationHighlighted = (station) => {
   return stationId === highlightedFavoriteId.value
 }
 
+// Функции для управления развернутыми карточками
+const isStationExpanded = (station) => {
+  if (!station) return false
+  const stationId = station.station_id || station.id
+  return expandedStations.value.has(stationId)
+}
+
+const toggleStationExpansion = (station) => {
+  if (!station) return
+  const stationId = station.station_id || station.id
+  if (expandedStations.value.has(stationId)) {
+    expandedStations.value.delete(stationId)
+  } else {
+    expandedStations.value.add(stationId)
+  }
+}
+
 const toggleFavorite = async (station) => {
   try {
     const stationId = station.station_id || station.id
@@ -314,6 +336,12 @@ const toggleFavorite = async (station) => {
     } else {
       console.log('Добавляем в избранное');
       await stationsStore.addFavorite(user.value?.user_id, stationId)
+      
+      // Разворачиваем карточку при добавлении в избранное
+      expandedStations.value.add(stationId)
+      
+      // Перемещаем станцию в начало списка избранных
+      stationsStore.moveStationToTop(stationId)
       
       // Если это отсканированная станция, скрываем секцию "Найденная станция"
       if (scannedStation.value && (scannedStation.value.station_id || scannedStation.value.id) === stationId) {
@@ -489,71 +517,56 @@ const handleReturnWithError = async (station) => {
 }
 
 const closeErrorReportModal = () => {
-  // Не закрываем модальное окно, если идет возврат
-  if (isReturningWithError.value) return
-  
   showErrorReportModal.value = false
   errorReportStation.value = null
   errorReportOrder.value = null
 }
 
 const handleErrorReportSubmit = async (errorReport) => {
-  if (isReturningWithError.value) return
-  
-  isReturningWithError.value = true
-  
   try {
-    console.log('🔄 Отправка возврата с ошибкой:', errorReport)
+    console.log('Отправка отчета об ошибке:', errorReport)
     
-    const stationId = errorReport.station_id || (errorReportStation.value && (errorReportStation.value.station_id || errorReportStation.value.id))
-    const userId = errorReport.user_id || (user.value && (user.value.user_id || user.value.id))
+    // Отправляем отчет об ошибке через API
+    const response = await pythonAPI.reportPowerbankError(errorReport)
     
-    if (!stationId || !userId) {
-      alert('❌ Ошибка: не удалось определить станцию или пользователя')
-      return
-    }
-    
-    // Показываем сообщение о том, что идет возврат
-    console.log('⏳ Ожидание подтверждения возврата от станции (до 30 секунд)...')
-    
-    // Отправляем запрос на возврат с ошибкой (долгий HTTP запрос на 30 секунд)
-    const response = await pythonAPI.returnError({
-      station_id: stationId,
-      user_id: userId,
-      error_type_id: parseInt(errorReport.error_type) // Принудительно конвертируем в число
-    })
-    
-    console.log('✅ Ответ от сервера:', response)
-    
-    // Проверяем успешность ответа
     if (response && response.success) {
-      alert('✅ Возврат с ошибкой успешно выполнен. Спасибо за сообщение!')
+      alert('Отчет об ошибке успешно отправлен')
       
-      // Обновляем данные по станции/пользователю
+      // После отчета об ошибке запускаем ожидание подтверждения возврата (10 сек)
       try {
-        await refreshAllDataAfterBorrowLocal(stationId, userId)
-      } catch (refreshErr) {
-        console.warn('Не удалось обновить данные после возврата:', refreshErr)
+        const stationId = errorReport.station_id || (errorReportStation.value && (errorReportStation.value.station_id || errorReportStation.value.id))
+        const userId = errorReport.user_id || (user.value && (user.value.user_id || user.value.id))
+        if (stationId && userId) {
+          const waitPayload = {
+            station_id: stationId,
+            user_id: userId,
+            powerbank_id: errorReport.powerbank_id,
+            timeout_seconds: 10,
+            message: 'error-return-wait'
+          }
+          const waitRes = await pythonAPI.waitReturnConfirmation(waitPayload)
+          if (waitRes && waitRes.success && waitRes.confirmed) {
+            alert('✅ Возврат подтверждён станцией. Спасибо!')
+            // Обновляем данные по станции/пользователю
+            try {
+              await refreshAllDataAfterBorrowLocal(stationId, userId)
+            } catch {}
+          } else if (waitRes && waitRes.timeout) {
+            alert('⏱ Не удалось подтвердить возврат в течение 10 секунд. Попробуйте ещё раз.')
+          }
+        }
+      } catch (waitErr) {
+        console.warn('Ошибка ожидания подтверждения возврата:', waitErr)
       }
-      
+
       closeErrorReportModal()
     } else {
-      alert('❌ Ошибка при возврате: ' + (response?.error || 'Неизвестная ошибка'))
+      alert('Ошибка при отправке отчета: ' + (response?.error || 'Неизвестная ошибка'))
     }
     
   } catch (error) {
-    console.error('❌ Ошибка при возврате с ошибкой:', error)
-    
-    const errorMessage = error?.message || error?.error || 'Неизвестная ошибка'
-    
-    // Проверяем, не было ли таймаута
-    if (errorMessage.toLowerCase().includes('timeout')) {
-      alert('⏱ Превышено время ожидания подтверждения от станции. Пожалуйста, попробуйте еще раз.')
-    } else {
-      alert('❌ Ошибка при возврате повербанка: ' + errorMessage)
-    }
-  } finally {
-    isReturningWithError.value = false
+    console.error('Ошибка при отправке отчета об ошибке:', error)
+    alert('Ошибка при отправке отчета: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -922,10 +935,16 @@ const handleQRScan = async (payload) => {
       console.log('Извлечены данные из API структуры:', detailed)
     }
 
-    // Если найденная станция уже в избранном, только подсвечиваем её
+    // Если найденная станция уже в избранном, подсвечиваем и разворачиваем её
     if (isStationFavorite(detailed)) {
       const stationId = detailed.station_id || detailed.id
       highlightedFavoriteId.value = stationId
+      
+      // Разворачиваем карточку при повторном нахождении
+      expandedStations.value.add(stationId)
+      
+      // Перемещаем станцию в начало списка избранных
+      stationsStore.moveStationToTop(stationId)
       
       // Убираем подсветку через 5 секунд
       setTimeout(() => {

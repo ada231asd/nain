@@ -1,23 +1,29 @@
 <template>
   <div class="station-card" :class="{ 
     'station-card--favorite': isFavorite,
-    'station-card--highlighted': isHighlighted 
-  }">
+    'station-card--highlighted': isHighlighted,
+    'station-card--collapsed': !isExpanded
+  }" @click="handleCardClick">
     <div class="station-card__header">
       <div v-if="station.box_id" class="station-card__box-id station-card__box-id--header">
         {{ station.box_id }}
       </div>
 
-      <div class="station-card__status">
-        <span
-          class="station-card__status-indicator"
-          :class="`station-card__status-indicator--${station.status}`"
-        ></span>
-        <span class="station-card__status-text">{{ getStatusText(station.status) }}</span>
+      <div class="station-card__header-right">
+        <div class="station-card__status">
+          <span
+            class="station-card__status-indicator"
+            :class="`station-card__status-indicator--${station.status}`"
+          ></span>
+          <span class="station-card__status-text">{{ getStatusText(station.status) }}</span>
+        </div>
+        <div class="station-card__expand-icon" :class="{ 'station-card__expand-icon--expanded': isExpanded }">
+          ▼
+        </div>
       </div>
     </div>
     
-    <div class="station-card__content">
+    <div class="station-card__content" v-if="isExpanded">
 
       <p v-if="station.address" class="station-card__address">
         {{ station.address }}
@@ -44,7 +50,7 @@
       </div>
     </div>
     
-    <div class="station-card__actions">
+    <div class="station-card__actions" v-if="isExpanded">
       <BaseButton
         v-if="showTakeBatteryButton && (availablePorts > 0 || station.status === 'active')"
         variant="success"
@@ -113,6 +119,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  isExpanded: {
+    type: Boolean,
+    default: true
+  },
   showFavoriteButton: {
     type: Boolean,
     default: true
@@ -131,7 +141,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'returnWithError', 'adminClick'])
+const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'returnWithError', 'adminClick', 'toggleExpansion'])
 
 const availablePorts = computed(() => {
   return props.station.freePorts || 0
@@ -186,6 +196,14 @@ const formatDistance = (distance) => {
 const toggleFavorite = () => {
   emit('toggleFavorite', props.station)
 }
+
+const handleCardClick = (event) => {
+  // Предотвращаем переключение при клике на кнопки
+  if (event.target.closest('.base-button') || event.target.closest('button')) {
+    return
+  }
+  emit('toggleExpansion', props.station)
+}
 </script>
 
 <style scoped>
@@ -215,6 +233,16 @@ const toggleFavorite = () => {
   animation: highlightPulse 5s ease-in-out infinite;
 }
 
+.station-card--collapsed {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.station-card--collapsed:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
 @keyframes highlightPulse {
   0%, 100% {
     transform: scale(1);
@@ -232,6 +260,23 @@ const toggleFavorite = () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.station-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.station-card__expand-icon {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.station-card__expand-icon--expanded {
+  transform: rotate(180deg);
 }
 
 .station-card__status {
@@ -412,12 +457,18 @@ const toggleFavorite = () => {
     padding: 12px;
   }
 
+  .station-card__header-right {
+    gap: 8px;
+  }
 
   .station-card__box-id--header {
     font-size: 14px;
     margin-right: 8px;
   }
 
+  .station-card__expand-icon {
+    font-size: 14px;
+  }
 
   .station-card__powerbank-info {
     flex-direction: column;

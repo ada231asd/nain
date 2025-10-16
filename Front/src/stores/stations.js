@@ -422,5 +422,20 @@ export const useStationsStore = defineStore('stations', {
         throw error;
       }
     },
+
+    // Перемещение станции в начало списка избранных
+    moveStationToTop(stationId) {
+      const stationIndex = this.favoriteStations.findIndex(station => 
+        (station.station_id || station.id) === stationId
+      );
+      
+      if (stationIndex > 0) {
+        // Удаляем станцию из текущей позиции
+        const station = this.favoriteStations.splice(stationIndex, 1)[0];
+        // Добавляем в начало списка
+        this.favoriteStations.unshift(station);
+        console.log('Станция перемещена в начало списка:', stationId);
+      }
+    },
   },
 });
