@@ -418,7 +418,7 @@
 {
   "station_id": 13,
   "user_id": 33,
-  "description": "Повербанк не заряжается"   
+  "error_type": ""
 }
 ```
 

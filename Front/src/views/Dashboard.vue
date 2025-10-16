@@ -147,6 +147,7 @@
     <ErrorReportModal
       :is-visible="showErrorReportModal"
       :order="errorReportOrder"
+      :is-loading="isReturningWithError"
       @close="closeErrorReportModal"
       @submit="handleErrorReportSubmit"
     />
@@ -198,6 +199,7 @@ const isBorrowing = ref(false)
 const showErrorReportModal = ref(false)
 const errorReportStation = ref(null)
 const errorReportOrder = ref(null)
+const isReturningWithError = ref(false)
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
@@ -487,56 +489,71 @@ const handleReturnWithError = async (station) => {
 }
 
 const closeErrorReportModal = () => {
+  // Не закрываем модальное окно, если идет возврат
+  if (isReturningWithError.value) return
+  
   showErrorReportModal.value = false
   errorReportStation.value = null
   errorReportOrder.value = null
 }
 
 const handleErrorReportSubmit = async (errorReport) => {
+  if (isReturningWithError.value) return
+  
+  isReturningWithError.value = true
+  
   try {
-    console.log('Отправка отчета об ошибке:', errorReport)
+    console.log('🔄 Отправка возврата с ошибкой:', errorReport)
     
-    // Отправляем отчет об ошибке через API
-    const response = await pythonAPI.reportPowerbankError(errorReport)
+    const stationId = errorReport.station_id || (errorReportStation.value && (errorReportStation.value.station_id || errorReportStation.value.id))
+    const userId = errorReport.user_id || (user.value && (user.value.user_id || user.value.id))
     
+    if (!stationId || !userId) {
+      alert('❌ Ошибка: не удалось определить станцию или пользователя')
+      return
+    }
+    
+    // Показываем сообщение о том, что идет возврат
+    console.log('⏳ Ожидание подтверждения возврата от станции (до 11 секунд)...')
+    
+    // Отправляем запрос на возврат с ошибкой (долгий HTTP запрос на 11 секунд)
+    const response = await pythonAPI.returnDamaged({
+      station_id: stationId,
+      user_id: userId,
+      error_type: errorReport.error_type
+    })
+    
+    console.log('✅ Ответ от сервера:', response)
+    
+    // Проверяем успешность ответа
     if (response && response.success) {
-      alert('Отчет об ошибке успешно отправлен')
+      alert('✅ Возврат с ошибкой успешно выполнен. Спасибо за сообщение!')
       
-      // После отчета об ошибке запускаем ожидание подтверждения возврата (10 сек)
+      // Обновляем данные по станции/пользователю
       try {
-        const stationId = errorReport.station_id || (errorReportStation.value && (errorReportStation.value.station_id || errorReportStation.value.id))
-        const userId = errorReport.user_id || (user.value && (user.value.user_id || user.value.id))
-        if (stationId && userId) {
-          const waitPayload = {
-            station_id: stationId,
-            user_id: userId,
-            powerbank_id: errorReport.powerbank_id,
-            timeout_seconds: 10,
-            message: 'error-return-wait'
-          }
-          const waitRes = await pythonAPI.waitReturnConfirmation(waitPayload)
-          if (waitRes && waitRes.success && waitRes.confirmed) {
-            alert('✅ Возврат подтверждён станцией. Спасибо!')
-            // Обновляем данные по станции/пользователю
-            try {
-              await refreshAllDataAfterBorrowLocal(stationId, userId)
-            } catch {}
-          } else if (waitRes && waitRes.timeout) {
-            alert('⏱ Не удалось подтвердить возврат в течение 10 секунд. Попробуйте ещё раз.')
-          }
-        }
-      } catch (waitErr) {
-        console.warn('Ошибка ожидания подтверждения возврата:', waitErr)
+        await refreshAllDataAfterBorrowLocal(stationId, userId)
+      } catch (refreshErr) {
+        console.warn('Не удалось обновить данные после возврата:', refreshErr)
       }
-
+      
       closeErrorReportModal()
     } else {
-      alert('Ошибка при отправке отчета: ' + (response?.error || 'Неизвестная ошибка'))
+      alert('❌ Ошибка при возврате: ' + (response?.error || 'Неизвестная ошибка'))
     }
     
   } catch (error) {
-    console.error('Ошибка при отправке отчета об ошибке:', error)
-    alert('Ошибка при отправке отчета: ' + (error.message || 'Неизвестная ошибка'))
+    console.error('❌ Ошибка при возврате с ошибкой:', error)
+    
+    const errorMessage = error?.message || error?.error || 'Неизвестная ошибка'
+    
+    // Проверяем, не было ли таймаута
+    if (errorMessage.toLowerCase().includes('timeout')) {
+      alert('⏱ Превышено время ожидания подтверждения от станции. Пожалуйста, попробуйте еще раз.')
+    } else {
+      alert('❌ Ошибка при возврате повербанка: ' + errorMessage)
+    }
+  } finally {
+    isReturningWithError.value = false
   }
 }
 

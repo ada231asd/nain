@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isVisible" class="modal-overlay" @click="closeModal">
+  <div v-if="isVisible" class="modal-overlay" @click="!isLoading && closeModal()">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>Сообщить об ошибке</h3>
@@ -47,17 +47,26 @@
       </div>
       
       <div class="modal-footer">
-        <button @click="closeModal" class="btn-cancel">
+        <button @click="closeModal" class="btn-cancel" :disabled="isLoading">
           Отмена
         </button>
         <button 
           @click="submitErrorReport" 
           class="btn-submit"
-          :disabled="!canSubmit || isSubmitting"
+          :disabled="!canSubmit || isLoading"
         >
-          <span v-if="isSubmitting">Отправка...</span>
+          <span v-if="isLoading" class="submitting-content">
+            <span class="spinner"></span>
+            Ожидание подтверждения...
+          </span>
           <span v-else>Отправить</span>
         </button>
+      </div>
+      
+      <!-- Информационное сообщение о долгом ожидании -->
+      <div v-if="isLoading" class="waiting-info">
+        <p>⏳ Ожидаем подтверждения возврата от станции (до 11 секунд)...</p>
+        <p class="waiting-hint">Пожалуйста, не закрывайте это окно.</p>
       </div>
     </div>
   </div>
@@ -74,6 +83,10 @@ const props = defineProps({
   order: {
     type: Object,
     default: null
+  },
+  isLoading: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -82,10 +95,10 @@ const emit = defineEmits(['close', 'submit'])
 // Состояние
 const selectedErrorType = ref(null)
 const additionalNotes = ref('')
-const isSubmitting = ref(false)
 
 // Вычисляемые свойства
 const canSubmit = computed(() => {
+  // Требуем выбор типа ошибки, так как сервер не принимает пустую строку
   return !!selectedErrorType.value
 })
 
@@ -115,36 +128,28 @@ const errorTypes = ref([
 
 // Методы
 const closeModal = () => {
+  // Не закрываем модальное окно, если идет загрузка
+  if (props.isLoading) return
+  
   selectedErrorType.value = null
   additionalNotes.value = ''
-  isSubmitting.value = false
   emit('close')
 }
 
-const submitErrorReport = async () => {
-  if (!canSubmit.value) return
+const submitErrorReport = () => {
+  if (!canSubmit.value || props.isLoading) return
   
-  try {
-    isSubmitting.value = true
-    
-    const errorReport = {
-      order_id: props.order?.order_id || props.order?.id,
-      powerbank_id: props.order?.powerbank_id,
-      station_id: props.order?.station_id,
-      user_id: props.order?.user_id,
-      error_type: selectedErrorType.value,
-      additional_notes: additionalNotes.value,
-      timestamp: new Date().toISOString()
-    }
-    
-    emit('submit', errorReport)
-    
-  } catch (error) {
-    console.error('Ошибка при отправке отчета:', error)
-    alert('❌ Ошибка при отправке отчета об ошибке')
-  } finally {
-    isSubmitting.value = false
+  const errorReport = {
+    order_id: props.order?.order_id || props.order?.id,
+    powerbank_id: props.order?.powerbank_id,
+    station_id: props.order?.station_id,
+    user_id: props.order?.user_id,
+    error_type: selectedErrorType.value,
+    additional_notes: additionalNotes.value,
+    timestamp: new Date().toISOString()
   }
+  
+  emit('submit', errorReport)
 }
 
 // Сброс формы при открытии модального окна
@@ -152,7 +157,6 @@ watch(() => props.isVisible, (newValue) => {
   if (newValue) {
     selectedErrorType.value = null
     additionalNotes.value = ''
-    isSubmitting.value = false
   }
 })
 </script>
@@ -374,6 +378,47 @@ watch(() => props.isVisible, (newValue) => {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.submitting-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.waiting-info {
+  padding: 20px 30px;
+  background: #fff9e6;
+  border-top: 2px solid #ffd966;
+  text-align: center;
+}
+
+.waiting-info p {
+  margin: 5px 0;
+  color: #856404;
+  font-size: 1rem;
+}
+
+.waiting-hint {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-style: italic;
 }
 
 /* Мобильные стили */

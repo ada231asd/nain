@@ -479,6 +479,34 @@ export const pythonAPI = {
     return handleResponse(apiClient.post('/powerbank-error-report', payload), 'report powerbank error')
   },
 
+  // ВОЗВРАТ С ОШИБКОЙ (долгий HTTP запрос ~11 секунд)
+  returnDamaged: (data) => {
+    validateData(data, 'return damaged data')
+    const { station_id, user_id, error_type } = data
+
+    if (!station_id) {
+      throw new Error('Отсутствует обязательное поле: station_id')
+    }
+    if (!user_id) {
+      throw new Error('Отсутствует обязательное поле: user_id')
+    }
+    if (!error_type) {
+      throw new Error('Отсутствует обязательное поле: error_type')
+    }
+
+    const payload = {
+      station_id,
+      user_id,
+      error_type
+    }
+
+    // Долгий HTTP запрос: сервер ждет подтверждения от станции до ~11 секунд
+    return handleResponse(
+      apiClient.post('/return-damage', payload, { timeout: 15000 }),
+      'return damaged powerbank'
+    )
+  },
+
   // ОТЧЕТЫ ОБ АНОМАЛИЯХ СЛОТОВ
   getSlotAbnormalReports: (params = {}) => {
     const queryParams = new URLSearchParams()
