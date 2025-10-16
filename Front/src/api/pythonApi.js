@@ -512,10 +512,10 @@ export const pythonAPI = {
     return handleResponse(apiClient.get('/powerbank-error-types'), 'get powerbank error types')
   },
 
-  // ВОЗВРАТ С ОШИБКОЙ (новый API с типами из БД)
+  // ВОЗВРАТ С ОШИБКОЙ (новый API с типами из БД и Long Polling)
   returnError: (data) => {
     validateData(data, 'return error data')
-    const { station_id, user_id, error_type_id } = data
+    const { station_id, user_id, error_type_id, timeout_seconds = 30 } = data
 
     if (!station_id) {
       throw new Error('Отсутствует обязательное поле: station_id')
@@ -530,13 +530,14 @@ export const pythonAPI = {
     const payload = {
       station_id,
       user_id,
-      error_type_id
+      error_type_id,
+      timeout_seconds
     }
 
-    // Долгий HTTP запрос: сервер ждет подтверждения от станции до ~30 секунд
+    // Long Polling: сервер ждет вставки повербанка до timeout_seconds секунд
     return handleResponse(
-      apiClient.post('/return-error', payload, { timeout: 35000 }),
-      'return error powerbank'
+      apiClient.post('/return-error', payload, { timeout: (timeout_seconds + 5) * 1000 }),
+      'return error powerbank with long polling'
     )
   },
 
@@ -597,6 +598,42 @@ export const pythonAPI = {
     }
     const timeout = Math.max(1000, Math.min(60000, (payload.timeout_seconds || 10) * 1000))
     return handleResponse(apiClient.post('/return/wait-confirmation', payload, { timeout }), 'wait return confirmation')
+  },
+
+  // ВОЗВРАТ С ОШИБКОЙ
+  requestErrorReturn: (user_id, station_id, error_type) => {
+    validateId(user_id, 'user ID')
+    validateId(station_id, 'station ID')
+    validateId(error_type, 'error type')
+    return handleResponse(
+      apiClient.post('/return/error', {
+        user_id: parseInt(user_id),
+        station_id: parseInt(station_id),
+        error_type: parseInt(error_type)
+      }),
+      'request error return'
+    )
+  },
+
+  getPendingErrorReturns: (user_id = null) => {
+    const params = user_id ? { user_id: parseInt(user_id) } : {}
+    return handleResponse(apiClient.get('/return/error/pending', { params }), 'get pending error returns')
+  },
+
+  cancelErrorReturn: (user_id) => {
+    validateId(user_id, 'user ID')
+    return handleResponse(apiClient.delete(`/return/error/pending/${user_id}`), 'cancel error return')
+  },
+
+  getErrorTypes: () => {
+    return handleResponse(apiClient.get('/return/error/types'), 'get error types')
+  },
+
+  cleanupExpiredErrorReturns: (max_age_minutes = 30) => {
+    return handleResponse(
+      apiClient.post('/return/error/cleanup', { max_age_minutes }),
+      'cleanup expired error returns'
+    )
   },
 
   // ДРУГОЕ

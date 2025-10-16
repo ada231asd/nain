@@ -450,6 +450,8 @@ class OptimizedServer:
             self.http_server.db_pool = self.db_pool
             # Инъекция общего обработчика для последующего использования в BorrowEndpoints/BorrowPowerbankAPI
             setattr(self.http_server, 'shared_borrow_handler', self.borrow_handler)
+            # Инъекция обработчика возврата для использования в InventoryManager
+            setattr(self.http_server, 'shared_return_handler', self.return_handler)
             
     
            

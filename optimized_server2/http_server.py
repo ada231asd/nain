@@ -28,6 +28,7 @@ from api.user_powerbank_api import UserPowerbankAPI
 from api.powerbank_status_api import PowerbankStatusAPI
 from api.bulk_user_import_api import BulkUserImportAPI
 from api.logo_upload_api import LogoUploadAPI
+from api.return_endpoints import ReturnEndpoints
 
 
 
@@ -55,6 +56,7 @@ class HTTPServer:
         self.user_powerbank_api: UserPowerbankAPI = None
         self.powerbank_status_api: PowerbankStatusAPI = None
         self.bulk_user_import_api: BulkUserImportAPI = None
+        self.return_endpoints: ReturnEndpoints = None
         
     
     async def initialize_database(self):
@@ -151,6 +153,7 @@ class HTTPServer:
         self.powerbank_status_api = PowerbankStatusAPI(self.db_pool)
         self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
         self.logo_upload_api = LogoUploadAPI(self.db_pool)
+        self.return_endpoints = ReturnEndpoints(self.db_pool, connection_manager)
         
         # Регистрируем маршруты
         self._setup_routes(app, connection_manager)
@@ -177,6 +180,9 @@ class HTTPServer:
         
         # API для выдачи повербанков
         self.borrow_endpoints.setup_routes(app)
+        
+        # API для возврата повербанков с ошибкой
+        self.return_endpoints.setup_routes(app)
         
         # CRUD API для всех таблиц
         self.crud_endpoints.setup_routes(app)

@@ -65,8 +65,8 @@
       
       <!-- Информационное сообщение о долгом ожидании -->
       <div v-if="isLoading" class="waiting-info">
-        <p>⏳ Ожидаем подтверждения возврата от станции (до 11 секунд)...</p>
-        <p class="waiting-hint">Пожалуйста, не закрывайте это окно.</p>
+        <p>⏳ Ожидаем вставки повербанка в станцию (до 30 секунд)...</p>
+        <p class="waiting-hint">Пожалуйста, вставьте повербанк в станцию и не закрывайте это окно.</p>
       </div>
     </div>
   </div>
@@ -110,7 +110,7 @@ const isLoadingErrorTypes = ref(false)
 const loadErrorTypes = async () => {
   try {
     isLoadingErrorTypes.value = true
-    const response = await pythonAPI.getPowerbankErrorTypes()
+    const response = await pythonAPI.getErrorTypes()
     if (response && response.success) {
       errorTypes.value = response.error_types.map(error => ({
         id: parseInt(error.id_er), // Принудительно конвертируем в число
@@ -147,20 +147,56 @@ const closeModal = () => {
   emit('close')
 }
 
-const submitErrorReport = () => {
+const submitErrorReport = async () => {
   if (!canSubmit.value || props.isLoading) return
   
-  const errorReport = {
-    order_id: props.order?.order_id || props.order?.id,
-    powerbank_id: props.order?.powerbank_id,
-    station_id: props.order?.station_id,
-    user_id: props.order?.user_id,
-    error_type: selectedErrorType.value,
-    additional_notes: additionalNotes.value,
-    timestamp: new Date().toISOString()
+  try {
+    // Отправляем запрос на возврат с ошибкой через Long Polling API
+    const response = await pythonAPI.returnError({
+      station_id: props.order?.station_id,
+      user_id: props.order?.user_id,
+      error_type_id: selectedErrorType.value,
+      timeout_seconds: 30 // 30 секунд ожидания
+    })
+    
+    if (response.success) {
+      // Успешно обработан возврат с ошибкой
+      const errorReport = {
+        order_id: props.order?.order_id || props.order?.id,
+        powerbank_id: response.powerbank_id || props.order?.powerbank_id,
+        station_id: response.station_id || props.order?.station_id,
+        user_id: response.user_id || props.order?.user_id,
+        error_type: response.error_type || selectedErrorType.value,
+        error_name: response.error_name,
+        slot_number: response.slot_number,
+        additional_notes: additionalNotes.value,
+        timestamp: new Date().toISOString(),
+        return_request_success: true,
+        return_message: response.message
+      }
+      
+      emit('submit', errorReport)
+    } else {
+      // Ошибка при обработке возврата
+      console.error('❌ Ошибка возврата с ошибкой:', response.error)
+      emit('submit', {
+        ...props.order,
+        error_type: selectedErrorType.value,
+        additional_notes: additionalNotes.value,
+        return_request_success: false,
+        return_error: response.error
+      })
+    }
+  } catch (error) {
+    console.error('❌ Ошибка API запроса возврата с ошибкой:', error)
+    emit('submit', {
+      ...props.order,
+      error_type: selectedErrorType.value,
+      additional_notes: additionalNotes.value,
+      return_request_success: false,
+      return_error: error.message || 'Ошибка отправки запроса'
+    })
   }
-  
-  emit('submit', errorReport)
 }
 
 // Сброс формы при открытии модального окна

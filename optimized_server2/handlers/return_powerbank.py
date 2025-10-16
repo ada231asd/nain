@@ -1,572 +1,397 @@
-from typing import Optional, Dict, Any
-import struct
-import asyncio
+"""
+Обработчик для возврата повербанков с ошибкой
+"""
+from typing import Optional, Dict, Any, List
 from datetime import datetime
+import asyncio
 
 from models.station_powerbank import StationPowerbank
 from models.powerbank import Powerbank
 from models.order import Order
-from models.station import Station
-from models.slot_abnormal_report import SlotAbnormalReport
 from models.powerbank_error import PowerbankError
+from models.action_log import ActionLog
 from utils.centralized_logger import get_logger
-from utils.packet_utils import (
-    parse_return_power_bank_request,
-    build_return_power_bank_response,
-    generate_session_token
-)
+from utils.time_utils import get_moscow_time
 
 
 class ReturnPowerbankHandler:
-    """Обработчик возврата повербанков"""
+    """Обработчик для возврата повербанков с ошибкой"""
     
     def __init__(self, db_pool, connection_manager):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.logger = get_logger('return_powerbank')
-        # Словарь для отслеживания ожидающих возвратов с ошибкой
+        # Словарь для ожидания возврата с ошибкой: {user_id: {'station_id': int, 'error_type': int, 'timestamp': datetime, 'future': asyncio.Future}}
         self.pending_error_returns = {}
+        # Запускаем фоновую задачу для очистки просроченных запросов
+        asyncio.create_task(self._cleanup_expired_requests())
+    
+    async def handle_error_return_request(self, user_id: int, station_id: int, error_type: int, timeout_seconds: int = 30) -> Dict[str, Any]:
+        """
+        Обрабатывает запрос на возврат повербанка с ошибкой с Long Polling
+        Ждет вставки повербанка в станцию до timeout_seconds секунд
+        """
+        try:
+            # Проверяем, что пользователь существует
+            from models.user import User
+            user = await User.get_by_id(self.db_pool, user_id)
+            if not user:
+                return {"success": False, "error": "Пользователь не найден"}
+            
+            # Проверяем, что станция существует
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return {"success": False, "error": "Станция не найдена"}
+            
+            # Проверяем, что тип ошибки существует
+            error = await PowerbankError.get_by_id(self.db_pool, error_type)
+            if not error:
+                return {"success": False, "error": "Тип ошибки не найден"}
+            
+            # Проверяем, что у пользователя есть активный заказ на выдачу
+            active_orders = await Order.get_active_orders_by_user(self.db_pool, user_id)
+            if not active_orders:
+                return {"success": False, "error": "У пользователя нет активных заказов"}
+            
+            # Проверяем, нет ли уже ожидающего запроса для этого пользователя
+            if user_id in self.pending_error_returns:
+                return {"success": False, "error": "У пользователя уже есть ожидающий запрос на возврат с ошибкой"}
+            
+            # Создаем Future для Long Polling
+            future = asyncio.Future()
+            
+            # Сохраняем запрос на возврат с ошибкой
+            self.pending_error_returns[user_id] = {
+                'station_id': station_id,
+                'error_type': error_type,
+                'timestamp': get_moscow_time(),
+                'error_name': error.type_error,
+                'future': future
+            }
+            
+            self.logger.info(f"Пользователь {user_id} запросил возврат с ошибкой типа {error_type} в станцию {station_id}. Ожидаем вставки повербанка...")
+            
+            # Ждем результат с таймаутом
+            try:
+                result = await asyncio.wait_for(future, timeout=timeout_seconds)
+                return result
+            except asyncio.TimeoutError:
+                # Удаляем просроченный запрос
+                if user_id in self.pending_error_returns:
+                    del self.pending_error_returns[user_id]
+                return {
+                    "success": False, 
+                    "error": f"Таймаут ожидания вставки повербанка ({timeout_seconds} секунд). Повербанк не был вставлен в станцию."
+                }
+            
+        except Exception as e:
+            # Удаляем запрос в случае ошибки
+            if user_id in self.pending_error_returns:
+                del self.pending_error_returns[user_id]
+            self.logger.error(f"Ошибка обработки запроса на возврат с ошибкой: {e}")
+            return {"success": False, "error": f"Ошибка обработки запроса: {str(e)}"}
+    
+    async def handle_powerbank_insertion(self, station_id: int, slot_number: int, powerbank_id: int) -> Dict[str, Any]:
+        """
+        Обрабатывает вставку повербанка в станцию
+        Сопоставляет с ожидающими возврат пользователями и уведомляет Future
+        """
+        try:
+            # Ищем пользователя, который ожидает возврат в эту станцию
+            matching_user_id = None
+            for user_id, return_data in self.pending_error_returns.items():
+                if return_data['station_id'] == station_id:
+                    matching_user_id = user_id
+                    break
+            
+            if not matching_user_id:
+                self.logger.debug(f"Повербанк {powerbank_id} вставлен в станцию {station_id}, но нет ожидающих возврат пользователей")
+                return {"success": False, "error": "Нет ожидающих возврат пользователей для этой станции"}
+            
+            # Получаем данные о возврате
+            return_data = self.pending_error_returns[matching_user_id]
+            error_type = return_data['error_type']
+            future = return_data.get('future')
+            
+            # Проверяем, что повербанк принадлежит пользователю
+            active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+            if not active_order or active_order.user_id != matching_user_id:
+                self.logger.warning(f"Повербанк {powerbank_id} не принадлежит пользователю {matching_user_id}")
+                if future and not future.done():
+                    future.set_result({
+                        "success": False, 
+                        "error": "Повербанк не принадлежит ожидающему пользователю"
+                    })
+                return {"success": False, "error": "Повербанк не принадлежит ожидающему пользователю"}
+            
+            # Обновляем статус повербанка на системную ошибку
+            powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
+            if not powerbank:
+                return {"success": False, "error": "Повербанк не найден"}
+            
+            # Обновляем статус повербанка
+            await powerbank.update_status(self.db_pool, 'system_error')
+            
+            # Обновляем поле power_er (тип ошибки)
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        "UPDATE powerbank SET power_er = %s WHERE id = %s",
+                        (error_type, powerbank_id)
+                    )
+            
+            # Закрываем активный заказ
+            await Order.update_order_status(self.db_pool, active_order.order_id, 'return')
+            
+            # Добавляем повербанк в станцию
+            await StationPowerbank.add_powerbank(
+                self.db_pool, station_id, powerbank_id, slot_number
+            )
+            
+            # Удаляем из ожидающих возврат
+            del self.pending_error_returns[matching_user_id]
+            
+            # Логируем действие
+            await ActionLog.create_log(
+                self.db_pool, matching_user_id, 'order_update', 'order', 
+                active_order.order_id, f'Возврат повербанка с ошибкой: {return_data["error_name"]}'
+            )
+            
+            self.logger.info(f"Повербанк {powerbank_id} успешно возвращен с ошибкой типа {error_type} пользователем {matching_user_id}")
+            
+            # Уведомляем Future о успешном результате
+            result = {
+                "success": True,
+                "message": f"Повербанк успешно возвращен с ошибкой",
+                "user_id": matching_user_id,
+                "powerbank_id": powerbank_id,
+                "station_id": station_id,
+                "slot_number": slot_number,
+                "error_type": error_type,
+                "error_name": return_data['error_name']
+            }
+            
+            if future and not future.done():
+                future.set_result(result)
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка обработки вставки повербанка: {e}")
+            return {"success": False, "error": f"Ошибка обработки вставки: {str(e)}"}
+    
+    async def _cleanup_expired_requests(self, cleanup_interval_seconds: int = 60, max_age_minutes: int = 30):
+        """
+        Фоновая задача для очистки просроченных запросов на возврат с ошибкой
+        """
+        while True:
+            await asyncio.sleep(cleanup_interval_seconds)
+            current_time = get_moscow_time()
+            expired_user_ids = []
+            
+            for user_id, request_data in self.pending_error_returns.items():
+                if (current_time - request_data['timestamp']).total_seconds() > max_age_minutes * 60:
+                    expired_user_ids.append(user_id)
+                    
+            for user_id in expired_user_ids:
+                request_data = self.pending_error_returns[user_id]
+                future = request_data.get('future')
+                
+                # Уведомляем Future о таймауте
+                if future and not future.done():
+                    future.set_result({
+                        "success": False,
+                        "error": f"Таймаут ожидания вставки повербанка ({max_age_minutes} минут)"
+                    })
+                
+                del self.pending_error_returns[user_id]
+                self.logger.info(f"Просроченный запрос на возврат с ошибкой для пользователя {user_id} удален")
+    
+    async def get_pending_error_returns(self) -> Dict[int, Dict[str, Any]]:
+        """
+        Получает список ожидающих возврат с ошибкой
+        """
+        return self.pending_error_returns.copy()
+    
+    async def cancel_error_return(self, user_id: int) -> Dict[str, Any]:
+        """
+        Отменяет ожидание возврата с ошибкой
+        """
+        try:
+            if user_id in self.pending_error_returns:
+                del self.pending_error_returns[user_id]
+                self.logger.info(f"Отменен запрос на возврат с ошибкой для пользователя {user_id}")
+                return {"success": True, "message": "Запрос на возврат с ошибкой отменен"}
+            else:
+                return {"success": False, "error": "Запрос на возврат с ошибкой не найден"}
+                
+        except Exception as e:
+            self.logger.error(f"Ошибка отмены запроса на возврат: {e}")
+            return {"success": False, "error": f"Ошибка отмены: {str(e)}"}
+    
+    async def cleanup_expired_requests(self, max_age_minutes: int = 30) -> int:
+        """
+        Очищает просроченные запросы на возврат с ошибкой
+        """
+        try:
+            current_time = get_moscow_time()
+            expired_users = []
+            
+            for user_id, return_data in self.pending_error_returns.items():
+                age_minutes = (current_time - return_data['timestamp']).total_seconds() / 60
+                if age_minutes > max_age_minutes:
+                    expired_users.append(user_id)
+            
+            for user_id in expired_users:
+                del self.pending_error_returns[user_id]
+                self.logger.info(f"Удален просроченный запрос на возврат для пользователя {user_id}")
+            
+            return len(expired_users)
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка очистки просроченных запросов: {e}")
+            return 0
+    
+    async def get_error_types(self) -> List[Dict[str, Any]]:
+        """
+        Получает список доступных типов ошибок
+        """
+        try:
+            errors = await PowerbankError.get_all(self.db_pool)
+            return [error.to_dict() for error in errors]
+        except Exception as e:
+            self.logger.error(f"Ошибка получения типов ошибок: {e}")
+            return []
     
     async def handle_return_request(self, data: bytes, connection) -> Optional[bytes]:
         """
-        Обрабатывает запрос от станции на возврат повербанка (0x66)
-        
-        Протокол 3.5.1 Cabinet → Server:
-        - Станция отправляет: Slot, TerminalID, Level, Voltage, Current, Temperature, Status, SOH
-        
-        Логика:
-        1. Проверяем повербанк в БД по TerminalID
-           - Если НЕТ → создаем со статусом 'unknown'
-        2. Проверяем слот
-           - Если занят → Result=5 (Slot not empty)
-        3. Проверяем активный заказ (status='borrow')
-           - Если есть → меняем на status='return'
-        4. Добавляем повербанк в station_powerbank
-        5. Обновляем remain_num станции
-        6. Отвечаем Result=1 (Success)
-        
-        Протокол 3.5.2 Server → Cabinet:
-        - Сервер отвечает: Slot, Result (0-5), TerminalID, Level, Voltage, Current, Temperature, Status, SOH
+        Обрабатывает запрос на возврат повербанка от станции (команда 0x66)
         """
         try:
-            # Парсим запрос от станции
-            request = parse_return_power_bank_request(data)
+            from utils.packet_utils import parse_return_power_bank_request, build_return_power_bank_response
+            from utils.station_resolver import get_station_id_by_box_id
+            from models.station import Station
+            from models.powerbank import Powerbank
+            from models.order import Order
+            from utils.time_utils import get_moscow_time
             
-            if 'error' in request:
-                self.logger.error(f"Ошибка парсинга запроса возврата: {request.get('error')}")
+            # Парсим данные запроса
+            parsed_data = parse_return_power_bank_request(data)
+            
+            if 'error' in parsed_data:
+                self.logger.error(f"Ошибка парсинга запроса возврата: {parsed_data['error']}")
                 return None
             
-            station_id = connection.station_id
+            slot = parsed_data.get('Slot')
+            terminal_id = parsed_data.get('TerminalID')
+            level = parsed_data.get('Level', 0)
+            voltage = parsed_data.get('Voltage', 0)
+            current = parsed_data.get('Current', 0)
+            temperature = parsed_data.get('Temperature', 0)
+            status = parsed_data.get('Status', 0)
+            soh = parsed_data.get('SOH', 0)
+            
+            self.logger.info(f"Получен запрос на возврат повербанка: слот {slot}, terminal_id {terminal_id}")
+            
+            # Получаем ID станции
+            station_id = await get_station_id_by_box_id(self.db_pool, connection.box_id)
             if not station_id:
-                self.logger.warning("Запрос возврата от неавторизованной станции")
+                self.logger.error(f"Станция с box_id {connection.box_id} не найдена")
                 return None
             
-            # Извлекаем данные из запроса
-            slot = request.get('Slot', 0)
-            terminal_id = request.get('TerminalID', '')
-            level = request.get('Level', 0)
-            voltage = request.get('Voltage', 0)
-            current = request.get('Current', 0)
-            temperature = request.get('Temperature', 0)
-            status = request.get('Status', 0)
-            soh = request.get('SOH', 100)
-            vsn = request.get('VSN', 1)
-            
-            self.logger.info(f"📥 Возврат: станция {station_id}, слот {slot}, TerminalID={terminal_id}")
-            
-            # Проверяем, есть ли ожидающий возврат с ошибкой для этой станции
-            pending_key = None
-            self.logger.info(f"🔍 Проверяем ожидающие возвраты с ошибкой для станции {station_id}")
-            self.logger.info(f"🔍 Всего ожидающих возвратов: {len(self.pending_error_returns)}")
-            self.logger.info(f"🔍 Ключи ожидающих возвратов: {list(self.pending_error_returns.keys())}")
-            
-            for key, pending_data in self.pending_error_returns.items():
-                self.logger.info(f"🔍 Проверяем ключ {key}: station_id={pending_data.get('station_id')}")
-                if pending_data['station_id'] == station_id:
-                    pending_key = key
-                    self.logger.info(f"🔍 Найден ожидающий возврат: {key}")
-                    break
-            
-            if pending_key:
-                # Это возврат с ошибкой - обрабатываем специально
-                self.logger.info(f"🔍 Найден ожидающий возврат с ошибкой: {pending_key}")
-                await self.handle_error_return_response(data, connection)
-                # Отвечаем станции успешно
-                return self._build_response(
-                    connection.secret_key, slot, 1,
-                    terminal_id.encode('utf-8')[:8].ljust(8, b'\x00'),
-                    level, voltage, current, temperature, status, soh, vsn
-                )
-            
-            # Проверка 1: TerminalID должен быть
-            if not terminal_id:
-                self.logger.error(f"Отсутствует TerminalID от станции {station_id}")
-                return self._build_response(
-                    connection.secret_key, slot, 4, b'\x00' * 8,
-                    0, 0, 0, 0, 0, 0, vsn
-                )
-            
-            # Проверка 2: Повербанк в БД
-            try:
-                powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
-            except Exception as e:
-                self.logger.error(f"Ошибка получения повербанка {terminal_id}: {e}")
-                powerbank = None
-            
-            # Если повербанка нет в БД → создаем со статусом 'unknown'
+            # Ищем повербанк по terminal_id
+            powerbank = await Powerbank.get_by_terminal_id(self.db_pool, terminal_id)
             if not powerbank:
-                self.logger.warning(f"⚠️ Повербанк {terminal_id} НЕ НАЙДЕН в БД → создаем со статусом 'unknown'")
-                try:
-                    # Получаем org_unit_id станции (если есть)
-                    station = await Station.get_by_id(self.db_pool, station_id)
-                    org_unit_id = station.org_unit_id if station else None
-                    
-                    # Создаем повербанк со статусом 'unknown'
-                    powerbank = await Powerbank.create_unknown(
-                        self.db_pool, terminal_id, org_unit_id
-                    )
-                    self.logger.info(
-                        f"✅ Повербанк {terminal_id} создан: "
-                        f"powerbank_id={powerbank.powerbank_id}, status='unknown'"
-                    )
-                except Exception as e:
-                    self.logger.error(f"Ошибка создания повербанка {terminal_id}: {e}")
-                    # Если не удалось создать, возвращаем ошибку
-                    return self._build_response(
-                        connection.secret_key, slot, 4,
-                        terminal_id.encode('utf-8')[:8].ljust(8, b'\x00'),
-                        level, voltage, current, temperature, status, soh, vsn
-                    )
-            else:
-                self.logger.info(f"✅ Повербанк найден: powerbank_id={powerbank.powerbank_id}, status='{powerbank.status}'")
-            
-            # Проверка 3: Слот не должен быть занят
-            existing_in_slot = await StationPowerbank.get_by_station_and_slot(
-                self.db_pool, station_id, slot
-            )
-            
-            if existing_in_slot:
-                self.logger.warning(f"⚠️ Слот {slot} уже занят повербанком {existing_in_slot.powerbank_id}")
-                # Result=5: Slot not empty
-                return self._build_response(
-                    connection.secret_key, slot, 5,
-                    terminal_id.encode('utf-8')[:8].ljust(8, b'\x00'),
-                    level, voltage, current, temperature, status, soh, vsn
-                )
-            
-            # Проверка 4: Есть ли активный заказ со статусом 'borrow'
-            active_order = None
-            try:
-                active_order = await Order.get_active_borrow_order(
-                    self.db_pool, powerbank.powerbank_id
-                )
-            except Exception as e:
-                self.logger.error(f"Ошибка проверки активного заказа: {e}")
-            
-            # Если есть активный заказ → закрываем (borrow → return)
-            if active_order:
-                try:
-                    await Order.update_order_status(
-                        self.db_pool, active_order.order_id, 'return'
-                    )
-                    self.logger.info(
-                        f"✅ Заказ {active_order.order_id} закрыт: "
-                        f"borrow → return (повербанк {terminal_id})"
-                    )
-                except Exception as e:
-                    self.logger.error(f"Ошибка закрытия заказа {active_order.order_id}: {e}")
-            else:
-                self.logger.info(f"ℹ️ Активный заказ для повербанка {terminal_id} не найден")
-            
-            # Добавляем повербанк в station_powerbank
-            try:
-                await StationPowerbank.add_powerbank(
-                    self.db_pool,
-                    station_id,
-                    powerbank.powerbank_id,
-                    slot,
+                self.logger.error(f"Повербанк с terminal_id {terminal_id} не найден")
+                # Отправляем ответ об ошибке
+                return build_return_power_bank_response(
+                    slot=slot,
+                    result=0,  # Ошибка
+                    terminal_id=terminal_id.encode('ascii'),
                     level=level,
                     voltage=voltage,
-                    temperature=temperature
+                    current=current,
+                    temperature=temperature,
+                    status=status,
+                    soh=soh,
+                    vsn=connection.vsn,
+                    token=connection.token
                 )
-                self.logger.info(
-                    f"✅ Повербанк {terminal_id} добавлен в station_powerbank "
-                    f"(станция {station_id}, слот {slot})"
-                )
-            except Exception as e:
-                self.logger.error(f"Ошибка добавления в station_powerbank: {e}")
-                # Всё равно отвечаем Success, повербанк принят
             
-            # Обновляем данные станции
-            try:
-                station = await Station.get_by_id(self.db_pool, station_id)
-                if station:
-                    await station.update_last_seen(self.db_pool)
-                    new_remain = int(station.remain_num) + 1
-                    await station.update_remain_num(self.db_pool, new_remain)
-                    self.logger.info(f"✅ Станция {station_id}: remain_num {station.remain_num} → {new_remain}")
-            except Exception as e:
-                self.logger.error(f"Ошибка обновления станции: {e}")
+            # Проверяем, есть ли ожидающий возврат с ошибкой для этого повербанка
+            powerbank_id = powerbank.powerbank_id
+            matching_user_id = None
+            error_type = None
             
-            # Запрашиваем инвентарь для синхронизации
-            try:
-                from handlers.query_inventory import QueryInventoryHandler
-                inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
-                await inventory_handler.send_inventory_request(station_id)
-                self.logger.info(f"📊 Запрос инвентаря отправлен на станцию {station_id}")
-            except Exception as e:
-                self.logger.error(f"Ошибка запроса инвентаря: {e}")
+            for user_id, return_data in self.pending_error_returns.items():
+                if (return_data['station_id'] == station_id and 
+                    return_data['powerbank_id'] == powerbank_id):
+                    matching_user_id = user_id
+                    error_type = return_data['error_type']
+                    break
             
-            # Формируем успешный ответ: Result=1 (Success)
-            response = self._build_response(
-                connection.secret_key, slot, 1,
-                terminal_id.encode('utf-8')[:8].ljust(8, b'\x00'),
-                level, voltage, current, temperature, status, soh, vsn
-            )
-            
-            self.logger.info(f"✅ Возврат повербанка {terminal_id} успешно обработан")
-            return response
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка обработки возврата: {e}", exc_info=True)
-            return None
-    
-    def _build_response(self, secret_key: str, slot: int, result: int,
-                       terminal_id: bytes, level: int, voltage: int,
-                       current: int, temperature: int, status: int,
-                       soh: int, vsn: int) -> bytes:
-        """
-        Строит ответ сервера на возврат повербанка (3.5.2)
-        
-        Args:
-            secret_key: Секретный ключ станции
-            slot: Номер слота
-            result: Результат (0: Failure, 1: Success, 2: Status Error, 
-                              3: Duplicate, 4: Invalid ID, 5: Slot not empty)
-            terminal_id: ID повербанка (8 байт)
-            level: Уровень заряда (0-100)
-            voltage: Напряжение (mV)
-            current: Ток (mA)
-            temperature: Температура (-127 to 128)
-            status: Статус bitmap
-            soh: Здоровье батареи (0-100)
-            vsn: Версия протокола
-            
-        Returns:
-            bytes: Пакет ответа
-        """
-        # Формируем payload для вычисления токена
-        payload = struct.pack(
-            ">BB8sBHHbBB",
-            slot, result, terminal_id, level, voltage, current, 
-            temperature, status, soh
-        )
-        
-        # Генерируем токен
-        token = generate_session_token(payload, secret_key)
-        
-        # Строим ответ
-        response = build_return_power_bank_response(
-            slot, result, terminal_id, level, voltage, current,
-            temperature, status, soh, vsn, token
-        )
-        
-        return response
-    
-    async def start_damage_return_process(self, station_id: int, user_id: int, error_type: str = 'other') -> Dict[str, Any]:
-        """
-        Инициирует процесс возврата повербанка с поломкой
-        
-        Args:
-            station_id: ID станции
-            user_id: ID пользователя
-            error_type: Тип ошибки (broken, lost, other)
-            
-        Returns:
-            Dict с результатом операции
-        """
-        try:
-            self.logger.info(f"Инициация возврата с поломкой: станция {station_id}, пользователь {user_id}, тип ошибки: {error_type}")
-            
-            # Проверяем, что станция существует
-            station = await Station.get_by_id(self.db_pool, station_id)
-            if not station:
-                return {"success": False, "message": "Станция не найдена"}
-            
-            # Проверяем, что у пользователя есть активный заказ
-            active_orders = await Order.get_active_orders_by_user(self.db_pool, user_id)
-            if not active_orders:
-                return {"success": False, "message": "У пользователя нет активных заказов"}
-            
-            # Берем первый активный заказ
-            active_order = active_orders[0]
-            
-            # Получаем повербанк из заказа
-            if not active_order.powerbank_id:
-                return {"success": False, "message": "В заказе не указан повербанк"}
-            
-            powerbank = await Powerbank.get_by_id(self.db_pool, active_order.powerbank_id)
-            if not powerbank:
-                return {"success": False, "message": "Повербанк не найден"}
-            
-            # Обновляем статус повербанка в зависимости от типа ошибки
-            new_status = 'user_reported_broken'
-            write_off_reason = error_type if error_type in ['broken', 'lost', 'other'] else 'other'
-            
-            # Обновляем повербанк
-            await powerbank.update_status(self.db_pool, new_status)
-            await powerbank.update_write_off_reason(self.db_pool, write_off_reason)
-            
-            self.logger.info(f"Повербанк {powerbank.powerbank_id} помечен как {new_status} с причиной {write_off_reason}")
-            
-            return {
-                "success": True,
-                "message": "Возврат с поломкой инициирован",
-                "powerbank_id": powerbank.powerbank_id,
-                "error_type": error_type,
-                "new_status": new_status,
-                "write_off_reason": write_off_reason
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка инициации возврата с поломкой: {e}")
-            return {"success": False, "message": f"Ошибка: {str(e)}"}
-    
-    async def start_error_return_process(self, station_id: int, user_id: int, error_type_id: int = 1) -> Dict[str, Any]:
-        """
-        Инициирует процесс возврата повербанка с ошибкой и удерживает соединение
-        
-        Args:
-            station_id: ID станции
-            user_id: ID пользователя
-            error_type_id: ID типа ошибки из таблицы powerbank_error
-            
-        Returns:
-            Dict с результатом операции
-        """
-        try:
-            self.logger.info(f"Инициация возврата с ошибкой: станция {station_id}, пользователь {user_id}, тип ошибки ID: {error_type_id}")
-            
-            # Валидируем тип ошибки
-            try:
-                self.logger.info(f"🔍 Валидация типа ошибки: error_type_id={error_type_id}, тип={type(error_type_id)}")
-                powerbank_error = await PowerbankError.get_by_id(self.db_pool, error_type_id)
-                if not powerbank_error:
-                    self.logger.error(f"❌ Тип ошибки с ID {error_type_id} не найден в БД")
-                    return {"success": False, "message": f"Тип ошибки с ID {error_type_id} не найден"}
-                self.logger.info(f"✅ Тип ошибки найден: {powerbank_error.type_error}")
-            except Exception as e:
-                self.logger.error(f"Ошибка валидации типа ошибки: {e}")
-                return {"success": False, "message": "Ошибка валидации типа ошибки"}
-            
-            # Проверяем, что станция существует и подключена
-            station = await Station.get_by_id(self.db_pool, station_id)
-            if not station:
-                return {"success": False, "message": "Станция не найдена"}
-            
-            # Проверяем соединение со станцией
-            connection = self.connection_manager.get_connection_by_station_id(station_id)
-            if not connection:
-                return {"success": False, "message": "Станция не подключена"}
-            
-            # Проверяем, что у пользователя есть активный заказ
-            active_orders = await Order.get_active_orders_by_user(self.db_pool, user_id)
-            if not active_orders:
-                return {"success": False, "message": "У пользователя нет активных заказов"}
-            
-            # Берем первый активный заказ
-            active_order = active_orders[0]
-            
-            # Получаем повербанк из заказа
-            if not active_order.powerbank_id:
-                return {"success": False, "message": "В заказе не указан повербанк"}
-            
-            powerbank = await Powerbank.get_by_id(self.db_pool, active_order.powerbank_id)
-            if not powerbank:
-                return {"success": False, "message": "Повербанк не найден"}
-            
-            # Создаем отчет об аномалии
-            try:
-                await SlotAbnormalReport.create(
-                    self.db_pool,
-                    station_id=station_id,
-                    slot_number=0,  # Будет обновлено при получении данных от станции
-                    terminal_id=powerbank.serial_number,
-                    event_type=str(error_type_id),
-                    reported_at=datetime.now()
-                )
-                self.logger.info(f"Создан отчет об аномалии для станции {station_id}, повербанк {powerbank.serial_number}, тип ошибки: {powerbank_error.type_error}")
-            except Exception as e:
-                self.logger.error(f"Ошибка создания отчета об аномалии: {e}")
-            
-            # Создаем Future для ожидания ответа от станции
-            future = asyncio.Future()
-            return_key = f"{station_id}_{user_id}_{active_order.order_id}"
-            
-            # Сохраняем информацию о ожидающем возврате
-            self.pending_error_returns[return_key] = {
-                'future': future,
-                'station_id': station_id,
-                'user_id': user_id,
-                'order_id': active_order.order_id,
-                'powerbank_id': powerbank.powerbank_id,
-                'error_type_id': error_type_id,
-                'error_description': powerbank_error.type_error,
-                'created_at': datetime.now()
-            }
-            
-            self.logger.info(f"Ожидание возврата с ошибкой: {return_key}")
-            
-            # Ждем ответа от станции (максимум 30 секунд)
-            try:
-                result = await asyncio.wait_for(future, timeout=30.0)
+            if matching_user_id:
+                # Обрабатываем возврат с ошибкой
+                self.logger.info(f"Обрабатываем возврат с ошибкой для пользователя {matching_user_id}, повербанк {powerbank_id}")
+                
+                # Обновляем статус повербанка
+                await powerbank.update_status(self.db_pool, 'system_error')
+                await powerbank.update_power_er(self.db_pool, error_type)
+                
+                # Закрываем активный заказ
+                active_order = await Order.get_active_borrow_order(self.db_pool, powerbank_id)
+                if active_order:
+                    await active_order.update_order_status(self.db_pool, 'return')
+                    self.logger.info(f"Активный заказ {active_order.order_id} закрыт")
                 
                 # Удаляем из ожидающих
-                if return_key in self.pending_error_returns:
-                    del self.pending_error_returns[return_key]
+                del self.pending_error_returns[matching_user_id]
                 
-                return result
+                self.logger.info(f"Повербанк {powerbank_id} успешно возвращен с ошибкой типа {error_type}")
                 
-            except asyncio.TimeoutError:
-                # Удаляем из ожидающих при таймауте
-                if return_key in self.pending_error_returns:
-                    del self.pending_error_returns[return_key]
-                
-                self.logger.error(f"Таймаут ожидания возврата с ошибкой: {return_key}")
-                return {"success": False, "message": "Таймаут ожидания возврата от станции (30 секунд)"}
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка инициации возврата с ошибкой: {e}")
-            return {"success": False, "message": f"Ошибка: {str(e)}"}
-    
-    async def handle_error_return_response(self, data: bytes, connection) -> None:
-        """
-        Обрабатывает ответ станции на возврат с ошибкой
-        
-        Args:
-            data: Данные от станции
-            connection: Соединение со станцией
-        """
-        try:
-            station_id = connection.station_id
-            if not station_id:
-                return
-            
-            # Ищем ожидающий возврат для этой станции
-            pending_key = None
-            self.logger.info(f"🔍 Ищем ожидающий возврат для станции {station_id}")
-            self.logger.info(f"🔍 Доступные ожидающие возвраты: {list(self.pending_error_returns.keys())}")
-            
-            for key, pending_data in self.pending_error_returns.items():
-                if pending_data['station_id'] == station_id:
-                    pending_key = key
-                    self.logger.info(f"🔍 Найден ожидающий возврат: {key}")
-                    break
-            
-            if not pending_key:
-                self.logger.warning(f"Получен ответ на возврат с ошибкой от станции {station_id}, но нет ожидающих возвратов")
-                return
-            
-            pending_data = self.pending_error_returns[pending_key]
-            future = pending_data['future']
-            
-            if future.done():
-                return
-            
-            # Парсим ответ от станции
-            request = parse_return_power_bank_request(data)
-            
-            if 'error' in request:
-                self.logger.error(f"Ошибка парсинга ответа на возврат с ошибкой: {request.get('error')}")
-                future.set_result({"success": False, "message": "Ошибка парсинга ответа от станции"})
-                return
-            
-            # Извлекаем данные из ответа
-            slot = request.get('Slot', 0)
-            terminal_id = request.get('TerminalID', '')
-            level = request.get('Level', 0)
-            voltage = request.get('Voltage', 0)
-            current = request.get('Current', 0)
-            temperature = request.get('Temperature', 0)
-            status = request.get('Status', 0)
-            soh = request.get('SOH', 100)
-            
-            self.logger.info(f"📥 Ответ на возврат с ошибкой: станция {station_id}, слот {slot}, TerminalID={terminal_id}")
-            
-            # Обновляем отчет об аномалии с информацией о слоте
-            try:
-                # Находим последний отчет для этой станции и повербанка
-                reports = await SlotAbnormalReport.get_by_station_id(self.db_pool, station_id, limit=10)
-                for report in reports:
-                    if report.terminal_id == terminal_id and report.slot_number == 0:
-                        # Обновляем слот в отчете
-                        async with self.db_pool.acquire() as conn:
-                            async with conn.cursor() as cur:
-                                await cur.execute(
-                                    "UPDATE slot_abnormal_reports SET slot_number = %s WHERE report_id = %s",
-                                    (slot, report.report_id)
-                                )
-                        break
-            except Exception as e:
-                self.logger.error(f"Ошибка обновления отчета об аномалии: {e}")
-            
-            # Обновляем заказ на возврат
-            try:
-                await Order.update_order_status(
-                    self.db_pool, pending_data['order_id'], 'return'
-                )
-                self.logger.info(f"Заказ {pending_data['order_id']} обновлен на возврат")
-            except Exception as e:
-                self.logger.error(f"Ошибка обновления заказа: {e}")
-            
-            # Добавляем повербанк в station_powerbank
-            try:
-                await StationPowerbank.add_powerbank(
-                    self.db_pool,
-                    station_id,
-                    pending_data['powerbank_id'],
-                    slot,
+                # Отправляем успешный ответ
+                return build_return_power_bank_response(
+                    slot=slot,
+                    result=1,  # Успех
+                    terminal_id=terminal_id.encode('ascii'),
                     level=level,
                     voltage=voltage,
-                    temperature=temperature
+                    current=current,
+                    temperature=temperature,
+                    status=status,
+                    soh=soh,
+                    vsn=connection.vsn,
+                    token=connection.token
                 )
-                self.logger.info(f"Повербанк {terminal_id} добавлен в station_powerbank (станция {station_id}, слот {slot})")
-            except Exception as e:
-                self.logger.error(f"Ошибка добавления в station_powerbank: {e}")
-            
-            # Обновляем данные станции
-            try:
-                station = await Station.get_by_id(self.db_pool, station_id)
-                if station:
-                    await station.update_last_seen(self.db_pool)
-                    new_remain = int(station.remain_num) + 1
-                    await station.update_remain_num(self.db_pool, new_remain)
-                    self.logger.info(f"Станция {station_id}: remain_num {station.remain_num} → {new_remain}")
-            except Exception as e:
-                self.logger.error(f"Ошибка обновления станции: {e}")
-            
-            # Уведомляем о успешном возврате
-            result = {
-                "success": True,
-                "message": "Возврат с ошибкой успешно обработан",
-                "station_id": station_id,
-                "slot": slot,
-                "terminal_id": terminal_id,
-                "powerbank_id": pending_data['powerbank_id'],
-                "order_id": pending_data['order_id'],
-                "error_type_id": pending_data.get('error_type_id'),
-                "error_description": pending_data.get('error_description')
-            }
-            
-            self.logger.info(f"🔍 Уведомляем фронтенд о результате: {result}")
-            future.set_result(result)
-            
-            self.logger.info(f"✅ Возврат с ошибкой успешно обработан для станции {station_id}")
-            
+            else:
+                # Обычный возврат без ошибки
+                self.logger.info(f"Обычный возврат повербанка {powerbank_id} в станцию {station_id}")
+                
+                # Обновляем статус повербанка на "в станции"
+                await powerbank.update_status(self.db_pool, 'in_station')
+                
+                # Закрываем активный заказ
+                active_order = await Order.get_active_borrow_order(self.db_pool, powerbank_id)
+                if active_order:
+                    await active_order.update_order_status(self.db_pool, 'return')
+                    self.logger.info(f"Активный заказ {active_order.order_id} закрыт")
+                
+                # Отправляем успешный ответ
+                return build_return_power_bank_response(
+                    slot=slot,
+                    result=1,  # Успех
+                    terminal_id=terminal_id.encode('ascii'),
+                    level=level,
+                    voltage=voltage,
+                    current=current,
+                    temperature=temperature,
+                    status=status,
+                    soh=soh,
+                    vsn=connection.vsn,
+                    token=connection.token
+                )
+                
         except Exception as e:
-            self.logger.error(f"Ошибка обработки ответа на возврат с ошибкой: {e}")
-            # Уведомляем об ошибке
-            if pending_key and pending_key in self.pending_error_returns:
-                future = self.pending_error_returns[pending_key]['future']
-                if not future.done():
-                    future.set_result({"success": False, "message": f"Ошибка обработки: {str(e)}"})
+            self.logger.error(f"Ошибка обработки запроса возврата: {e}")
+            return None

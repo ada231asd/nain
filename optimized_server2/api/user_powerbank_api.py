@@ -442,22 +442,21 @@ class UserPowerbankAPI:
             from handlers.return_powerbank import ReturnPowerbankHandler
             return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
             
-            result = await return_handler.start_error_return_process(station_id, user_id, error_type_id)
+            # Получаем timeout из параметров запроса (по умолчанию 30 секунд)
+            timeout_seconds = int(data.get('timeout_seconds', 30))
+            
+            result = await return_handler.handle_error_return_request(user_id, station_id, error_type_id, timeout_seconds)
             
             if result.get('success'):
                 return json_ok({
                     "message": result.get('message'),
-                    "station_id": station_id,
-                    "user_id": user_id,
-                    "error_type_id": error_type_id,
-                    "error_description": result.get('error_description'),
-                    "slot": result.get('slot'),
-                    "terminal_id": result.get('terminal_id'),
-                    "powerbank_id": result.get('powerbank_id'),
-                    "order_id": result.get('order_id')
+                    "station_id": result.get('station_id'),
+                    "user_id": result.get('user_id'),
+                    "error_type": result.get('error_type'),
+                    "error_name": result.get('error_name')
                 })
             else:
-                return json_fail(result.get('message'), status=400)
+                return json_fail(result.get('error'), status=400)
                 
         except Exception as e:
             self.logger.error(f"Ошибка возврата с ошибкой: {e}", exc_info=True)

@@ -164,6 +164,33 @@ class InventoryManager:
             
             logger = get_logger('inventory_manager')
             logger.info(f"Добавлен существующий повербанк {powerbank_id} в слот {slot_number} станции {station_id}")
+            
+            # Проверяем, есть ли ожидающие возврат с ошибкой пользователи
+            try:
+                # Пытаемся получить обработчик возврата из глобального контекста
+                import sys
+                return_handler = None
+                
+                # Ищем обработчик в модулях
+                for module_name, module in sys.modules.items():
+                    if hasattr(module, 'shared_return_handler'):
+                        return_handler = getattr(module, 'shared_return_handler')
+                        break
+                
+                if return_handler:
+                    result = await return_handler.handle_powerbank_insertion(station_id, slot_number, powerbank_id)
+                    
+                    if result.get('success'):
+                        logger.info(f"Обработан возврат с ошибкой: {result.get('message', '')}")
+                    else:
+                        # Это нормально, если нет ожидающих возврат пользователей
+                        logger.debug(f"Нет ожидающих возврат пользователей для повербанка {powerbank_id}: {result.get('error', '')}")
+                else:
+                    logger.debug("Обработчик возврата не найден, пропускаем проверку")
+                    
+            except Exception as return_error:
+                logger.warning(f"Ошибка проверки возврата с ошибкой: {return_error}")
+            
             return True
             
         except Exception as e:
