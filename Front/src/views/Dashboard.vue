@@ -24,50 +24,6 @@
         </div>
       </div>
 
-      <!-- Информация о станции из QR-кода -->
-      <div v-if="qrStationData" class="qr-station-section">
-        <div class="qr-station-card">
-          <div class="qr-station-header">
-            <h2>Отсканированная станция</h2>
-            <button @click="closeQRStation" class="close-qr-btn">×</button>
-          </div>
-          <div class="qr-station-info">
-            <h3>{{ qrStationData.name || qrStationData.station_name || qrStationData.box_id || `Станция ${qrStationData.station_id || qrStationData.id}` }}</h3>
-            <div class="station-meta">
-              <div class="meta-item">
-                <span class="meta-label">ID станции:</span>
-                <span class="meta-value">{{ qrStationData.station_id || qrStationData.id }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">Статус:</span>
-                <span class="meta-value status" :class="qrStationData.status">
-                  {{ getStatusText(qrStationData.status) }}
-                </span>
-              </div>
-              <div class="meta-item" v-if="qrStationData.address">
-                <span class="meta-label">Адрес:</span>
-                <span class="meta-value">{{ qrStationData.address }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">Доступные слоты:</span>
-                <span class="meta-value">{{ qrStationData.available_slots || 0 }} / {{ qrStationData.total_slots || 0 }}</span>
-              </div>
-            </div>
-            <div class="qr-station-actions">
-              <button @click="borrowPowerbankFromQR" class="action-btn primary" :disabled="!canBorrowFromQR">
-                Взять пауэрбанк
-              </button>
-              <button @click="returnPowerbankFromQR" class="action-btn secondary" :disabled="!canReturnFromQR">
-                Вернуть пауэрбанк
-              </button>
-              <button @click="viewStationDetailsFromQR" class="action-btn tertiary">
-                Подробнее о станции
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Избранные станции -->
       <section class="favorites-section">
         <div class="section-header">
@@ -210,9 +166,7 @@ const isScanning = ref(false)
 // Состояние для развернутых карточек станций
 const expandedStations = ref(new Set())
 
-// QR-станция
-const qrStationData = ref(null)
-const userPowerbanks = ref([])
+// Сканирование
 const scanningError = ref('')
 const highlightedFavoriteId = ref(null)
 
@@ -249,15 +203,6 @@ const userOrgUnitId = computed(() => {
   
   // Проверяем все возможные поля для ID группы
   return user.value.parent_org_unit_id || user.value.org_unit_id || user.value.group_id || user.value.organization_id
-})
-
-// QR-станция computed
-const canBorrowFromQR = computed(() => {
-  return qrStationData.value && qrStationData.value.available_slots > 0
-})
-
-const canReturnFromQR = computed(() => {
-  return userPowerbanks.value && userPowerbanks.value.length > 0
 })
 
 // Отладочная информация
@@ -653,7 +598,7 @@ const loadQRStation = async () => {
   
   try {
     console.log('Loading stations to find:', stationName)
-    // Загружаем все станции и ищем по имени
+    // Загружаем все станции и ищем по имени или box_id
     const stationsResponse = await pythonAPI.getStations()
     console.log('Stations response:', stationsResponse)
     
@@ -671,9 +616,83 @@ const loadQRStation = async () => {
     )
     
     if (station) {
-      console.log('Found station:', station)
-      qrStationData.value = station
-      await loadUserPowerbanks()
+      console.log('Found station from URL:', station)
+      
+      // Загружаем актуальные данные станции
+      let detailed = station
+      if (station && (station.station_id || station.id)) {
+        try {
+          const stationId = station.station_id || station.id
+          console.log('Обновляем данные станции ID:', stationId)
+          detailed = await stationsStore.refreshStationData(stationId)
+          console.log('Обновленные данные станции:', detailed)
+        } catch (error) {
+          console.log('Ошибка обновления через store:', error)
+          // Если не удалось обновить через store, пробуем напрямую через API
+          try {
+            const stationId = station.station_id || station.id
+            detailed = await pythonAPI.getStation(stationId)
+            console.log('Данные станции через API:', detailed)
+          } catch (apiError) {
+            console.log('Ошибка получения через API:', apiError)
+            // оставляем исходные данные станции
+          }
+        }
+      }
+      
+      // Проверяем, нужно ли извлечь данные из структуры API
+      if (detailed && detailed.success && detailed.data) {
+        detailed = detailed.data
+        console.log('Извлечены данные из API структуры:', detailed)
+      }
+      
+      // Если найденная станция уже в избранном, подсвечиваем и разворачиваем её
+      if (isStationFavorite(detailed)) {
+        const stationId = detailed.station_id || detailed.id
+        highlightedFavoriteId.value = stationId
+        
+        // Разворачиваем карточку при повторном нахождении
+        expandedStations.value.add(stationId)
+        
+        // Перемещаем станцию в начало списка избранных
+        stationsStore.moveStationToTop(stationId)
+        
+        // Убираем подсветку через 5 секунд
+        setTimeout(() => {
+          highlightedFavoriteId.value = null
+        }, 5000)
+        
+        // Прокручиваем к секции избранных станций
+        setTimeout(() => {
+          const favoritesSection = document.querySelector('.favorites-section')
+          if (favoritesSection) {
+            favoritesSection.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        }, 1000)
+        
+        // НЕ показываем станцию в секции "Найденная станция"
+        scannedStation.value = null
+      } else {
+        // Показываем станцию в секции "Найденная станция" только если её нет в избранном
+        scannedStation.value = detailed
+        
+        // Прокручиваем к секции найденной станции
+        setTimeout(() => {
+          const scannedSection = document.querySelector('.scanned-station-section')
+          if (scannedSection) {
+            scannedSection.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            })
+          }
+        }, 500)
+      }
+      
+      // Очищаем URL параметры
+      router.replace('/dashboard')
     } else {
       console.log('Station not found:', stationName)
       console.log('Available stations:', stations.map(s => ({
@@ -682,61 +701,18 @@ const loadQRStation = async () => {
         box_id: s.box_id,
         station_id: s.station_id
       })))
+      scanningError.value = `Станция "${stationName}" не найдена`
+      
+      // Очищаем URL параметры
+      router.replace('/dashboard')
     }
   } catch (error) {
     console.error('Ошибка загрузки QR-станции:', error)
+    scanningError.value = 'Произошла ошибка при загрузке станции'
+    
+    // Очищаем URL параметры
+    router.replace('/dashboard')
   }
-}
-
-const loadUserPowerbanks = async () => {
-  try {
-    const response = await pythonAPI.getUserPowerbanks()
-    userPowerbanks.value = response.powerbanks || []
-  } catch (error) {
-    console.error('Ошибка загрузки пауэрбанков пользователя:', error)
-    userPowerbanks.value = []
-  }
-}
-
-const closeQRStation = () => {
-  qrStationData.value = null
-  // Очищаем URL параметры
-  router.replace('/dashboard')
-}
-
-const borrowPowerbankFromQR = async () => {
-  if (!canBorrowFromQR.value || !qrStationData.value) return
-  
-  try {
-    const stationId = qrStationData.value.station_id || qrStationData.value.id
-    const response = await pythonAPI.borrowPowerbank(stationId)
-    alert('Пауэрбанк успешно взят!')
-    await loadQRStation() // Обновляем данные
-  } catch (error) {
-    console.error('Ошибка взятия пауэрбанка:', error)
-    alert('Ошибка при взятии пауэрбанка: ' + (error.message || 'Неизвестная ошибка'))
-  }
-}
-
-const returnPowerbankFromQR = async () => {
-  if (!canReturnFromQR.value || !qrStationData.value) return
-  
-  try {
-    const stationId = qrStationData.value.station_id || qrStationData.value.id
-    const powerbankId = userPowerbanks.value[0].id
-    const response = await pythonAPI.returnPowerbank(stationId, powerbankId)
-    alert('Пауэрбанк успешно возвращен!')
-    await loadQRStation() // Обновляем данные
-  } catch (error) {
-    console.error('Ошибка возврата пауэрбанка:', error)
-    alert('Ошибка при возврате пауэрбанка: ' + (error.message || 'Неизвестная ошибка'))
-  }
-}
-
-const viewStationDetailsFromQR = () => {
-  if (!qrStationData.value) return
-  const stationId = qrStationData.value.station_id || qrStationData.value.id
-  router.push(`/address/${stationId}`)
 }
 
 // Функции для работы с модальным окном банков станции
@@ -1501,168 +1477,6 @@ onUnmounted(() => {
 
   .search-input-wrapper {
     flex-direction: column;
-  }
-}
-
-/* QR-станция стили */
-.qr-station-section {
-  margin-bottom: 2rem;
-}
-
-.qr-station-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 1.5rem;
-  color: white;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.qr-station-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.qr-station-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.close-qr-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.close-qr-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.qr-station-info h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  font-weight: 500;
-}
-
-.station-meta {
-  display: grid;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.meta-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  backdrop-filter: blur(10px);
-}
-
-.meta-label {
-  font-weight: 500;
-  opacity: 0.9;
-}
-
-.meta-value {
-  font-weight: 600;
-}
-
-.status.active {
-  color: #10b981;
-}
-
-.status.inactive {
-  color: #6b7280;
-}
-
-.status.maintenance {
-  color: #f59e0b;
-}
-
-.status.error {
-  color: #ef4444;
-}
-
-.status.pending {
-  color: #8b5cf6;
-}
-
-.qr-station-actions {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.action-btn {
-  flex: 1;
-  min-width: 150px;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn.primary {
-  background-color: #10b981;
-  color: white;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-  background-color: #059669;
-  transform: translateY(-1px);
-}
-
-.action-btn.secondary {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.action-btn.secondary:hover:not(:disabled) {
-  background-color: #2563eb;
-  transform: translateY(-1px);
-}
-
-.action-btn.tertiary {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.action-btn.tertiary:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-.action-btn:disabled {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
-  cursor: not-allowed;
-  transform: none;
-}
-
-@media (max-width: 768px) {
-  .qr-station-actions {
-    flex-direction: column;
-  }
-  
-  .action-btn {
-    min-width: auto;
   }
 }
 
