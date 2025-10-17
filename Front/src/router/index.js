@@ -151,13 +151,6 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
   
-  // Если это роут станции, но пользователь не авторизован, перенаправляем на вход
-  if (to.name === 'StationRedirect' && !authStore.isAuthenticated) {
-    console.log('StationRedirect without auth, redirecting to login');
-    next(`/login?stationName=${to.params.stationName}`);
-    return;
-  }
-  
   next();
 });
 
