@@ -489,27 +489,30 @@ const executeReturnWithError = async (errorReport) => {
   try {
     isLoading.value = true
     
-    // Сначала отправляем отчет об ошибке
-    await pythonAPI.reportPowerbankError(errorReport)
-    
-    // Затем возвращаем павербанк
-    await pythonAPI.returnPowerbank({
+    // Используем правильный API для возврата с ошибкой (Long Polling)
+    const response = await pythonAPI.returnError({
       station_id: errorReport.station_id,
       user_id: errorReport.user_id,
-      powerbank_id: errorReport.powerbank_id
+      error_type_id: errorReport.error_type,
+      timeout_seconds: 30
     })
     
-    // Централизованное обновление всех данных после возврата с ошибкой
-    await refreshAllDataAfterReturnLocal({
-      station_id: errorReport.station_id,
-      user_id: errorReport.user_id,
-      powerbank_id: errorReport.powerbank_id
-    })
-    
-    alert('✅ Повербанк возвращен с отчетом об ошибке!')
+    if (response.success) {
+      // Централизованное обновление всех данных после возврата с ошибкой
+      await refreshAllDataAfterReturnLocal({
+        station_id: errorReport.station_id,
+        user_id: errorReport.user_id,
+        powerbank_id: response.powerbank_id
+      })
+      
+      alert('✅ Повербанк возвращен с отчетом об ошибке!')
+    } else {
+      alert('❌ Ошибка: ' + (response.error || 'Неизвестная ошибка'))
+    }
     
   } catch (err) {
-    alert('❌ Ошибка при возврате повербанка с отчетом об ошибке')
+    console.error('❌ Ошибка при возврате повербанка с отчетом об ошибке:', err)
+    alert('❌ Ошибка при возврате повербанка с отчетом об ошибке: ' + (err.message || 'Неизвестная ошибка'))
   } finally {
     isLoading.value = false
   }

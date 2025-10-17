@@ -74,6 +74,7 @@
 
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
+import { pythonAPI } from '../api/pythonApi'
 
 const props = defineProps({
   isVisible: {

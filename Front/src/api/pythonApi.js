@@ -463,29 +463,17 @@ export const pythonAPI = {
     return handleResponse(apiClient.post('/restart-cabinet', data), 'restart cabinet')
   },
 
-  // ОТЧЕТЫ ОБ ОШИБКАХ ПОВЕРБАНКОВ
+  // УСТАРЕВШАЯ ФУНКЦИЯ: используйте returnError() вместо этой
+  // Оставлена для обратной совместимости
   reportPowerbankError: (data) => {
-    validateData(data, 'error report data')
-    const { order_id, powerbank_id, station_id, user_id, error_type, additional_notes } = data
-    
-    if (!order_id) {
-      throw new Error('Отсутствует обязательное поле: order_id')
-    }
-    if (!error_type) {
-      throw new Error('Отсутствует обязательное поле: error_type')
-    }
-    
-    const payload = {
-      order_id,
-      powerbank_id,
-      station_id,
-      user_id,
-      error_type,
-      additional_notes: additional_notes || '',
-      timestamp: new Date().toISOString()
-    }
-    
-    return handleResponse(apiClient.post('/powerbank-error-report', payload), 'report powerbank error')
+    console.warn('⚠️ reportPowerbankError() устарела, используйте returnError() вместо неё')
+    // Преобразуем старый формат в новый и вызываем returnError
+    return pythonAPI.returnError({
+      station_id: data.station_id,
+      user_id: data.user_id,
+      error_type_id: data.error_type || data.error_type_id,
+      timeout_seconds: data.timeout_seconds || 30
+    })
   },
 
   // ВОЗВРАТ С ОШИБКОЙ (долгий HTTP запрос ~11 секунд)
@@ -634,8 +622,9 @@ export const pythonAPI = {
     return handleResponse(apiClient.delete(`/return/error/pending/${user_id}`), 'cancel error return')
   },
 
+  // Алиас для getPowerbankErrorTypes для обратной совместимости
   getErrorTypes: () => {
-    return handleResponse(apiClient.get('/return/error/types'), 'get error types')
+    return pythonAPI.getPowerbankErrorTypes()
   },
 
   cleanupExpiredErrorReturns: (max_age_minutes = 30) => {
