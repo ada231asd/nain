@@ -19,7 +19,8 @@ class LogoUploadAPI:
         
         # Настройки загрузки
         self.upload_dir = "uploads/logos"
-        self.max_file_size = 5 * 1024 * 1024  # 5MB
+        # Разрешаем до 15MB на файл (совместимо с глобальным лимитом 20MB)
+        self.max_file_size = 15 * 1024 * 1024
         self.allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
         
         # Создаем папку для загрузок если её нет

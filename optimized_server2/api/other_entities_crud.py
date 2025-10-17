@@ -39,6 +39,26 @@ class OtherEntitiesCRUD:
                     "error": f"Недопустимая роль пользователя. Допустимые значения: {', '.join(valid_roles)}"
                 }, status=400)
             
+            # Защита: сервис-админ не может менять свою собственную роль через создание записи
+            try:
+                current_user = request.get('user') or {}
+                current_user_id = current_user.get('user_id')
+                current_user_role = current_user.get('role') or current_user.get('user_role')
+                if (current_user_role is None) and current_user_id:
+                    async with self.db_pool.acquire() as conn:
+                        async with conn.cursor(aiomysql.DictCursor) as cur:
+                            await cur.execute("SELECT role FROM user_role WHERE user_id = %s", (current_user_id,))
+                            row = await cur.fetchone()
+                            if row:
+                                current_user_role = row.get('role')
+                if current_user_id and current_user_role == 'service_admin' and data.get('user_id') == current_user_id and data.get('role') != 'service_admin':
+                    return web.json_response({
+                        "success": False,
+                        "error": "Сервис-администратор не может изменять собственную роль"
+                    }, status=403)
+            except Exception:
+                pass
+
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование пользователя
@@ -141,6 +161,23 @@ class OtherEntitiesCRUD:
         try:
             role_id = int(request.match_info['role_id'])
             
+            # Защита: сервис-админ не может удалить свою собственную роль
+            try:
+                current_user = request.get('user') or {}
+                current_user_id = current_user.get('user_id')
+                if current_user_id:
+                    async with self.db_pool.acquire() as conn:
+                        async with conn.cursor(aiomysql.DictCursor) as cur:
+                            await cur.execute("SELECT user_id FROM user_role WHERE id = %s", (role_id,))
+                            row = await cur.fetchone()
+                            if row and row.get('user_id') == current_user_id:
+                                return web.json_response({
+                                    "success": False,
+                                    "error": "Сервис-администратор не может удалять свою собственную роль"
+                                }, status=403)
+            except Exception:
+                pass
+
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование

@@ -2,6 +2,7 @@
 Утилита для автоматического определения станции
 """
 from typing import Optional, Dict, Any
+import aiomysql
 from models.connection import ConnectionManager
 
 
@@ -34,6 +35,27 @@ class StationResolver:
                     "is_connected": True
                 }
         return None
+
+
+async def get_station_id_by_box_id(db_pool, box_id: str) -> Optional[int]:
+    """Возвращает station_id по box_id из БД.
+
+    Используется обработчиком возврата, ожидающим эту функцию в модуле utils.station_resolver.
+    """
+    if not box_id:
+        return None
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("SELECT station_id FROM station WHERE box_id=%s LIMIT 1", (box_id,))
+                row = await cur.fetchone()
+                if row and 'station_id' in row:
+                    return int(row['station_id'])
+    except Exception as e:
+        # Локальный импорт логгера не требуется; функция должна быть безопасной
+        # для использования в местах, где нет self.logger
+        pass
+    return None
     
     def resolve_station_by_powerbank_id(self, powerbank_id: int, db_pool) -> Optional[Dict[str, Any]]:
         """Определяет станцию по ID повербанка"""

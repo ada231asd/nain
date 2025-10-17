@@ -5,6 +5,9 @@ import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
 from utils.time_utils import get_moscow_time
+from utils.centralized_logger import get_logger
+
+logger = get_logger('powerbank')
 
 
 class Powerbank:
@@ -142,7 +145,7 @@ class Powerbank:
                         created_at=get_moscow_time()
                     )
         except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
+            logger.error(f"Ошибка создания повербанка: {e}")
             return None
     
     async def update_status(self, db_pool, new_status: str) -> bool:
@@ -191,6 +194,44 @@ class Powerbank:
                 return True
     
     
+    @classmethod
+    async def get_by_terminal_id(cls, db_pool, terminal_id: str) -> Optional['Powerbank']:
+        """Получает повербанк по terminal_id станции.
+
+        По текущей схеме terminal_id сопоставляется с полем serial_number в таблице powerbank.
+        """
+        if not terminal_id:
+            return None
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "SELECT id, org_unit_id, serial_number, soh, status, write_off_reason, created_at "
+                    "FROM powerbank WHERE serial_number = %s LIMIT 1",
+                    (terminal_id,)
+                )
+                result = await cursor.fetchone()
+                if result:
+                    return cls(
+                        powerbank_id=int(result[0]),
+                        org_unit_id=int(result[1]) if result[1] else None,
+                        serial_number=str(result[2]),
+                        soh=int(result[3]) if result[3] else None,
+                        status=str(result[4]),
+                        write_off_reason=str(result[5]) if result[5] else None,
+                        created_at=result[6]
+                    )
+                return None
+
+    async def update_power_er(self, db_pool, error_type: int) -> bool:
+        """Устанавливает тип ошибки (power_er) для повербанка."""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "UPDATE powerbank SET power_er = %s WHERE id = %s",
+                    (error_type, self.powerbank_id)
+                )
+                return True
+
     @classmethod
     async def get_powerbank_status_changes(cls, db_pool, station_id: int) -> Dict[int, str]:
         """

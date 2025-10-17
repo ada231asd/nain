@@ -6,6 +6,7 @@ import aiomysql
 import os
 from aiohttp import web
 from aiohttp.web import Application
+from aiohttp.web_exceptions import HTTPRequestEntityTooLarge, HTTPException
 from aiohttp_cors import setup as cors_setup, ResourceOptions
 
 from config.settings import DB_CONFIG, HTTP_PORT
@@ -82,7 +83,32 @@ class HTTPServer:
     
     def create_app(self, connection_manager=None) -> Application:
         """Создает HTTP приложение"""
-        app = web.Application()
+        # Увеличиваем максимальный размер входящего запроса, чтобы избежать 413 на загрузках
+        client_max_size_bytes = 20 * 1024 * 1024  # 20 MB
+        app = web.Application(client_max_size=client_max_size_bytes)
+        app['client_max_size_bytes'] = client_max_size_bytes
+        
+        # Единый JSON-обработчик ошибок, чтобы 413 и другие ошибки не возвращались как HTML
+        @web.middleware
+        async def error_to_json_middleware(request, handler):
+            try:
+                return await handler(request)
+            except HTTPRequestEntityTooLarge:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Request entity too large',
+                    'max_size_bytes': app.get('client_max_size_bytes')
+                }, status=413)
+            except HTTPException as e:
+                return web.json_response({
+                    'success': False,
+                    'error': e.reason
+                }, status=e.status)
+            except Exception as e:
+                return web.json_response({
+                    'success': False,
+                    'error': f'Internal server error: {str(e)}'
+                }, status=500)
   
         # Добавляем CORS middleware
         @web.middleware
@@ -126,6 +152,7 @@ class HTTPServer:
             
             return response
         
+        app.middlewares.append(error_to_json_middleware)
         app.middlewares.append(cors_middleware)
         
         # Добавляем middleware авторизации

@@ -240,6 +240,28 @@ class CRUDEndpoints:
             user_id = int(request.match_info['user_id'])
             data = await request.json()
             
+            # Защита: сервис-админ не может менять свою собственную роль
+            try:
+                current_user = request.get('user') or {}
+                current_user_id = current_user.get('user_id')
+                current_user_role = current_user.get('role') or current_user.get('user_role')
+                # Если в middleware не проброшена роль, пробуем получить её из БД
+                if (current_user_role is None) and current_user_id:
+                    async with self.db_pool.acquire() as conn:
+                        async with conn.cursor(aiomysql.DictCursor) as cur:
+                            await cur.execute("SELECT role FROM user_role WHERE user_id = %s", (current_user_id,))
+                            row = await cur.fetchone()
+                            if row:
+                                current_user_role = row.get('role')
+                if current_user_id and current_user_role == 'service_admin' and current_user_id == user_id and 'role' in data and data['role'] != 'service_admin':
+                    return web.json_response({
+                        "success": False,
+                        "error": "Сервис-администратор не может изменять собственную роль"
+                    }, status=403)
+            except Exception:
+                # Если определение роли текущего пользователя не удалось, не блокируем прочие изменения
+                pass
+            
             # Валидация обязательных полей
             required_fields = ['fio', 'phone_e164', 'email', 'role']
             for field in required_fields:
