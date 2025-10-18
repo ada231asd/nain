@@ -170,38 +170,17 @@ class UserPowerbankAPI:
     @jwt_middleware
     async def get_user_orders(self, request: web.Request):
         """
-        Получить заказы текущего пользователя
+        Получить заказы текущего пользователя с расширенными данными
         GET /api/user/orders
         """
         user_id = request['user']['user_id']
         self.logger.info(f"Пользователь {user_id} запросил свои заказы")
 
         try:
-            # Получаем все заказы пользователя
-            orders = await Order.get_by_user_id(self.db_pool, user_id)
+            # Используем новый метод для получения расширенных данных
+            from models.order import Order
+            orders_data = await Order.get_extended_by_user_id(self.db_pool, user_id, limit=50, offset=0)
             
-            orders_data = []
-            for order in orders:
-                # Получаем информацию о повербанке
-                powerbank = await Powerbank.get_by_id(self.db_pool, order.powerbank_id)
-                # Получаем информацию о станции
-                station = await Station.get_by_id(self.db_pool, order.station_id)
-                
-                orders_data.append({
-                    "order_id": order.order_id,
-                    "powerbank": {
-                        "powerbank_id": powerbank.powerbank_id if powerbank else None,
-                        "serial_number": powerbank.serial_number if powerbank else "Неизвестно"
-                    },
-                    "station": {
-                        "station_id": station.station_id if station else None,
-                        "box_id": station.box_id if station else "Неизвестно"
-                    },
-                    "status": order.status,
-                    "borrow_time": order.borrow_time.isoformat() if order.borrow_time else None,
-                    "return_time": order.return_time.isoformat() if order.return_time else None
-                })
-
             return json_ok({
                 "orders": orders_data
             })

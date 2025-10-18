@@ -504,7 +504,8 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
+                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at
+                    FROM orders
                     WHERE status IN ('borrow', 'pending', 'return_damage')
                     ORDER BY timestamp DESC
                 """)
@@ -524,3 +525,116 @@ class Order:
                     ))
 
                 return orders
+    
+    @classmethod
+    async def get_extended_by_id(cls, db_pool, order_id: int) -> Optional[Dict[str, Any]]:
+        """Получить расширенные данные заказа по ID из представления v_orders_extended"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("""
+                    SELECT * FROM v_orders_extended WHERE id = %s
+                """, (order_id,))
+                
+                result = await cur.fetchone()
+                return result
+    
+    @classmethod
+    async def get_extended_by_user_id(cls, db_pool, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Получить расширенные данные заказов пользователя из представления v_orders_extended"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("""
+                    SELECT * FROM v_orders_extended 
+                    WHERE user_id = %s 
+                    ORDER BY timestamp DESC 
+                    LIMIT %s OFFSET %s
+                """, (user_id, limit, offset))
+                
+                results = await cur.fetchall()
+                return results
+    
+    @classmethod
+    async def get_extended_by_station_id(cls, db_pool, station_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Получить расширенные данные заказов станции из представления v_orders_extended"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("""
+                    SELECT * FROM v_orders_extended 
+                    WHERE station_id = %s 
+                    ORDER BY timestamp DESC 
+                    LIMIT %s OFFSET %s
+                """, (station_id, limit, offset))
+                
+                results = await cur.fetchall()
+                return results
+    
+    @classmethod
+    async def get_extended_by_status(cls, db_pool, status: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Получить расширенные данные заказов по статусу из представления v_orders_extended"""
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("""
+                    SELECT * FROM v_orders_extended 
+                    WHERE status = %s 
+                    ORDER BY timestamp DESC 
+                    LIMIT %s OFFSET %s
+                """, (status, limit, offset))
+                
+                results = await cur.fetchall()
+                return results
+    
+    @classmethod
+    async def search_extended_orders(cls, db_pool, filters: Dict[str, Any], limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """Поиск заказов с расширенными данными по фильтрам"""
+        where_conditions = []
+        params = []
+        
+        if 'status' in filters and filters['status']:
+            where_conditions.append("status = %s")
+            params.append(filters['status'])
+        
+        if 'user_id' in filters and filters['user_id']:
+            where_conditions.append("user_id = %s")
+            params.append(int(filters['user_id']))
+        
+        if 'station_id' in filters and filters['station_id']:
+            where_conditions.append("station_id = %s")
+            params.append(int(filters['station_id']))
+        
+        if 'org_unit_id' in filters and filters['org_unit_id']:
+            where_conditions.append("org_unit_id = %s")
+            params.append(int(filters['org_unit_id']))
+        
+        if 'date_from' in filters and filters['date_from']:
+            where_conditions.append("timestamp >= %s")
+            params.append(filters['date_from'])
+        
+        if 'date_to' in filters and filters['date_to']:
+            where_conditions.append("timestamp <= %s")
+            params.append(filters['date_to'])
+        
+        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                # Получаем общее количество
+                count_query = f"SELECT COUNT(*) as total FROM v_orders_extended {where_clause}"
+                await cur.execute(count_query, params)
+                total = (await cur.fetchone())['total']
+                
+                # Получаем данные
+                query = f"""
+                    SELECT * FROM v_orders_extended
+                    {where_clause}
+                    ORDER BY timestamp DESC
+                    LIMIT %s OFFSET %s
+                """
+                await cur.execute(query, params + [limit, offset])
+                orders = await cur.fetchall()
+                
+                return {
+                    'orders': orders,
+                    'total': total,
+                    'limit': limit,
+                    'offset': offset
+                }

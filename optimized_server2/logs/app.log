@@ -534,3 +534,211 @@ ConnectionResetError: [WinError 10054] Удаленный хост принуд�
 2025-10-18 13:44:46 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:13:44:46 +0300] "GET /api/user/powerbanks/available HTTP/1.1" 200 1784 "-" "Python/3.12 aiohttp/3.13.0"
 2025-10-18 13:44:46 - userpowerbankapi - INFO - Пользователь 33 запросил список станций
 2025-10-18 13:44:46 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:13:44:46 +0300] "GET /api/user/stations HTTP/1.1" 200 411 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 14:39:51 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-18 14:39:51 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:14:39:51 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 14:39:51 - userpowerbankapi - INFO - Пользователь 33 запросил список доступных повербанков
+2025-10-18 14:39:51 - userpowerbankapi - INFO - Пользователь 33: лимит=unlimited, уже взято=0, доступно=3
+2025-10-18 14:39:51 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:14:39:51 +0300] "GET /api/user/powerbanks/available HTTP/1.1" 200 1784 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 14:39:51 - userpowerbankapi - INFO - Пользователь 33 запросил список станций
+2025-10-18 14:39:51 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:14:39:51 +0300] "GET /api/user/stations HTTP/1.1" 200 411 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 14:39:54 - server - INFO - Остановка серверов...
+2025-10-18 14:39:54 - server - INFO - Деактивация всех станций...
+2025-10-18 14:39:54 - server - INFO - Активных станций не найдено
+2025-10-18 14:39:54 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 14:39:54 - server - INFO - Активных станций в БД не найдено
+2025-10-18 14:39:54 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 14:39:54 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 14:39:54 - server - INFO - Логгеры закрыты
+2025-10-18 14:39:54 - server - INFO - Остановка серверов...
+2025-10-18 14:39:54 - server - INFO - Деактивация всех станций...
+2025-10-18 14:39:54 - server - INFO - Активных станций не найдено
+2025-10-18 14:39:54 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 14:39:54 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-18 14:39:54 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 14:39:54 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 14:39:54 - server - INFO - Логгеры закрыты
+2025-10-18 15:42:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-18 16:56:22 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:22 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - userpowerbankapi - INFO - Пользователь 33 запросил список доступных повербанков
+2025-10-18 16:56:23 - userpowerbankapi - INFO - Пользователь 33: лимит=unlimited, уже взято=0, доступно=3
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "GET /api/user/powerbanks/available HTTP/1.1" 200 1784 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - userpowerbankapi - INFO - Пользователь 33 запросил список станций
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "GET /api/user/stations HTTP/1.1" 200 411 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - userpowerbankapi - INFO - Пользователь 33 запросил список станций
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "GET /api/user/stations HTTP/1.1" 200 411 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 401 513 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "GET /api/user-favorites?user_id=99999 HTTP/1.1" 401 513 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:56:23 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:56:23 +0300] "POST /api/user-favorites HTTP/1.1" 401 513 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:58:07 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:58:07 +0300] "GET /api/user-favorites/33 HTTP/1.1" 401 513 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:58:07 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:58:07 +0300] "GET /favicon.ico HTTP/1.1" 401 513 "http://localhost:8000/api/user-favorites/33" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:58:13 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:58:13 +0300] "GET /api/user-favorites/33 HTTP/1.1" 401 513 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:58:13 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:58:13 +0300] "GET /favicon.ico HTTP/1.1" 401 513 "http://localhost:8000/api/user-favorites/33" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:58:22 - server - INFO - Остановка серверов...
+2025-10-18 16:58:22 - server - INFO - Деактивация всех станций...
+2025-10-18 16:58:22 - server - INFO - Активных станций не найдено
+2025-10-18 16:58:22 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 16:58:22 - server - INFO - Активных станций в БД не найдено
+2025-10-18 16:58:22 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 16:58:22 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 16:58:22 - server - INFO - Логгеры закрыты
+2025-10-18 16:58:22 - server - INFO - Остановка серверов...
+2025-10-18 16:58:22 - server - INFO - Деактивация всех станций...
+2025-10-18 16:58:22 - server - INFO - Активных станций не найдено
+2025-10-18 16:58:22 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 16:58:22 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-18 16:58:22 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 16:58:22 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 16:58:22 - server - INFO - Логгеры закрыты
+2025-10-18 16:58:26 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-18 16:58:31 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:58:31 +0300] "GET /api/user-favorites/33 HTTP/1.1" 401 513 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:58:31 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:58:31 +0300] "GET /favicon.ico HTTP/1.1" 401 513 "http://localhost:8000/api/user-favorites/33" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:59:12 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:11 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:59:12 - userpowerbankapi - INFO - Пользователь 33 запросил список станций
+2025-10-18 16:59:12 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:12 +0300] "GET /api/user/stations HTTP/1.1" 200 411 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:59:12 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:12 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 401 513 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:59:12 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:12 +0300] "GET /api/user-favorites?user_id=99999 HTTP/1.1" 401 513 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:59:12 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:12 +0300] "POST /api/user-favorites HTTP/1.1" 401 513 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 16:59:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:36 +0300] "GET /api/user-favorites/33/nik HTTP/1.1" 401 513 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 16:59:37 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:16:59:37 +0300] "GET /favicon.ico HTTP/1.1" 401 513 "http://localhost:8000/api/user-favorites/33/nik" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:00:30 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:00:29 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 17:00:30 - userpowerbankapi - INFO - Пользователь 33 запросил список станций
+2025-10-18 17:00:30 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:00:30 +0300] "GET /api/user/stations HTTP/1.1" 200 411 "-" "Python/3.12 aiohttp/3.13.0"
+2025-10-18 17:09:36 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-18 17:09:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:36 +0300] "GET /api/auth/profile HTTP/1.1" 200 750 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:36 +0300] "GET /api/auth/profile HTTP/1.1" 200 750 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:36 +0300] "GET /api/auth/profile HTTP/1.1" 200 750 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:36 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 820 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:36 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 608 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:36 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:36 +0300] "GET /api/stations/13 HTTP/1.1" 500 487 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:49 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:49 +0300] "GET /api/auth/profile HTTP/1.1" 200 750 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:49 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:49 +0300] "GET /api/auth/profile HTTP/1.1" 200 750 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:49 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:49 +0300] "GET /api/auth/profile HTTP/1.1" 200 750 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:50 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:50 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 820 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:50 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:50 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 608 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:09:50 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:09:50 +0300] "GET /api/stations/13 HTTP/1.1" 500 487 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:19:39 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-18 17:19:39 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-18 17:19:39 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:19:39 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 820 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:19:39 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:19:39 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 608 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:19:39 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:19:39 +0300] "GET /api/stations/13 HTTP/1.1" 500 487 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:20:16 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:20:16 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 820 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:20:16 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:20:16 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 608 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:20:16 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:20:16 +0300] "GET /api/stations/13 HTTP/1.1" 500 487 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:23:04 - server - INFO - Остановка серверов...
+2025-10-18 17:23:04 - server - INFO - Деактивация всех станций...
+2025-10-18 17:23:04 - server - INFO - Активных станций не найдено
+2025-10-18 17:23:04 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 17:23:04 - server - INFO - Активных станций в БД не найдено
+2025-10-18 17:23:04 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 17:23:04 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 17:23:04 - server - INFO - Логгеры закрыты
+2025-10-18 17:23:04 - server - INFO - Остановка серверов...
+2025-10-18 17:23:04 - server - INFO - Деактивация всех станций...
+2025-10-18 17:23:04 - server - INFO - Активных станций не найдено
+2025-10-18 17:23:04 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 17:23:04 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-18 17:23:04 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 17:23:04 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 17:23:04 - server - INFO - Логгеры закрыты
+2025-10-18 17:25:48 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-18 17:26:47 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:26:47 +0300] "GET /api/orders?limit=20&page=1 HTTP/1.1" 401 513 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:28:52 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:28:52 +0300] "OPTIONS /api/auth/login HTTP/1.1" 200 351 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:28:52 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:28:52 +0300] "POST /api/auth/login HTTP/1.1" 400 493 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:29:04 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:29:04 +0300] "POST /api/auth/login HTTP/1.1" 400 493 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:29:09 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:29:09 +0300] "POST /api/auth/login HTTP/1.1" 400 493 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:29:10 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:29:10 +0300] "POST /api/auth/login HTTP/1.1" 400 493 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:29:37 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:29:36 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:30:01 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:30:00 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:30:01 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:30:01 +0300] "OPTIONS /api/orders?limit=20&page=1 HTTP/1.1" 200 351 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:30:01 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:30:01 +0300] "GET /api/orders?limit=20&page=1 HTTP/1.1" 200 865 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:30:34 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:30:34 +0300] "OPTIONS /api/orders/extended?limit=20&page=1 HTTP/1.1" 200 351 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:30:34 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:30:34 +0300] "GET /api/orders/extended?limit=20&page=1 HTTP/1.1" 200 852 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:33:43 - server - INFO - Остановка серверов...
+2025-10-18 17:33:43 - server - INFO - Деактивация всех станций...
+2025-10-18 17:33:43 - server - INFO - Активных станций не найдено
+2025-10-18 17:33:43 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 17:33:43 - server - INFO - Активных станций в БД не найдено
+2025-10-18 17:33:43 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 17:33:43 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 17:33:43 - server - INFO - Логгеры закрыты
+2025-10-18 17:33:43 - server - INFO - Остановка серверов...
+2025-10-18 17:33:43 - server - INFO - Деактивация всех станций...
+2025-10-18 17:33:43 - server - INFO - Активных станций не найдено
+2025-10-18 17:33:43 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 17:33:43 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-18 17:33:43 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 17:33:43 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 17:33:43 - server - INFO - Логгеры закрыты
+2025-10-18 17:33:48 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-18 17:33:55 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:33:55 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:33:55 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:33:55 +0300] "GET /api/orders?limit=20&page=1 HTTP/1.1" 200 865 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:34:31 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:34:31 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:34:31 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:34:31 +0300] "GET /api/orders?limit=20&page=1 HTTP/1.1" 200 865 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:35:42 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:35:42 +0300] "POST /api/auth/login HTTP/1.1" 200 1057 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:35:42 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:35:42 +0300] "GET /api/orders?limit=20&page=1 HTTP/1.1" 200 865 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:36:05 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:36:05 +0300] "GET /api/orders/extended?limit=20&page=1 HTTP/1.1" 200 963 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:36:12 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:36:12 +0300] "GET /api/orders/extended?limit=20&page=1 HTTP/1.1" 200 963 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:36:13 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:36:13 +0300] "GET /api/orders/extended?limit=20&page=1 HTTP/1.1" 200 963 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:36:19 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:36:19 +0300] "GET /api/orders?limit=20&page=1 HTTP/1.1" 200 865 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:36:24 - aiohttp.access - INFO - 127.0.0.1 [18/Oct/2025:17:36:24 +0300] "GET /api/orders/extended?limit=20&page=1 HTTP/1.1" 200 963 "http://localhost/nain/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36 OPR/73.0.3856.344"
+2025-10-18 17:42:40 - server - INFO - Остановка серверов...
+2025-10-18 17:42:40 - server - INFO - Деактивация всех станций...
+2025-10-18 17:42:40 - server - INFO - Активных станций не найдено
+2025-10-18 17:42:40 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 17:42:40 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-18 17:42:40 - server - INFO - Активных станций в БД не найдено
+2025-10-18 17:42:40 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 17:42:40 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 17:42:40 - server - INFO - Логгеры закрыты
+2025-10-18 17:42:40 - server - INFO - Остановка серверов...
+2025-10-18 17:42:40 - server - INFO - Деактивация всех станций...
+2025-10-18 17:42:40 - server - INFO - Активных станций не найдено
+2025-10-18 17:42:40 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-18 17:42:40 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-18 17:42:40 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-18 17:42:40 - http_server - INFO - Остановка HTTP сервера...
+2025-10-18 17:42:40 - server - INFO - Логгеры закрыты

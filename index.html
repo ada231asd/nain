@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестовая страница заказов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .controls select, .controls input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .controls button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        
+        .controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .orders-table {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status.borrow {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status.return {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        
+        .status.force_eject {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background-color: #f8f9fa;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination .current-page {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+        }
+        
+        .json-display {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .json-display h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .json-content {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .user-info {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .station-info {
+            color: #007bff;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Тестовая страница заказов</h1>
+        <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; color: #1976d2;">
+            <strong>⚠️ Убедитесь, что сервер запущен на порту 8000!</strong><br>
+            <small>Запустите: <code>cd optimized_server2 && python server.py</code></small>
+        </div>
+        
+        <div id="authStatus" style="text-align: center; margin-bottom: 20px; padding: 10px; border-radius: 4px; display: none;">
+            <span id="authStatusText"></span>
+        </div>
+        
+        <div class="controls">
+            <select id="statusFilter">
+                <option value="">Все статусы</option>
+                <option value="borrow">В аренде</option>
+                <option value="return">Возвращены</option>
+                <option value="force_eject">Принудительная выдача</option>
+            </select>
+            
+            <input type="number" id="stationFilter" placeholder="ID станции" min="1">
+            
+            <input type="number" id="userFilter" placeholder="ID пользователя" min="1">
+            
+            <input type="date" id="dateFromFilter" placeholder="Дата от">
+            
+            <input type="date" id="dateToFilter" placeholder="Дата до">
+            
+            <select id="limitSelect">
+                <option value="10">10 записей</option>
+                <option value="20" selected>20 записей</option>
+                <option value="50">50 записей</option>
+                <option value="100">100 записей</option>
+            </select>
+            
+            <button onclick="loadOrders()">🔄 Загрузить</button>
+            <button onclick="loadOrders(true)">📊 Расширенные данные</button>
+            <button onclick="checkServerStatus()">🔍 Проверить сервер</button>
+        </div>
+        
+        <div id="errorMessage" class="error" style="display: none;"></div>
+        
+        <div id="stats" class="stats" style="display: none;"></div>
+        
+        <div id="loadingMessage" class="loading" style="display: none;">
+            ⏳ Загрузка данных...
+        </div>
+        
+        <div id="ordersTable" class="orders-table"></div>
+        
+        <div id="pagination" class="pagination" style="display: none;"></div>
+        
+        <div id="jsonDisplay" class="json-display" style="display: none;">
+            <h3>📄 JSON ответ от API:</h3>
+            <div id="jsonContent" class="json-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentData = null;
+        let useExtended = false;
+        let authToken = null;
+
+        async function authenticate() {
+            updateAuthStatus('🔄 Выполняется авторизация...', false);
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phone_e164: '+79013344076',
+                        password: 'HVhcbsN4'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📄 Ответ сервера:', data);
+                    
+                    if (data.token) {
+                        authToken = data.token;
+                        const userName = data.user ? data.user.fio || data.user.phone_e164 : 'Пользователь';
+                        updateAuthStatus(`✅ Авторизация успешна! Добро пожаловать, ${userName}!`, true);
+                        console.log('✅ Авторизация успешна!', data.user);
+                        return true;
+                    } else {
+                        const errorMsg = data.error || data.message || 'Неизвестная ошибка';
+                        updateAuthStatus(`❌ Ошибка авторизации: ${errorMsg}`, false);
+                        console.error('❌ Ошибка авторизации:', data);
+                        return false;
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ Ошибка HTTP:', response.status, errorText);
+                    updateAuthStatus(`❌ Ошибка HTTP: ${response.status} - ${errorText.substring(0, 100)}`, false);
+                    return false;
+                }
+            } catch (error) {
+                updateAuthStatus(`❌ Ошибка соединения: ${error.message}`, false);
+                console.error('❌ Ошибка авторизации:', error);
+                return false;
+            }
+        }
+
+        async function loadOrders(extended = false) {
+            useExtended = extended;
+            showLoading(true);
+            hideError();
+            
+            try {
+                const params = new URLSearchParams();
+                
+                // Добавляем фильтры
+                const status = document.getElementById('statusFilter').value;
+                const stationId = document.getElementById('stationFilter').value;
+                const userId = document.getElementById('userFilter').value;
+                const dateFrom = document.getElementById('dateFromFilter').value;
+                const dateTo = document.getElementById('dateToFilter').value;
+                const limit = document.getElementById('limitSelect').value;
+                
+                if (status) params.append('status', status);
+                if (stationId) params.append('station_id', stationId);
+                if (userId) params.append('user_id', userId);
+                if (dateFrom) params.append('date_from', dateFrom);
+                if (dateTo) params.append('date_to', dateTo);
+                if (limit) params.append('limit', limit);
+                params.append('page', currentPage);
+                
+                // Выбираем endpoint
+                const endpoint = extended ? '/api/orders/extended' : '/api/orders';
+                const url = `http://localhost:8000${endpoint}?${params}`;
+                
+                console.log('Запрос к API:', url);
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                const response = await fetch(url, {
+                    headers: headers
+                });
+                
+                // Проверяем, что ответ в формате JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Сервер вернул не JSON. Статус: ${response.status}. Ответ: ${text.substring(0, 200)}...`);
+                }
+                
+                const data = await response.json();
+                
+                currentData = data;
+                
+                if (data.success) {
+                    displayOrders(data);
+                    displayStats(data);
+                    displayPagination(data.pagination);
+                    displayJson(data);
+                } else {
+                    showError(data.error || 'Ошибка загрузки данных');
+                }
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showError('Ошибка соединения с сервером: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayOrders(data) {
+            const tableContainer = document.getElementById('ordersTable');
+            
+            if (!data.data || data.data.length === 0) {
+                tableContainer.innerHTML = '<div class="loading">📭 Заказы не найдены</div>';
+                return;
+            }
+            
+            const orders = data.data;
+            const isExtended = data.extended || useExtended;
+            
+             let tableHTML = `
+                 <table>
+                     <thead>
+                         <tr>
+                             <th>ID</th>
+                             <th>Повербанк</th>
+                             <th>Статус</th>
+                             <th>Станция</th>
+                             ${isExtended ? '<th>Организация</th>' : ''}
+                             ${isExtended ? '<th>Адрес организации</th>' : ''}
+                             <th>Пользователь</th>
+                             <th>Телефон</th>
+                             <th>Время создания</th>
+                             <th>Время завершения</th>
+                         </tr>
+                     </thead>
+                     <tbody>
+             `;
+            
+            orders.forEach(order => {
+                const statusClass = order.status || 'unknown';
+                const timestamp = new Date(order.timestamp).toLocaleString('ru-RU');
+                const completedAt = order.completed_at ? new Date(order.completed_at).toLocaleString('ru-RU') : '-';
+                
+                 tableHTML += `
+                     <tr>
+                         <td>${order.id || '-'}</td>
+                         <td>${order.powerbank_serial || order.powerbank_serial || '-'}</td>
+                         <td><span class="status ${statusClass}">${order.status || '-'}</span></td>
+                         <td class="station-info">${order.station_display_name || order.station_box_id || '-'}</td>
+                         ${isExtended ? `<td>${order.org_unit_name || '-'}</td>` : ''}
+                         ${isExtended ? `<td>${order.org_unit_address || '-'}</td>` : ''}
+                         <td class="user-info">${order.user_fio || '-'}</td>
+                         <td class="user-info">${order.user_phone || order.user_phone || '-'}</td>
+                         <td class="timestamp">${timestamp}</td>
+                         <td class="timestamp">${completedAt}</td>
+                     </tr>
+                 `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            tableContainer.innerHTML = tableHTML;
+        }
+
+        function displayStats(data) {
+            const statsContainer = document.getElementById('stats');
+            
+            if (!data.pagination) {
+                statsContainer.style.display = 'none';
+                return;
+            }
+            
+            const stats = data.pagination;
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <h3>Всего заказов</h3>
+                    <div class="number">${stats.total}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Текущая страница</h3>
+                    <div class="number">${stats.page}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Всего страниц</h3>
+                    <div class="number">${stats.pages}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Записей на странице</h3>
+                    <div class="number">${stats.limit}</div>
+                </div>
+            `;
+            statsContainer.style.display = 'grid';
+        }
+
+        function displayPagination(pagination) {
+            const paginationContainer = document.getElementById('pagination');
+            
+            if (!pagination || pagination.pages <= 1) {
+                paginationContainer.style.display = 'none';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // Кнопка "Предыдущая"
+            paginationHTML += `
+                <button ${pagination.page <= 1 ? 'disabled' : ''} 
+                        onclick="changePage(${pagination.page - 1})">
+                    ← Предыдущая
+                </button>
+            `;
+            
+            // Номера страниц
+            const startPage = Math.max(1, pagination.page - 2);
+            const endPage = Math.min(pagination.pages, pagination.page + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === pagination.page) {
+                    paginationHTML += `<span class="current-page">${i}</span>`;
+                } else {
+                    paginationHTML += `<button onclick="changePage(${i})">${i}</button>`;
+                }
+            }
+            
+            // Кнопка "Следующая"
+            paginationHTML += `
+                <button ${pagination.page >= pagination.pages ? 'disabled' : ''} 
+                        onclick="changePage(${pagination.page + 1})">
+                    Следующая →
+                </button>
+            `;
+            
+            paginationContainer.innerHTML = paginationHTML;
+            paginationContainer.style.display = 'flex';
+        }
+
+        function displayJson(data) {
+            const jsonContainer = document.getElementById('jsonDisplay');
+            const jsonContent = document.getElementById('jsonContent');
+            
+            jsonContent.textContent = JSON.stringify(data, null, 2);
+            jsonContainer.style.display = 'block';
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            loadOrders(useExtended);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingMessage').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorMessage');
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function updateAuthStatus(message, isSuccess = true) {
+            const authStatus = document.getElementById('authStatus');
+            const authStatusText = document.getElementById('authStatusText');
+            
+            authStatusText.textContent = message;
+            authStatus.style.backgroundColor = isSuccess ? '#d4edda' : '#f8d7da';
+            authStatus.style.color = isSuccess ? '#155724' : '#721c24';
+            authStatus.style.display = 'block';
+        }
+
+        async function checkServerStatus() {
+            showLoading(true);
+            hideError();
+            
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                const response = await fetch('http://localhost:8000/api/orders?limit=1', {
+                    headers: headers
+                });
+                
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        showError('✅ Сервер работает! API доступен на порту 8000');
+                    } else {
+                        showError('⚠️ Сервер отвечает, но не возвращает JSON. Возможно, неправильный endpoint.');
+                    }
+                } else {
+                    showError(`❌ Сервер отвечает с ошибкой: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                showError(`❌ Сервер недоступен на порту 8000. Ошибка: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Загружаем данные при загрузке страницы
+        window.addEventListener('load', async () => {
+            console.log('🔄 Начинаем авторизацию...');
+            const authSuccess = await authenticate();
+            
+            if (authSuccess) {
+                console.log('🔄 Авторизация успешна, загружаем заказы...');
+                loadOrders();
+            } else {
+                showError('❌ Не удалось авторизоваться. Проверьте данные для входа.');
+            }
+        });
+
+        // Обработчики для фильтров
+        document.getElementById('statusFilter').addEventListener('change', () => loadOrders(useExtended));
+        document.getElementById('stationFilter').addEventListener('input', () => loadOrders(useExtended));
+        document.getElementById('userFilter').addEventListener('input', () => loadOrders(useExtended));
+        document.getElementById('dateFromFilter').addEventListener('change', () => loadOrders(useExtended));
+        document.getElementById('dateToFilter').addEventListener('change', () => loadOrders(useExtended));
+        document.getElementById('limitSelect').addEventListener('change', () => loadOrders(useExtended));
+    </script>
+</body>
+</html>
