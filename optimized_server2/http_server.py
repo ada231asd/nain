@@ -267,6 +267,7 @@ class HTTPServer:
         app.router.add_post('/api/return-error', self.user_powerbank_api.return_error_powerbank)  # Возврат с ошибкой
         app.router.add_get('/api/powerbank-error-types', self.user_powerbank_api.get_powerbank_error_types)  # Типы ошибок
         app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
+        app.router.add_get('/api/user/stations/availability', self.user_powerbank_api.get_available_slots_with_limits)
         app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)
         
         
