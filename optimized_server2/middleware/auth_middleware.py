@@ -59,7 +59,8 @@ class AuthMiddleware:
                 '/api/auth/register',
                 '/api/auth/login',
                 '/api/invitations/',
-                '/api/invitations/register'
+                '/api/invitations/register',
+                '/api/logos/'  # Логотипы должны быть доступны без авторизации
             ]
             
             # Проверяем, является ли путь публичным

@@ -103,21 +103,21 @@ class QueryInventoryHandler:
                 powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
 
                 if powerbank:
-                    # Повербанк существует, проверяем активные заказы
-                    from models.order import Order
-                    active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.powerbank_id)
+                    # Повербанк существует, используем обработчик обычного возврата
+                    from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
+                    normal_return_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
                     
-                    if active_order:
-                        # Есть активный заказ - меняем статус на 'return' (закрываем)
-                        print(f" Найден активный заказ {active_order.order_id} для повербанка {powerbank.powerbank_id}")
-                        success = await Order.update_order_status(self.db_pool, active_order.order_id, 'return')
-                        if success:
-                            print(f" Заказ {active_order.order_id} изменен на статус 'return' - повербанк {powerbank.powerbank_id} возвращен")
+                    result = await normal_return_handler.process_inventory_return(powerbank.powerbank_id)
+                    
+                    if result.get('success'):
+                        if result.get('order_id'):
+                            print(f" Обработан возврат повербанка {powerbank.powerbank_id}: {result.get('message')}")
                         else:
-                            print(f" Ошибка изменения статуса заказа {active_order.order_id} на 'return'")
+                            print(f" Повербанк {powerbank.powerbank_id} обнаружен в инвентаре, но нет активного заказа")
+                    else:
+                        print(f" Ошибка обработки возврата повербанка {powerbank.powerbank_id}: {result.get('error')}")
                     
-                
-                
+                    # Обновляем SOH
                     soh_int = int(soh) if soh is not None else 0
                     await powerbank.update_soh(self.db_pool, soh_int)
                     print(f" Обновлен повербанк {terminal_id}: SOH {soh_int}")

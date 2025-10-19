@@ -17,6 +17,7 @@ from models.station import Station
 from handlers.station_handler import StationHandler
 from handlers.borrow_powerbank import BorrowPowerbankHandler
 from handlers.return_powerbank import ReturnPowerbankHandler
+from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
 from handlers.eject_powerbank import EjectPowerbankHandler
 from handlers.query_iccid import QueryICCIDHandler
 from handlers.slot_abnormal_report import SlotAbnormalReportHandler
@@ -45,6 +46,7 @@ class OptimizedServer:
         self.station_handler: Optional[StationHandler] = None
         self.borrow_handler: Optional[BorrowPowerbankHandler] = None
         self.return_handler: Optional[ReturnPowerbankHandler] = None
+        self.normal_return_handler: Optional[NormalReturnPowerbankHandler] = None
         self.eject_handler: Optional[EjectPowerbankHandler] = None
         self.query_iccid_handler: Optional[QueryICCIDHandler] = None
         self.slot_abnormal_report_handler: Optional[SlotAbnormalReportHandler] = None
@@ -237,7 +239,8 @@ class OptimizedServer:
             elif command == 0x66:  # Return Power Bank
                 # Станция отправляет данные о вставленном повербанке (Request 3.5.1)
                 # Сервер отвечает с Result (Response 3.5.2)
-                response = await self.return_handler.handle_return_request(data, connection)
+                # Сначала проверяем, есть ли ожидающие возврат с ошибкой пользователи
+                response = await self.return_handler.handle_tcp_error_return_request(data, connection)
                 if response:
                     writer.write(response)
                     await writer.drain()
@@ -434,6 +437,7 @@ class OptimizedServer:
             self.station_handler = StationHandler(self.db_pool, self.connection_manager)
             self.borrow_handler = BorrowPowerbankHandler(self.db_pool, self.connection_manager)
             self.return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+            self.normal_return_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
             self.eject_handler = EjectPowerbankHandler(self.db_pool, self.connection_manager)
             self.query_iccid_handler = QueryICCIDHandler(self.db_pool, self.connection_manager)
             self.slot_abnormal_report_handler = SlotAbnormalReportHandler(self.db_pool, self.connection_manager)
