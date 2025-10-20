@@ -34,7 +34,7 @@ GET /api/user/profile
 
 Логин:
 {
-  "success": true,
+   "success": true,
   "token": "jwt_token_here",
   "user": {"user_id": 33, "fio": "Иван Иванов", "role": "user"}
 }
