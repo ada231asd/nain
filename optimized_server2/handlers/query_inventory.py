@@ -103,19 +103,23 @@ class QueryInventoryHandler:
                 powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
 
                 if powerbank:
-                    # Повербанк существует, используем обработчик обычного возврата
-                    from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
-                    normal_return_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
-                    
-                    result = await normal_return_handler.process_inventory_return(powerbank.powerbank_id)
-                    
-                    if result.get('success'):
-                        if result.get('order_id'):
-                            print(f" Обработан возврат повербанка {powerbank.powerbank_id}: {result.get('message')}")
+                    # Повербанк существует — вызываем обработчик возврата ТОЛЬКО если есть активный заказ borrow
+                    try:
+                        from models.order import Order
+                        active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.powerbank_id)
+                    except Exception:
+                        active_order = None
+
+                    if active_order:
+                        from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
+                        normal_return_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
+                        result = await normal_return_handler.process_inventory_return(powerbank.powerbank_id)
+
+                        if result.get('success'):
+                            if result.get('order_id'):
+                                print(f" Обработан возврат повербанка {powerbank.powerbank_id}: {result.get('message')}")
                         else:
-                            print(f" Повербанк {powerbank.powerbank_id} обнаружен в инвентаре, но нет активного заказа")
-                    else:
-                        print(f" Ошибка обработки возврата повербанка {powerbank.powerbank_id}: {result.get('error')}")
+                            print(f" Ошибка обработки возврата повербанка {powerbank.powerbank_id}: {result.get('error')}")
                     
                     # Обновляем SOH
                     soh_int = int(soh) if soh is not None else 0

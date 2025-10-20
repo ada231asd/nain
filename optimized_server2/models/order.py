@@ -72,10 +72,22 @@ class Order:
                 # Для 'return' устанавливаем completed_at = current_time
                 completed_at_value = current_time if status == 'return' else None
 
+                # Получаем org_unit_id станции
+                org_unit_id_value = None
+                try:
+                    await cursor.execute("""
+                        SELECT org_unit_id FROM station WHERE station_id = %s
+                    """, (station_id,))
+                    row = await cursor.fetchone()
+                    if row:
+                        org_unit_id_value = row[0]
+                except Exception:
+                    org_unit_id_value = None
+
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, status, current_time, completed_at_value))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status, timestamp, completed_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, org_unit_id_value, status, current_time, completed_at_value))
 
                 order_id = cursor.lastrowid
 
@@ -110,10 +122,22 @@ class Order:
                         ON DUPLICATE KEY UPDATE fio = new_values.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
 
+                # Получаем org_unit_id станции
+                org_unit_id_value = None
+                try:
+                    await cursor.execute("""
+                        SELECT org_unit_id FROM station WHERE station_id = %s
+                    """, (station_id,))
+                    row = await cursor.fetchone()
+                    if row:
+                        org_unit_id_value = row[0]
+                except Exception:
+                    org_unit_id_value = None
+
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'borrow', current_time, None))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status, timestamp, completed_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, org_unit_id_value, 'borrow', current_time, None))
 
                 order_id = cursor.lastrowid
 
@@ -148,11 +172,23 @@ class Order:
                         ON DUPLICATE KEY UPDATE fio = new_values.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
 
+                # Получаем org_unit_id станции
+                org_unit_id_value = None
+                try:
+                    await cursor.execute("""
+                        SELECT org_unit_id FROM station WHERE station_id = %s
+                    """, (station_id,))
+                    row = await cursor.fetchone()
+                    if row:
+                        org_unit_id_value = row[0]
+                except Exception:
+                    org_unit_id_value = None
+
                 # Для заказов на возврат сразу устанавливаем completed_at
                 await cursor.execute("""
-                    INSERT INTO orders (station_id, user_id, powerbank_id, status, timestamp, completed_at)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, 'return', current_time, current_time))
+                    INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status, timestamp, completed_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (station_id, user_id, powerbank_id, org_unit_id_value, 'return', current_time, current_time))
 
                 order_id = cursor.lastrowid
 
@@ -403,13 +439,27 @@ class Order:
                 return cursor.rowcount > 0
     
     async def update_status(self, db_pool, new_status: str) -> bool:
-        """Обновляет статус заказа"""
+        """Обновляет статус заказа. Для 'return' и 'completed' устанавливает completed_at."""
+        current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute(
-                    "UPDATE orders SET status = %s WHERE id = %s",
-                    (new_status, self.order_id)
-                )
+                if new_status in ('return', 'completed'):
+                    await cursor.execute(
+                        "UPDATE orders SET status = %s, completed_at = %s WHERE id = %s",
+                        (new_status, current_time, self.order_id)
+                    )
+                    self.completed_at = current_time
+                elif new_status in ('borrow', 'force_eject'):
+                    await cursor.execute(
+                        "UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s",
+                        (new_status, self.order_id)
+                    )
+                    self.completed_at = None
+                else:
+                    await cursor.execute(
+                        "UPDATE orders SET status = %s WHERE id = %s",
+                        (new_status, self.order_id)
+                    )
                 self.status = new_status
                 return True
     

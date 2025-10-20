@@ -74,20 +74,23 @@ class InventoryManager:
     
     async def _sync_inventory_with_database(self, station_id: int, slots: list) -> None:
         """
-        Синхронизирует данные инвентаря с таблицей station_powerbank
+        Синхронизирует данные инвентаря с таблицей station_powerbank, обновляя ТОЛЬКО изменения.
+        - Если значения идентичны, запись не трогаем
+        - Если отличаются, обновляем
+        - Если в БД есть запись, а в инвентаре слот пуст — удаляем
         """
         try:
-            
-            # Получаем текущие повербанки в станции
-            current_powerbanks = await StationPowerbank.get_by_station(self.db_pool, station_id)
-            
-            # Очищаем все старые данные station_powerbank для этой станции
-            cleared_count = await StationPowerbank.clear_station_powerbanks(self.db_pool, station_id)
             logger = get_logger('inventory_manager')
-            logger.info(f"Очищено {cleared_count} записей station_powerbank для станции {station_id}")
-            
-            # Обрабатываем каждый слот из инвентаря
-            added_count = 0
+            # Текущее состояние БД по слотам
+            current_records = await StationPowerbank.get_by_station(self.db_pool, station_id)
+            current_by_slot = {rec.slot_number: rec for rec in current_records}
+
+            # Построим целевое состояние по слотам из ответа станции
+            target_by_slot = {}
+
+            changes_applied = 0
+            unchanged = 0
+
             for slot_data in slots:
                 slot_number = slot_data.get('Slot')
                 terminal_id = slot_data.get('TerminalID')
@@ -95,36 +98,81 @@ class InventoryManager:
                 voltage = slot_data.get('Voltage')
                 temperature = slot_data.get('Temperature')
                 status = slot_data.get('Status', {})
-                
-                # Отладочная информация
-                logger = get_logger('inventory_manager')
+
                 logger.info(f"InventoryManager: Слот {slot_number}, TerminalID='{terminal_id}', Level={level}, Voltage={voltage}")
-                
-                
+
                 has_powerbank = status.get('InsertionSwitch', 0) == 1
-                
+
                 if has_powerbank and terminal_id and terminal_id != '0000000000000000':
-                    # Есть повербанк в слоте - проверяем, существует ли он в БД
+                    # Разрешаем только валидные повербанки
                     powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
-                    
-                    if powerbank_id:
-                        # Повербанк существует - добавляем его в станцию
-                        success = await self._add_existing_powerbank(
-                            station_id, slot_number, powerbank_id, level, voltage, temperature
-                        )
-                        if success:
-                            added_count += 1
-                    else:
-                        # Повербанк не существует - создаем его со статусом 'unknown'
-                        success = await self._create_and_add_unknown_powerbank(
+                    if not powerbank_id:
+                        # Создадим unknown при необходимости
+                        created = await self._create_and_add_unknown_powerbank(
                             station_id, slot_number, terminal_id, level, voltage, temperature
                         )
-                        if success:
-                            added_count += 1
-            
-            logger = get_logger('inventory_manager')
-            logger.info(f"Синхронизация инвентаря станции {station_id} завершена: добавлено {added_count} повербанков")
-            
+                        if created:
+                            # После создания unknown, получим id
+                            powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
+                    if not powerbank_id:
+                        # Не смогли сопоставить/создать — пропускаем
+                        continue
+
+                    target_by_slot[slot_number] = {
+                        'powerbank_id': powerbank_id,
+                        'level': int(level) if level is not None else None,
+                        'voltage': int(voltage) if voltage is not None else None,
+                        'temperature': int(temperature) if temperature is not None else None
+                    }
+
+                    existing = current_by_slot.get(slot_number)
+                    if existing:
+                        # Если тот же powerbank и метрики не изменились — пропускаем
+                        same_pb = existing.powerbank_id == powerbank_id
+                        same_level = (existing.level == target_by_slot[slot_number]['level'])
+                        same_voltage = (existing.voltage == target_by_slot[slot_number]['voltage'])
+                        same_temperature = (existing.temperature == target_by_slot[slot_number]['temperature'])
+                        if same_pb and same_level and same_voltage and same_temperature:
+                            unchanged += 1
+                        else:
+                            # Обновляем (включая возможную смену powerbank_id в этом слоте)
+                            await StationPowerbank.add_powerbank(
+                                self.db_pool,
+                                station_id,
+                                powerbank_id,
+                                slot_number,
+                                target_by_slot[slot_number]['level'],
+                                target_by_slot[slot_number]['voltage'],
+                                target_by_slot[slot_number]['temperature']
+                            )
+                            changes_applied += 1
+                            logger.info(f"Обновлен слот {slot_number}: pb {existing.powerbank_id} -> {powerbank_id}, lvl={target_by_slot[slot_number]['level']}, volt={target_by_slot[slot_number]['voltage']}, temp={target_by_slot[slot_number]['temperature']}")
+                    else:
+                        # Не было записи — добавляем
+                        await StationPowerbank.add_powerbank(
+                            self.db_pool,
+                            station_id,
+                            powerbank_id,
+                            slot_number,
+                            target_by_slot[slot_number]['level'],
+                            target_by_slot[slot_number]['voltage'],
+                            target_by_slot[slot_number]['temperature']
+                        )
+                        changes_applied += 1
+                        logger.info(f"Добавлен слот {slot_number}: pb {powerbank_id}")
+
+            # Удаляем записи, которых больше нет в инвентаре (слоты пустые)
+            removed = 0
+            for slot_number, existing in current_by_slot.items():
+                if slot_number not in target_by_slot:
+                    # В ответе слот пуст или pb отсутствует — удаляем запись
+                    deleted = await StationPowerbank.remove_powerbank(self.db_pool, station_id, slot_number)
+                    if deleted:
+                        removed += 1
+                        logger.info(f"Удален слот {slot_number}: pb {existing.powerbank_id}")
+
+            logger.info(f"Синхронизация инвентаря {station_id}: изменений={changes_applied}, удалено={removed}, без изменений={unchanged}")
+
         except Exception as e:
             logger = get_logger('inventory_manager')
             logger.error(f"Ошибка: {e}")

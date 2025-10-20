@@ -41,9 +41,13 @@ class NormalReturnPowerbankHandler:
                 self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id}")
                 
                 # Логируем действие
-                await ActionLog.create_log(
-                    self.db_pool, active_order.user_id, 'order_update', 'order',
-                    active_order.order_id, 'Обычный возврат повербанка'
+                await ActionLog.create(
+                    self.db_pool,
+                    user_id=active_order.user_id,
+                    action_type='order_update',
+                    entity_type='order',
+                    entity_id=active_order.order_id,
+                    description='Обычный возврат повербанка'
                 )
             else:
                 self.logger.info(f"Нет активного заказа для повербанка {powerbank_id}")
@@ -189,9 +193,13 @@ class NormalReturnPowerbankHandler:
                 self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id} (обнаружен в инвентаре)")
                 
                 # Логируем действие
-                await ActionLog.create_log(
-                    self.db_pool, active_order.user_id, 'order_update', 'order',
-                    active_order.order_id, 'Возврат повербанка (обнаружен в инвентаре)'
+                await ActionLog.create(
+                    self.db_pool,
+                    user_id=active_order.user_id,
+                    action_type='order_update',
+                    entity_type='order',
+                    entity_id=active_order.order_id,
+                    description='Возврат повербанка (обнаружен в инвентаре)'
                 )
                 
                 return {

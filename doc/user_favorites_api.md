@@ -47,10 +47,10 @@ GET /api/user-favorites?user_id=33
   "success": true,
   "data": [
     {
-      "id": 35,
       "user_id": 33,
       "station_id": 13,
       "nik": "Моя любимая станция",
+      "adress": "(адрес организационной единицы)",
       "created_at": "2025-10-17T08:44:22",
       "station_box_id": "DCHEY02504000019",
       "station_status": "inactive",
@@ -59,7 +59,8 @@ GET /api/user-favorites?user_id=33
   ]
 }
 ```
-
+      "user_id": 33,
+      "station_id": 13,
 #### Коды ответов
 - `200` - Успешно
 - `400` - Не указан user_id

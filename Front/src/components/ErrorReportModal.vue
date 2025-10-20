@@ -112,13 +112,33 @@ const loadErrorTypes = async () => {
   try {
     isLoadingErrorTypes.value = true
     const response = await pythonAPI.getErrorTypes()
-    if (response && response.success) {
-      errorTypes.value = response.error_types.map(error => ({
-        id: parseInt(error.id_er), // Принудительно конвертируем в число
-        name: error.type_error,
-        description: error.type_error
-      }))
+
+    // Унифицированное извлечение массива типов из разных форматов ответа
+    let rawTypes = []
+    if (Array.isArray(response)) {
+      rawTypes = response
+    } else if (Array.isArray(response?.data)) {
+      rawTypes = response.data
+    } else if (Array.isArray(response?.error_types)) {
+      rawTypes = response.error_types
+    } else if (Array.isArray(response?.data?.error_types)) {
+      rawTypes = response.data.error_types
     }
+
+    if (!Array.isArray(rawTypes) || rawTypes.length === 0) {
+      throw new Error('Unexpected error types response shape')
+    }
+
+    // Приводим к единому формату для UI
+    errorTypes.value = rawTypes.map((error) => {
+      const id = error.id_er ?? error.id ?? error.error_type_id ?? error.value
+      const name = error.type_error ?? error.name ?? error.label ?? String(id)
+      return {
+        id: parseInt(id),
+        name,
+        description: error.description || name
+      }
+    }).filter(e => Number.isFinite(e.id) && e.name)
   } catch (error) {
     console.error('❌ Ошибка загрузки типов ошибок:', error)
     // Fallback к старым типам в случае ошибки

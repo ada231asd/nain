@@ -187,9 +187,13 @@ class ReturnPowerbankHandler:
                 del self.pending_error_returns[matching_user_id]
 
             # Логируем действие
-            await ActionLog.create_log(
-                self.db_pool, matching_user_id, 'order_update', 'order',
-                active_order.order_id, f'Возврат повербанка с ошибкой: {error_name}'
+            await ActionLog.create(
+                self.db_pool,
+                user_id=matching_user_id,
+                action_type='order_update',
+                entity_type='order',
+                entity_id=active_order.order_id,
+                description=f'Возврат повербанка с ошибкой: {error_name}'
             )
 
             result = {
@@ -323,16 +327,31 @@ class ReturnPowerbankHandler:
                     token=connection.token
                 )
             
-            # Проверяем, есть ли ожидающий возврат с ошибкой для этой станции
+            # Проверяем, есть ли ожидающий возврат с ошибкой для этой станции/пользователя
             powerbank_id = powerbank.powerbank_id
             matching_user_id = None
             error_type = None
-            
-            for user_id, return_data in self.pending_error_returns.items():
-                if return_data['station_id'] == station_id:
-                    matching_user_id = user_id
-                    error_type = return_data['error_type']
-                    break
+
+            # 1) Пытаемся сопоставить по активному заказу пользователя (более надёжно)
+            try:
+                active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+            except Exception:
+                active_order = None
+
+            if active_order and active_order.user_id in self.pending_error_returns:
+                pending = self.pending_error_returns.get(active_order.user_id)
+                # Дополнительно проверим станцию, если она указана
+                if not pending or pending.get('station_id') is None or pending.get('station_id') == station_id:
+                    matching_user_id = active_order.user_id
+                    error_type = pending.get('error_type') if pending else None
+
+            # 2) Если по пользователю не нашли, пробуем старую логику по станции
+            if not matching_user_id:
+                for user_id, return_data in self.pending_error_returns.items():
+                    if return_data.get('station_id') == station_id:
+                        matching_user_id = user_id
+                        error_type = return_data.get('error_type')
+                        break
             
             if matching_user_id:
                 self.logger.info(f"Обрабатываем возврат с ошибкой для пользователя {matching_user_id}, повербанк {powerbank_id}")

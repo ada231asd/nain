@@ -282,12 +282,14 @@ class OtherEntitiesCRUD:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     await cur.execute("""
-                        SELECT uf.id, uf.user_id, uf.station_id, uf.nik, uf.created_at,
-                               s.box_id as station_box_id, s.status as station_status,
-                               u.phone_e164 as user_phone
+                        SELECT uf.id, uf.user_id, uf.station_id, uf.created_at,
+                               s.box_id AS station_box_id, s.status AS station_status,
+                               u.phone_e164 AS user_phone,
+                               ou.adress AS station_address
                         FROM user_favorites uf
                         LEFT JOIN station s ON uf.station_id = s.station_id
                         LEFT JOIN app_user u ON uf.user_id = u.user_id
+                        LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
                         WHERE uf.user_id = %s
                         ORDER BY uf.created_at DESC
                     """, (int(user_id),))
@@ -308,6 +310,27 @@ class OtherEntitiesCRUD:
     async def delete_user_favorite(self, request: Request) -> Response:
         """DELETE /api/user-favorites/{favorite_id} - Удалить из избранного"""
         try:
+            # Поддерживаем оба варианта: через favorite_id в пути или через user_id+station_id в теле
+            data = None
+            try:
+                data = await request.json()
+            except Exception:
+                data = None
+            user_id = (data or {}).get('user_id') if isinstance(data, dict) else None
+            station_id = (data or {}).get('station_id') if isinstance(data, dict) else None
+
+            if user_id and station_id:
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor(aiomysql.DictCursor) as cur:
+                        await cur.execute("""
+                            DELETE FROM user_favorites
+                            WHERE user_id = %s AND station_id = %s
+                        """, (int(user_id), int(station_id)))
+                        return web.json_response({
+                            "success": True,
+                            "message": "Станция удалена из избранного"
+                        })
+
             favorite_id = int(request.match_info['favorite_id'])
             
             async with self.db_pool.acquire() as conn:
@@ -342,9 +365,10 @@ class OtherEntitiesCRUD:
     async def set_station_nik(self, request: Request) -> Response:
         """PUT /api/user-favorites/{favorite_id}/nik - Установить никнейм станции"""
         try:
-            favorite_id = int(request.match_info['favorite_id'])
             data = await request.json()
-            
+            # Поддерживаем оба варианта: через favorite_id в пути или через user_id+station_id в теле
+            user_id = data.get('user_id')
+            station_id = data.get('station_id')
             nik = data.get('nik', '').strip()
             if not nik:
                 return web.json_response({
@@ -360,20 +384,27 @@ class OtherEntitiesCRUD:
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование записи
-                    await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
-                    if not await cur.fetchone():
-                        return web.json_response({
-                            "success": False,
-                            "error": "Запись в избранном не найдена"
-                        }, status=404)
-                    
-                    # Обновляем никнейм
-                    await cur.execute("""
-                        UPDATE user_favorites 
-                        SET nik = %s 
-                        WHERE id = %s
-                    """, (nik, favorite_id))
+                    if user_id and station_id:
+                        await cur.execute("""
+                            UPDATE user_favorites
+                            SET nik = %s
+                            WHERE user_id = %s AND station_id = %s
+                        """, (nik, int(user_id), int(station_id)))
+                    else:
+                        favorite_id = int(request.match_info['favorite_id'])
+                        # Проверяем существование записи
+                        await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
+                        if not await cur.fetchone():
+                            return web.json_response({
+                                "success": False,
+                                "error": "Запись в избранном не найдена"
+                            }, status=404)
+                        # Обновляем никнейм по id
+                        await cur.execute("""
+                            UPDATE user_favorites 
+                            SET nik = %s 
+                            WHERE id = %s
+                        """, (nik, favorite_id))
                     
                     return web.json_response({
                         "success": True,
@@ -395,24 +426,38 @@ class OtherEntitiesCRUD:
     async def delete_station_nik(self, request: Request) -> Response:
         """DELETE /api/user-favorites/{favorite_id}/nik - Удалить никнейм станции"""
         try:
-            favorite_id = int(request.match_info['favorite_id'])
-            
+            # Поддерживаем оба варианта: через favorite_id в пути или через user_id+station_id в теле
+            data = None
+            try:
+                data = await request.json()
+            except Exception:
+                data = None
+            user_id = (data or {}).get('user_id') if isinstance(data, dict) else None
+            station_id = (data or {}).get('station_id') if isinstance(data, dict) else None
+
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование записи
-                    await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
-                    if not await cur.fetchone():
-                        return web.json_response({
-                            "success": False,
-                            "error": "Запись в избранном не найдена"
-                        }, status=404)
-                    
-                    # Удаляем никнейм (устанавливаем в NULL)
-                    await cur.execute("""
-                        UPDATE user_favorites 
-                        SET nik = NULL 
-                        WHERE id = %s
-                    """, (favorite_id,))
+                    if user_id and station_id:
+                        await cur.execute("""
+                            UPDATE user_favorites
+                            SET nik = NULL
+                            WHERE user_id = %s AND station_id = %s
+                        """, (int(user_id), int(station_id)))
+                    else:
+                        favorite_id = int(request.match_info['favorite_id'])
+                        # Проверяем существование записи
+                        await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
+                        if not await cur.fetchone():
+                            return web.json_response({
+                                "success": False,
+                                "error": "Запись в избранном не найдена"
+                            }, status=404)
+                        # Удаляем никнейм (устанавливаем в NULL) по id
+                        await cur.execute("""
+                            UPDATE user_favorites 
+                            SET nik = NULL 
+                            WHERE id = %s
+                        """, (favorite_id,))
                     
                     return web.json_response({
                         "success": True,
