@@ -93,6 +93,16 @@ class NormalReturnPowerbankHandler:
         try:
             from utils.packet_utils import parse_return_power_bank_request, build_return_power_bank_response
             from utils.station_resolver import get_station_id_by_box_id
+            # Приоритет: если есть ожидающий возврат с ошибкой — передаём обработку соответствующему хендлеру
+            try:
+                from handlers.return_powerbank import ReturnPowerbankHandler
+                error_return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
+                delegated = await error_return_handler.handle_tcp_error_return(data, connection)
+                if delegated is not None:
+                    return delegated
+            except Exception:
+                # Если что-то пошло не так при делегации, продолжаем обычную обработку
+                pass
             
             # Парсим данные запроса
             parsed_data = parse_return_power_bank_request(data)

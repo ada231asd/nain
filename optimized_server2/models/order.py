@@ -370,7 +370,7 @@ class Order:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
                     SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
-                    WHERE powerbank_id = %s AND status = 'active'
+                    WHERE powerbank_id = %s AND status = 'borrow'
                     LIMIT 1
                 """, (powerbank_id,))
 

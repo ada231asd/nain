@@ -604,7 +604,7 @@ class CRUDEndpoints:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     await cur.execute("""
-                        SELECT s.station_id, s.org_unit_id, s.box_id, s.nik, s.iccid, 
+                        SELECT s.station_id, s.org_unit_id, s.box_id, s.iccid, 
                                s.slots_declared, s.remain_num, s.last_seen, 
                                s.created_at, s.updated_at, s.status,
                                ou.name as org_unit_name
