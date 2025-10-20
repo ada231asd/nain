@@ -557,13 +557,24 @@ class OtherEntitiesCRUD:
                     where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
                     
                     await cur.execute(f"""
-                        SELECT sp.id, sp.station_id, sp.powerbank_id, sp.slot_number,
-                               sp.level, sp.voltage, sp.temperature, sp.last_update,
+                        SELECT sp.id,
+                               sp.station_id,
+                               sp.powerbank_id,
+                               sp.slot_number,
+                               sp.level,
+                               sp.voltage,
+                               sp.temperature,
+                               sp.last_update,
                                s.box_id as station_box_id,
-                               p.serial_number as powerbank_serial
+                               p.serial_number as powerbank_serial,
+                               p.status as powerbank_status,
+                               p.soh as powerbank_soh,
+                               p.write_off_reason as write_off_reason,
+                               pe.type_error as error_type
                         FROM station_powerbank sp
                         LEFT JOIN station s ON sp.station_id = s.station_id
                         LEFT JOIN powerbank p ON sp.powerbank_id = p.id
+                        LEFT JOIN powerbank_error pe ON p.power_er = pe.id_er
                         {where_clause}
                         ORDER BY sp.last_update DESC
                     """, params)

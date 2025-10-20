@@ -25,6 +25,7 @@ class BorrowEndpoints:
             """Получить список доступных повербанков в станции"""
             try:
                 station_id = int(request.match_info['station_id'])
+                include_all = request.query.get('include_all') in ('1', 'true', 'yes')
                 
                 # Извлекаем user_id из JWT токена, если он есть
                 user_id = None
@@ -44,7 +45,7 @@ class BorrowEndpoints:
                         # Игнорируем ошибки авторизации для этого эндпоинта
                         pass
                 
-                result = await self.borrow_api.get_available_powerbanks(station_id, user_id)
+                result = await self.borrow_api.get_available_powerbanks(station_id, user_id, include_all)
                 return web.json_response(result)
             except Exception as e:
                 return web.json_response(

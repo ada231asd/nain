@@ -40,13 +40,20 @@ export const pythonAPI = {
   getStations: (params = {}) => {
     return handleResponse(apiClient.get('/stations', { params }), 'get stations')
   },
+  // Привязки станция-повербанк с полями статусов/ошибок
+  getStationPowerbanksDetailed: (params = {}) => {
+    return handleResponse(apiClient.get('/station-powerbanks', { params }), 'get station-powerbanks detailed')
+  },
   getStation: (id) => {
     validateId(id, 'station ID')
     return handleResponse(apiClient.get(`/stations/${id}`), 'get station')
   },
-  getStationPowerbanks: (station_id) => {
+  getStationPowerbanks: (station_id, params = {}) => {
     validateId(station_id, 'station ID')
-    return handleResponse(apiClient.get(`/borrow/stations/${station_id}/powerbanks`), 'get station powerbanks')
+    return handleResponse(
+      apiClient.get(`/borrow/stations/${station_id}/powerbanks`, { params }),
+      'get station powerbanks'
+    )
   },
   createStation: (data) => {
     validateData(data, 'station data')

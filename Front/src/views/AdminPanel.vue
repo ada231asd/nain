@@ -745,8 +745,20 @@ const openPowerbanks = async (station) => {
     selectedStation.value = station
     const stationId = station.station_id || station.id
     if (!stationId) return
-    const res = await pythonAPI.getStationPowerbanks(stationId)
-    selectedStationPowerbanks.value = Array.isArray(res?.available_powerbanks) ? res.available_powerbanks : []
+    // 1) Тригерим запрос инвентаря на сервер (обновление показаний)
+    try { await pythonAPI.queryInventory(stationId) } catch {}
+    // 2) Получаем инвентарь из кэша соединения (в нём есть terminal_id и soh)
+    let inv = null
+    try {
+      inv = await pythonAPI.getStationInventory(stationId)
+    } catch {}
+    if (inv && Array.isArray(inv.inventory)) {
+      selectedStationPowerbanks.value = inv.inventory
+    } else {
+      // Фолбэк: детальный список из station_powerbank
+      const res = await pythonAPI.getStationPowerbanksDetailed({ station_id: stationId })
+      selectedStationPowerbanks.value = Array.isArray(res?.data) ? res.data : []
+    }
     showPowerbanksModal.value = true
   } catch (error) {
     selectedStationPowerbanks.value = []
@@ -816,14 +828,15 @@ const borrowPowerbank = async (powerbank) => {
 
     const result = await pythonAPI.requestBorrowPowerbank(requestData)
 
-    if (result && (result.status === 'success' || result.status === 'accepted')) {
+    if (result && (result.status === 'success' || result.status === 'accepted' || result.success)) {
       // Обновляем данные станции в админ панели
       const stationId = selectedStation.value.station_id
       await adminStore.refreshStationData(stationId)
       
       // Обновляем список повербанков в модальном окне
-      const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
-      selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
+      try { await pythonAPI.queryInventory(stationId) } catch {}
+      const inv = await pythonAPI.getStationInventory(stationId)
+      selectedStationPowerbanks.value = Array.isArray(inv?.inventory) ? inv.inventory : []
     } else {
       // Ошибка при взятии повербанка
     }
@@ -858,10 +871,11 @@ const forceEjectPowerbank = async (powerbank) => {
     await adminStore.forceEjectPowerbank(requestData)
 
     // Данные станции уже обновлены в store через forceEjectPowerbank
-    // Обновляем список повербанков в модальном окне
+    // Обновляем список повербанков в модальном окне (через инвентарь)
     const stationId = selectedStation.value.station_id
-    const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
-    selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
+    try { await pythonAPI.queryInventory(stationId) } catch {}
+    const inv = await pythonAPI.getStationInventory(stationId)
+    selectedStationPowerbanks.value = Array.isArray(inv?.inventory) ? inv.inventory : []
 
   } catch (error) {
     // Ошибка при принудительном извлечении повербанка

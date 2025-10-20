@@ -16,7 +16,7 @@
             <thead>
               <tr>
                 <th>Слот</th>
-                <th>ID батареи</th>
+                <th>Терминал ID</th>
                 <th>Заряд</th>
                 <th>SOH</th>
                 <th>Статус</th>
@@ -26,7 +26,7 @@
             <tbody>
               <tr v-for="(pb, idx) in powerbanks" :key="pb.id || pb.terminal_id || idx" :class="getRowClass(pb)">
                 <td class="slot-number">{{ pb.slot_number || idx + 1 }}</td>
-                <td class="battery-id">{{ pb.serial_number || '-' }}</td>
+                <td class="battery-id">{{ pb.terminal_id || pb.powerbank_serial || pb.serial_number || '-' }}</td>
                 <td class="battery-level">
                   <div class="level-container">
                     <span :class="getBatteryLevelClass(pb.level)">
@@ -99,13 +99,18 @@ const errorPowerbanks = computed(() => {
 })
 
 const getBatteryStatusClass = (pb) => {
-  const hasError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
-  return hasError ? 'status-error' : 'status-ok'
+  // Ошибочный, если есть флаги ошибок слота или статус powerbank не 'active'
+  const slotError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
+  const isBrokenStatus = pb.powerbank_status === 'system_error' || pb.powerbank_status === 'written_off' || pb.powerbank_status === 'user_reported_broken'
+  return (slotError || isBrokenStatus) ? 'status-error' : 'status-ok'
 }
 
 const getBatteryStatusText = (pb) => {
-  const hasError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
-  return hasError ? 'Error' : 'Normal'
+  const slotError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
+  if (slotError) return 'ERROR'
+  if (pb.powerbank_status === 'system_error' || pb.powerbank_status === 'user_reported_broken') return 'BROKEN'
+  if (pb.powerbank_status === 'written_off') return 'WRITTEN OFF'
+  return 'NORMAL'
 }
 
 const getSlotStatusClass = (pb) => {
@@ -126,18 +131,17 @@ const getBatteryLevelClass = (level) => {
 }
 
 const canBorrowPowerbank = (pb) => {
-  // Проверяем, можно ли выдать повербанк
-  const hasError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
-  const isActive = pb.powerbank_status === 'active' || pb.status === 'active' || !hasError
+  // Нельзя выдавать, если статус не active или есть ошибки
+  const slotError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
+  const notActive = pb.powerbank_status && pb.powerbank_status !== 'active'
   const hasMinCharge = pb.level >= 20
-  
-  return isActive && !hasError && hasMinCharge
+  return !slotError && !notActive && hasMinCharge
 }
 
 const getBorrowButtonTitle = (pb) => {
   if (!canBorrowPowerbank(pb)) {
     const reasons = []
-    if (pb.powerbank_status !== 'active' && pb.status !== 'active' && pb.has_errors) {
+    if (pb.powerbank_status && pb.powerbank_status !== 'active') {
       reasons.push('неактивен')
     }
     if (pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors) {
@@ -152,10 +156,10 @@ const getBorrowButtonTitle = (pb) => {
 }
 
 const getRowClass = (pb) => {
-  const hasError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
+  const slotError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
+  const broken = pb.powerbank_status && pb.powerbank_status !== 'active'
   const isAvailable = canBorrowPowerbank(pb)
-  
-  if (hasError) return 'row-error'
+  if (slotError || broken) return 'row-error'
   if (isAvailable) return 'row-available'
   return 'row-unavailable'
 }

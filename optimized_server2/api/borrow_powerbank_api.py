@@ -24,7 +24,7 @@ class BorrowPowerbankAPI:
         # Важно: используем общий экземпляр обработчика, если он передан
         self.borrow_handler = borrow_handler if borrow_handler is not None else BorrowPowerbankHandler(db_pool, connection_manager)
     
-    async def get_available_powerbanks(self, station_id: int, user_id: int = None) -> Dict[str, Any]:
+    async def get_available_powerbanks(self, station_id: int, user_id: int = None, include_all: bool = False) -> Dict[str, Any]:
         """
         Получает список доступных повербанков в станции
         """
@@ -51,7 +51,7 @@ class BorrowPowerbankAPI:
             result = []
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
-                if powerbank and powerbank.status == 'active':
+                if powerbank and (include_all or powerbank.status == 'active'):
                     # Проверяем, что повербанк не находится в активном заказе
                     existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
                     if existing_order:
@@ -112,6 +112,7 @@ class BorrowPowerbankAPI:
                 # Свободные слоты станции (как есть по БД)
                 "free_slots": station.remain_num,
                 "total_slots": station.slots_declared,
+                "include_all": include_all
             }
             
         except Exception as e:

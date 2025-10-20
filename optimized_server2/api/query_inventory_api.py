@@ -86,18 +86,50 @@ class QueryInventoryAPI:
 
             inventory_cache = inventory_result["inventory"]
             
-            # Формируем ответ
+            # Формируем ответ, расширяя его полями, ожидаемыми фронтендом
+            from models.powerbank import Powerbank
             inventory_data = []
             for slot in inventory_cache.get('inventory', []):
+                status_bits = slot.get('status') or {}
+                # Преобразуем битовые флаги статуса слота в плоские поля
+                error_typec = bool(status_bits.get('TypeCError'))
+                error_lightning = bool(status_bits.get('LightningError'))
+                error_microusb = bool(status_bits.get('MicroUSBError'))
+                powerbank_error = bool(status_bits.get('PowerBankError'))
+                has_errors = error_typec or error_lightning or error_microusb or powerbank_error
+
+                # Найдём запись повербанка по серийному (terminal_id)
+                powerbank_status = None
+                powerbank_id = None
+                try:
+                    pb = await Powerbank.get_by_serial(self.db_pool, slot['terminal_id'])
+                    if pb:
+                        powerbank_status = pb.status
+                        powerbank_id = pb.powerbank_id
+                except Exception:
+                    powerbank_status = None
+
                 inventory_data.append({
                     "slot_number": slot['slot_number'],
                     "terminal_id": slot['terminal_id'],
+                    # frontend ожидает serial_number
+                    "serial_number": slot['terminal_id'],
+                    "powerbank_id": powerbank_id,
+                    # статус из БД (active, user_reported_broken, system_error, ...)
+                    "powerbank_status": powerbank_status,
                     "level": slot['level'],
                     "voltage": slot['voltage'],
                     "current": slot['current'],
                     "temperature": slot['temperature'],
                     "soh": slot['soh'],
-                    "status": slot['status']
+                    # оригинальная структура статусов слота
+                    "status": status_bits,
+                    # плоские флаги ошибок для совместимости с существующим UI
+                    "error_typec": error_typec,
+                    "error_lightning": error_lightning,
+                    "error_microusb": error_microusb,
+                    "powerbank_error": powerbank_error,
+                    "has_errors": has_errors
                 })
             
             # Сортируем по номеру слота
