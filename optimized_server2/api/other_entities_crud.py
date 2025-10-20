@@ -282,7 +282,7 @@ class OtherEntitiesCRUD:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     await cur.execute("""
-                        SELECT uf.id, uf.user_id, uf.station_id, uf.created_at,
+                        SELECT uf.id, uf.user_id, uf.station_id, uf.nik, uf.created_at,
                                s.box_id as station_box_id, s.status as station_status,
                                u.phone_e164 as user_phone
                         FROM user_favorites uf
@@ -326,6 +326,97 @@ class OtherEntitiesCRUD:
                     return web.json_response({
                         "success": True,
                         "message": "Станция удалена из избранного"
+                    })
+                    
+        except ValueError:
+            return web.json_response({
+                "success": False,
+                "error": "Неверный ID записи"
+            }, status=400)
+        except Exception as e:
+            return web.json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
+    async def set_station_nik(self, request: Request) -> Response:
+        """PUT /api/user-favorites/{favorite_id}/nik - Установить никнейм станции"""
+        try:
+            favorite_id = int(request.match_info['favorite_id'])
+            data = await request.json()
+            
+            nik = data.get('nik', '').strip()
+            if not nik:
+                return web.json_response({
+                    "success": False,
+                    "error": "Никнейм не может быть пустым"
+                }, status=400)
+            
+            if len(nik) > 100:
+                return web.json_response({
+                    "success": False,
+                    "error": "Никнейм не может быть длиннее 100 символов"
+                }, status=400)
+            
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем существование записи
+                    await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
+                    if not await cur.fetchone():
+                        return web.json_response({
+                            "success": False,
+                            "error": "Запись в избранном не найдена"
+                        }, status=404)
+                    
+                    # Обновляем никнейм
+                    await cur.execute("""
+                        UPDATE user_favorites 
+                        SET nik = %s 
+                        WHERE id = %s
+                    """, (nik, favorite_id))
+                    
+                    return web.json_response({
+                        "success": True,
+                        "message": "Никнейм станции установлен",
+                        "data": {"nik": nik}
+                    })
+                    
+        except ValueError:
+            return web.json_response({
+                "success": False,
+                "error": "Неверный ID записи"
+            }, status=400)
+        except Exception as e:
+            return web.json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
+    async def delete_station_nik(self, request: Request) -> Response:
+        """DELETE /api/user-favorites/{favorite_id}/nik - Удалить никнейм станции"""
+        try:
+            favorite_id = int(request.match_info['favorite_id'])
+            
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем существование записи
+                    await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
+                    if not await cur.fetchone():
+                        return web.json_response({
+                            "success": False,
+                            "error": "Запись в избранном не найдена"
+                        }, status=404)
+                    
+                    # Удаляем никнейм (устанавливаем в NULL)
+                    await cur.execute("""
+                        UPDATE user_favorites 
+                        SET nik = NULL 
+                        WHERE id = %s
+                    """, (favorite_id,))
+                    
+                    return web.json_response({
+                        "success": True,
+                        "message": "Никнейм станции удален"
                     })
                     
         except ValueError:
@@ -644,6 +735,8 @@ class OtherEntitiesCRUD:
         app.router.add_post('/api/user-favorites', self.create_user_favorite)
         app.router.add_get('/api/user-favorites', self.get_user_favorites)
         app.router.add_delete('/api/user-favorites/{favorite_id}', self.delete_user_favorite)
+        app.router.add_put('/api/user-favorites/{favorite_id}/nik', self.set_station_nik)
+        app.router.add_delete('/api/user-favorites/{favorite_id}/nik', self.delete_station_nik)
         
         # STATION_POWERBANK routes
         app.router.add_post('/api/station-powerbanks', self.create_station_powerbank)

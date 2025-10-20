@@ -267,17 +267,15 @@ class ReturnPowerbankHandler:
             self.logger.error(f"Ошибка получения типов ошибок: {e}")
             return []
     
-    async def handle_return_request(self, data: bytes, connection) -> Optional[bytes]:
+    async def handle_tcp_error_return_request(self, data: bytes, connection) -> Optional[bytes]:
         """
-        Обрабатывает запрос на возврат повербанка от станции (команда 0x66)
+        Обрабатывает TCP запрос на возврат повербанка с ошибкой от станции (команда 0x66)
+        Только для случаев, когда есть ожидающий возврат с ошибкой пользователь
         """
         try:
             from utils.packet_utils import parse_return_power_bank_request, build_return_power_bank_response
             from utils.station_resolver import get_station_id_by_box_id
-            from models.station import Station
             from models.powerbank import Powerbank
-            from models.order import Order
-            from utils.time_utils import get_moscow_time
             
             # Парсим данные запроса
             parsed_data = parse_return_power_bank_request(data)
@@ -297,7 +295,7 @@ class ReturnPowerbankHandler:
             
             self.logger.info(f"Получен запрос на возврат повербанка: слот {slot}, terminal_id {terminal_id}")
 
-            # Версия протокола (VSN) берём из пакета, т.к. у StationConnection может не быть атрибута vsn
+            # Версия протокола (VSN) берём из пакета
             vsn = parsed_data.get('VSN', 1)
             
             # Получаем ID станции
@@ -358,33 +356,12 @@ class ReturnPowerbankHandler:
                     token=connection.token
                 )
             else:
-                # Обычный возврат без ошибки
-                self.logger.info(f"Обычный возврат повербанка {powerbank_id} в станцию {station_id}")
-                
-                # Обновляем статус повербанка на допустимое значение (в БД нет 'in_station')
-                await powerbank.update_status(self.db_pool, 'active')
-                
-                # Закрываем активный заказ
-                active_order = await Order.get_active_borrow_order(self.db_pool, powerbank_id)
-                if active_order:
-                    await active_order.update_status(self.db_pool, 'return')
-                    self.logger.info(f"Активный заказ {active_order.order_id} закрыт")
-                
-                # Отправляем успешный ответ
-                return build_return_power_bank_response(
-                    slot=slot,
-                    result=1,  # Успех
-                    terminal_id=terminal_id.encode('ascii'),
-                    level=level,
-                    voltage=voltage,
-                    current=current,
-                    temperature=temperature,
-                    status=status,
-                    soh=soh,
-                    vsn=vsn,
-                    token=connection.token
-                )
+                # Нет ожидающих возврат с ошибкой пользователей - это обычный возврат
+                # Перенаправляем на обработчик обычного возврата
+                from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
+                normal_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
+                return await normal_handler.handle_return_request(data, connection)
                 
         except Exception as e:
-            self.logger.error(f"Ошибка обработки запроса возврата: {e}")
+            self.logger.error(f"Ошибка обработки запроса возврата с ошибкой: {e}")
             return None

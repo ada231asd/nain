@@ -25,14 +25,113 @@ class UserPowerbankAPI:
 
     @jwt_middleware
     async def get_available_powerbanks(self, request: web.Request):
-        """
-        Получить список доступных повербанков для выдачи
-        GET /api/user/powerbanks/available
-        """
         user_id = request['user']['user_id']
         self.logger.info(f"Пользователь {user_id} запросил список доступных повербанков")
 
         try:
+        # Получаем информацию о лимитах пользователя
+            from utils.order_utils import get_user_limit_info
+            limit_info = await get_user_limit_info(self.db_pool, user_id)
+        
+            user_limit = limit_info.get('current_limit')
+            current_borrowed = limit_info.get('current_borrowed', 0)
+            limit_type = limit_info.get('limit_type')
+        
+        # Обрабатываем случай неограниченного лимита (для админов)
+            if user_limit is None and limit_type == 'role_exempt':
+            # Админы могут брать неограниченное количество
+                available_by_limit = float('inf')  # бесконечность
+                user_limit_display = "unlimited"
+            else:
+            # Обычные пользователи с лимитом
+                user_limit = user_limit or 0
+                available_by_limit = max(0, user_limit - current_borrowed)
+                user_limit_display = user_limit
+
+        # Если лимит исчерпан (и не админ), возвращаем пустой список
+            if available_by_limit <= 0 and limit_type != 'role_exempt':
+                return json_ok({
+                    "available_powerbanks": [],
+                    "count": 0,
+                    "user_limits": {
+                        "max_limit": user_limit_display,
+                        "current_borrowed": current_borrowed,
+                        "available_by_limit": 0
+                    },
+                    "message": "Лимит повербанков исчерпан"
+                })
+
+        # Получаем все активные повербанки
+            powerbanks = await Powerbank.get_all_active(self.db_pool)
+        
+            from utils.org_unit_utils import can_user_borrow_powerbank
+        
+            available_powerbanks = []
+            for powerbank in powerbanks:
+                # Если не админ и достигли лимита, прекращаем
+                if limit_type != 'role_exempt' and len(available_powerbanks) >= available_by_limit:
+                    break
+
+                # Проверяем, не выдан ли уже повербанк
+                active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                if not active_order:
+                    # Проверяем права доступа
+                    can_borrow, access_reason = await can_user_borrow_powerbank(
+                        self.db_pool, user_id, powerbank.powerbank_id
+                    )
+
+                    if can_borrow:
+                        available_powerbanks.append({
+                            "powerbank_id": powerbank.powerbank_id,
+                            "serial_number": powerbank.serial_number,
+                            "soh": powerbank.soh,
+                            "status": powerbank.status,
+                            "access_reason": access_reason
+                        })
+
+            self.logger.info(f"Пользователь {user_id}: лимит={user_limit_display}, уже взято={current_borrowed}, доступно={len(available_powerbanks)}")
+
+            return json_ok({
+                "available_powerbanks": available_powerbanks,
+                "count": len(available_powerbanks),
+                "user_limits": {
+                    "max_limit": user_limit_display,
+                    "current_borrowed": current_borrowed,
+                    "available_by_limit": available_by_limit if limit_type != 'role_exempt' else "unlimited"
+                }
+            })
+
+        except Exception as e:
+            self.logger.error(f"Ошибка получения доступных повербанков для пользователя {user_id}: {e}", exc_info=True)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
+
+    async def _get_user_available_powerbanks(self, user_id: int):
+        """
+        Вспомогательный метод для получения доступных повербанков пользователя
+        Возвращает список словарей с информацией о доступных повербанках
+        """
+        try:
+            # Получаем информацию о лимитах пользователя
+            from utils.order_utils import get_user_limit_info
+            limit_info = await get_user_limit_info(self.db_pool, user_id)
+            
+            user_limit = limit_info.get('current_limit')
+            current_borrowed = limit_info.get('current_borrowed', 0)
+            limit_type = limit_info.get('limit_type')
+            
+            # Обрабатываем случай неограниченного лимита (для админов)
+            if user_limit is None and limit_type == 'role_exempt':
+                # Админы могут брать неограниченное количество
+                available_by_limit = float('inf')  # бесконечность
+            else:
+                # Обычные пользователи с лимитом
+                user_limit = user_limit or 0
+                available_by_limit = max(0, user_limit - current_borrowed)
+            
+            # Если лимит исчерпан (и не админ), возвращаем пустой список
+            if available_by_limit <= 0 and limit_type != 'role_exempt':
+                return []
+
             # Получаем все активные повербанки
             powerbanks = await Powerbank.get_all_active(self.db_pool)
             
@@ -41,67 +140,47 @@ class UserPowerbankAPI:
             
             available_powerbanks = []
             for powerbank in powerbanks:
+                # Если не админ и достигли лимита, прекращаем
+                if limit_type != 'role_exempt' and len(available_powerbanks) >= available_by_limit:
+                    break
+
                 # Проверяем, не выдан ли уже повербанк
                 active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
                 if not active_order:
-                    # Проверяем права доступа пользователя к этому повербанку
+                    # Проверяем права доступа
                     can_borrow, access_reason = await can_user_borrow_powerbank(
                         self.db_pool, user_id, powerbank.powerbank_id
                     )
-                    
+
                     if can_borrow:
                         available_powerbanks.append({
                             "powerbank_id": powerbank.powerbank_id,
                             "serial_number": powerbank.serial_number,
                             "soh": powerbank.soh,
                             "status": powerbank.status,
-                            "access_reason": access_reason  # Добавляем причину доступа для информации
+                            "access_reason": access_reason
                         })
 
-            return json_ok({
-                "available_powerbanks": available_powerbanks,
-                "count": len(available_powerbanks)
-            })
+            return available_powerbanks
 
         except Exception as e:
             self.logger.error(f"Ошибка получения доступных повербанков для пользователя {user_id}: {e}", exc_info=True)
-            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
+            return []
 
     @jwt_middleware
     async def get_user_orders(self, request: web.Request):
         """
-        Получить заказы текущего пользователя
+        Получить заказы текущего пользователя с расширенными данными
         GET /api/user/orders
         """
         user_id = request['user']['user_id']
         self.logger.info(f"Пользователь {user_id} запросил свои заказы")
 
         try:
-            # Получаем все заказы пользователя
-            orders = await Order.get_by_user_id(self.db_pool, user_id)
+            # Используем новый метод для получения расширенных данных
+            from models.order import Order
+            orders_data = await Order.get_extended_by_user_id(self.db_pool, user_id, limit=50, offset=0)
             
-            orders_data = []
-            for order in orders:
-                # Получаем информацию о повербанке
-                powerbank = await Powerbank.get_by_id(self.db_pool, order.powerbank_id)
-                # Получаем информацию о станции
-                station = await Station.get_by_id(self.db_pool, order.station_id)
-                
-                orders_data.append({
-                    "order_id": order.order_id,
-                    "powerbank": {
-                        "powerbank_id": powerbank.powerbank_id if powerbank else None,
-                        "serial_number": powerbank.serial_number if powerbank else "Неизвестно"
-                    },
-                    "station": {
-                        "station_id": station.station_id if station else None,
-                        "box_id": station.box_id if station else "Неизвестно"
-                    },
-                    "status": order.status,
-                    "borrow_time": order.borrow_time.isoformat() if order.borrow_time else None,
-                    "return_time": order.return_time.isoformat() if order.return_time else None
-                })
-
             return json_ok({
                 "orders": orders_data
             })
@@ -113,7 +192,7 @@ class UserPowerbankAPI:
     @jwt_middleware
     async def borrow_powerbank(self, request: web.Request):
         """
-        Взять повербанк в аренду
+        Взять повербанк в аренду (сервер сам выбирает повербанк)
         POST /api/user/powerbanks/borrow
         """
         user_id = request['user']['user_id']
@@ -121,22 +200,53 @@ class UserPowerbankAPI:
 
         try:
             data = await request.json()
-            powerbank_id = data.get('powerbank_id')
-            station_id = data.get('station_id')
+            station_id = data.get('station_id')  # Только station_id, без powerbank_id
 
-            if not powerbank_id or not station_id:
-                return json_fail("Не указаны powerbank_id или station_id", status=400)
+            if not station_id:
+                return json_fail("Не указан station_id", status=400)
+
+            # Получаем доступные повербанки для пользователя
+            available_powerbanks = await self._get_user_available_powerbanks(user_id)
+            
+            if not available_powerbanks:
+                return json_fail("Нет доступных повербанков для выдачи", status=400)
+
+            # Фильтруем повербанки которые находятся в запрошенной станции
+            from models.station_powerbank import StationPowerbank
+            
+            station_available_powerbanks = []
+            for pb in available_powerbanks:
+                # Проверяем что повербанк находится в этой станции
+                station_pb = await StationPowerbank.get_by_powerbank_id(self.db_pool, pb['powerbank_id'])
+                if station_pb and station_pb.station_id == station_id:
+                    station_available_powerbanks.append(pb)
+            
+            if not station_available_powerbanks:
+                return json_fail("В указанной станции нет доступных повербанков", status=400)
+
+            # ВЫБИРАЕМ ПЕРВЫЙ ДОСТУПНЫЙ ПОВЕРБАНК ИЗ СТАНЦИИ
+            selected_powerbank = station_available_powerbanks[0]
+            powerbank_id = selected_powerbank['powerbank_id']
+            
+            self.logger.info(f"Автоматически выбран повербанк {powerbank_id} для пользователя {user_id}")
+
+            # Проверяем права доступа пользователя к станции
+            from utils.org_unit_utils import can_user_access_station, log_access_denied_event
+            
+            can_access_station, station_access_reason = await can_user_access_station(self.db_pool, user_id, station_id)
+            if not can_access_station:
+                await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
+                return json_fail(station_access_reason, status=403)
 
             # Проверяем права доступа пользователя к повербанку
-            from utils.org_unit_utils import can_user_borrow_powerbank, log_access_denied_event
+            from utils.org_unit_utils import can_user_borrow_powerbank
             
             can_borrow, access_reason = await can_user_borrow_powerbank(self.db_pool, user_id, powerbank_id)
             if not can_borrow:
-                # Логируем отказ в доступе
                 await log_access_denied_event(self.db_pool, user_id, 'powerbank', powerbank_id, access_reason)
                 return json_fail(access_reason, status=403)
 
-            # Проверяем, что повербанк существует и доступен (дополнительная проверка)
+            # Проверяем, что повербанк существует
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
             if not powerbank:
                 return json_fail("Повербанк не найден", status=404)
@@ -146,23 +256,20 @@ class UserPowerbankAPI:
             if active_order:
                 return json_fail("Повербанк уже выдан другому пользователю", status=400)
 
-            # Проверяем лимит повербанков пользователя (индивидуальный или групповой по умолчанию)
-            from utils.order_utils import check_user_powerbank_limit
+            # Проверяем лимит повербанков пользователя
+            from utils.order_utils import check_user_powerbank_limit, get_user_limit_info
             limit_ok, limit_message = await check_user_powerbank_limit(self.db_pool, user_id)
-            from utils.order_utils import get_user_limit_info
             limit_info = await get_user_limit_info(self.db_pool, user_id)
             if not limit_ok:
                 return json_fail(limit_message, status=403, limit=limit_info)
 
             # Проверяем онлайн статус станции
-            from models.connection import ConnectionManager
-            connection_manager = self.connection_manager
-            if connection_manager:
-                connection = connection_manager.get_connection_by_station_id(station_id)
+            if self.connection_manager:
+                connection = self.connection_manager.get_connection_by_station_id(station_id)
                 if not connection:
                     return json_fail("Станция не подключена", status=503)
                 
-                # Проверяем последний heartbeat (не более 30 секунд назад)
+                # Проверяем последний heartbeat
                 if connection.last_heartbeat:
                     from datetime import datetime
                     from utils.time_utils import get_moscow_time
@@ -171,17 +278,8 @@ class UserPowerbankAPI:
                         return json_fail(f"Станция офлайн (последний heartbeat {time_since_heartbeat:.0f} секунд назад)", status=503)
                 else:
                     return json_fail("Станция не отправляла heartbeat", status=503)
-            
-            # Проверяем права доступа пользователя к станции
-            from utils.org_unit_utils import can_user_access_station
-            
-            can_access_station, station_access_reason = await can_user_access_station(self.db_pool, user_id, station_id)
-            if not can_access_station:
-                # Логируем отказ в доступе к станции
-                await log_access_denied_event(self.db_pool, user_id, 'station', station_id, station_access_reason)
-                return json_fail(station_access_reason, status=403)
 
-            # Проверяем, что станция существует и активна (дополнительная проверка)
+            # Проверяем, что станция существует и активна
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
                 return json_fail("Станция не найдена", status=404)
@@ -189,7 +287,7 @@ class UserPowerbankAPI:
             if station.status != 'active':
                 return json_fail("Станция неактивна", status=400)
 
-            # Создаем заказ со статусом 'pending' (ожидание ответа от станции)
+            # Создаем заказ со статусом 'pending'
             order = await Order.create_pending_order(
                 self.db_pool,
                 user_id,
@@ -200,7 +298,7 @@ class UserPowerbankAPI:
             if not order:
                 return json_fail("Не удалось создать заказ", status=500)
 
-            # Отправляем команду выдачи на станцию и ждем ответа
+            # Отправляем команду выдачи на станцию
             borrow_result = await self.borrow_handler.send_borrow_request_and_wait(
                 station_id, 
                 powerbank_id, 
@@ -209,19 +307,27 @@ class UserPowerbankAPI:
             )
 
             if borrow_result["success"]:
-                # Станция подтвердила выдачу - обновляем заказ на 'borrow'
+                # Станция подтвердила выдачу
                 await Order.confirm_borrow(self.db_pool, order.order_id)
                 
                 self.logger.info(f"Пользователь {user_id} успешно взял повербанк {powerbank_id} со станции {station_id}")
 
+                # Получаем обновленную информацию о лимитах
+                updated_limit_info = await get_user_limit_info(self.db_pool, user_id)
+                
                 return json_ok({
                     "message": "Повербанк успешно выдан",
                     "order_id": order.order_id,
                     "powerbank_serial": powerbank.serial_number,
-                    "station_box_id": station.box_id
-                }, limit=limit_info)
+                    "station_box_id": station.box_id,
+                    "user_limits": {
+                        "max_limit": updated_limit_info.get('current_limit'),
+                        "current_borrowed": updated_limit_info.get('current_borrowed', 0),
+                        "available_by_limit": max(0, (updated_limit_info.get('current_limit') or 0) - updated_limit_info.get('current_borrowed', 0))
+                    }
+                }, limit=updated_limit_info)
             else:
-                # Станция отклонила выдачу - отменяем заказ
+                # Станция отклонила выдачу
                 await Order.cancel(self.db_pool, order.order_id)
                 return json_fail(f"Станция отклонила выдачу: {borrow_result['message']}", status=400)
 
@@ -318,6 +424,83 @@ class UserPowerbankAPI:
 
         except Exception as e:
             self.logger.error(f"Ошибка получения станций для пользователя {user_id}: {e}", exc_info=True)
+            return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
+
+    @jwt_middleware
+    async def get_available_slots_with_limits(self, request: web.Request):
+        """
+        Получить доступные слоты станций с учетом лимитов пользователя
+        GET /api/user/stations/availability
+        """
+        user_id = request['user']['user_id']
+        self.logger.info(f"Пользователь {user_id} запросил доступные слоты станций")
+
+        try:
+            # Получаем информацию о лимитах пользователя
+            from utils.order_utils import get_user_limit_info
+            limit_info = await get_user_limit_info(self.db_pool, user_id)
+            
+            # Определяем текущий лимит пользователя
+            user_limit = limit_info.get('current_limit', 0)
+            current_borrowed = limit_info.get('current_borrowed', 0)
+            
+            # Сколько еще можно взять повербанков
+            available_by_limit = max(0, user_limit - current_borrowed)
+            
+            # Получаем только активные станции
+            stations = await Station.get_all_active(self.db_pool)
+            
+            # Импортируем функцию проверки доступа к станции
+            from utils.org_unit_utils import can_user_access_station
+            
+            stations_data = []
+            total_available_slots = 0
+            
+            for station in stations:
+                # Проверяем права доступа пользователя к станции
+                can_access, access_reason = await can_user_access_station(self.db_pool, user_id, station.station_id)
+                
+                if can_access:
+                    # Получаем повербанки в станции
+                    from models.station_powerbank import StationPowerbank
+                    station_powerbanks = await StationPowerbank.get_station_powerbanks(self.db_pool, station.station_id)
+                    
+                    # Подсчитываем доступные повербанки (не выданные)
+                    available_count = 0
+                    for sp in station_powerbanks:
+                        # Проверяем, не выдан ли повербанк
+                        active_order = await Order.get_active_by_powerbank_id(self.db_pool, sp.powerbank_id)
+                        if not active_order:
+                            available_count += 1
+                    
+                    # Ограничиваем количество доступных слотов лимитом пользователя
+                    user_available_slots = min(available_count, available_by_limit)
+                    total_available_slots += user_available_slots
+                    
+                    stations_data.append({
+                        "station_id": station.station_id,
+                        "box_id": station.box_id,
+                        "slots_declared": station.slots_declared,
+                        "remain_num": station.remain_num,
+                        "available_powerbanks": available_count,
+                        "user_available_slots": user_available_slots,
+                        "status": station.status,
+                        "last_seen": station.last_seen.isoformat() if station.last_seen else None,
+                        "access_reason": access_reason
+                    })
+
+            return json_ok({
+                "stations": stations_data,
+                "total_available_slots": total_available_slots,
+                "user_limits": {
+                    "max_limit": user_limit,
+                    "current_borrowed": current_borrowed,
+                    "available_by_limit": available_by_limit
+                }
+            })
+
+        except Exception as e:
+            self.logger.error(f"Ошибка получения доступных слотов для пользователя {user_id}: {e}", exc_info=True)
             return json_fail(f"Внутренняя ошибка сервера: {e}", status=500)
 
     @jwt_middleware
@@ -423,11 +606,11 @@ class UserPowerbankAPI:
 
             # Валидируем ID типа ошибки
             try:
-                self.logger.info(f"🔍 Получен error_type_id: {error_type_id}, тип: {type(error_type_id)}")
+                self.logger.info(f" Получен error_type_id: {error_type_id}, тип: {type(error_type_id)}")
                 error_type_id = int(error_type_id)
                 if error_type_id <= 0:
                     return json_fail("ID типа ошибки должен быть положительным числом", status=400)
-                self.logger.info(f"✅ error_type_id после конвертации: {error_type_id}")
+                self.logger.info(f" error_type_id после конвертации: {error_type_id}")
             except (ValueError, TypeError):
                 return json_fail("Неверный формат ID типа ошибки", status=400)
 

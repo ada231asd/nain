@@ -72,11 +72,46 @@ class BorrowPowerbankAPI:
                         "last_update": sp.last_update.isoformat() if sp.last_update else None
                     })
             
+            # По умолчанию доступно пользователю все доступные банки (если user_id не передан)
+            available_total = len(result)
+            available_to_user = available_total
+            user_limit_info: Optional[Dict[str, Any]] = None
+
+            # Если передан user_id, учитываем лимит пользователя (индивидуальный приоритетнее группового)
+            if user_id is not None:
+                try:
+                    from utils.order_utils import get_user_limit_info
+                    user_limit_info = await get_user_limit_info(self.db_pool, int(user_id))
+
+                    # Если роль освобождена от лимитов
+                    if user_limit_info and user_limit_info.get("limit_type") == "role_exempt":
+                        available_to_user = available_total
+                    else:
+                        effective_limit = user_limit_info.get("effective_limit")
+                        active_count = user_limit_info.get("active_count", 0)
+
+                        if effective_limit is None:
+                            # На всякий случай: если лимит не определён, считаем 0
+                            available_to_user = 0
+                        else:
+                            remaining_quota = max(int(effective_limit) - int(active_count), 0)
+                            available_to_user = max(0, min(available_total, remaining_quota))
+                except Exception:
+                    # В случае ошибки подсчёта лимита не блокируем ответ
+                    available_to_user = min(available_total, available_to_user)
+
             return {
                 "success": True,
                 "station_id": station_id,
                 "available_powerbanks": result,
-                "count": len(result)
+                "count": available_total,
+                # Сколько пользователь может взять прямо сейчас с учётом лимита и активных заказов
+                "available_to_user": available_to_user,
+                # Информация о лимите пользователя (для прозрачности на фронте)
+                "user_limit": user_limit_info,
+                # Свободные слоты станции (как есть по БД)
+                "free_slots": station.remain_num,
+                "total_slots": station.slots_declared,
             }
             
         except Exception as e:

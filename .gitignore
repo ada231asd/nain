@@ -20,4 +20,6 @@ optimized_server2/config/settings.py/
 /logs/**/**/**/**/*
 /logs/**/**/**/**/**/*
 /zaryd.sql
+/zaryd (3).sql
 /parsed_packets.json
+/121

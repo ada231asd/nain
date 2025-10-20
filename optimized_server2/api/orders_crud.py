@@ -54,23 +54,69 @@ class OrdersCRUD:
                             "error": "Пользователь не найден"
                         }, status=400)
                     
+                    # Если указан powerbank_id, проверяем его существование
+                    if 'powerbank_id' in data and data['powerbank_id']:
+                        await cur.execute("SELECT id FROM powerbank WHERE id = %s", (data['powerbank_id'],))
+                        if not await cur.fetchone():
+                            return web.json_response({
+                                "success": False,
+                                "error": "Повербанк не найден"
+                            }, status=400)
+                    
+                    # Если указан org_unit_id, проверяем его существование
+                    if 'org_unit_id' in data and data['org_unit_id']:
+                        await cur.execute("SELECT org_unit_id FROM org_unit WHERE org_unit_id = %s", (data['org_unit_id'],))
+                        if not await cur.fetchone():
+                            return web.json_response({
+                                "success": False,
+                                "error": "Организационная единица не найдена"
+                            }, status=400)
+                    
+                    # Проверяем, является ли это административным заказом
+                    is_admin_order = data.get('is_admin_order', False)
+                    admin_user_id = data.get('admin_user_id')
+                    
                     # Создаем заказ
                     await cur.execute("""
-                        INSERT INTO orders (station_id, user_id, powerbank_id, status)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status)
+                        VALUES (%s, %s, %s, %s, %s)
                     """, (
                         data['station_id'],
                         data['user_id'],
                         data.get('powerbank_id'),
+                        data.get('org_unit_id'),
                         data['status']
                     ))
                     
                     order_id = cur.lastrowid
                     
+                    # Если это административный заказ, логируем действие
+                    if is_admin_order and admin_user_id:
+                        from models.action_log import ActionLog
+                        await ActionLog.create(
+                            self.db_pool,
+                            user_id=admin_user_id,
+                            action_type='order_create',
+                            entity_type='order',
+                            entity_id=order_id,
+                            description=f"Административный заказ: {data['status']} повербанка"
+                        )
+                    
+                    # Получаем расширенные данные созданного заказа
+                    await cur.execute("""
+                        SELECT * FROM v_orders_extended WHERE id = %s
+                    """, (order_id,))
+                    
+                    order_data = await cur.fetchone()
+                    
                     return web.json_response({
                         "success": True,
-                        "data": {"id": order_id},
-                        "message": "Заказ создан"
+                        "data": {
+                            "id": order_id,
+                            "extended_data": order_data,
+                            "is_admin_order": is_admin_order
+                        },
+                        "message": "Заказ создан успешно"
                     })
                     
         except Exception as e:
@@ -87,51 +133,86 @@ class OrdersCRUD:
             status = request.query.get('status')
             user_id = request.query.get('user_id')
             station_id = request.query.get('station_id')
+            use_extended = request.query.get('extended', 'false').lower() == 'true'
             
             offset = (page - 1) * limit
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Строим запрос
-                    where_conditions = []
-                    params = []
-                    
-                    if status:
-                        where_conditions.append("o.status = %s")
-                        params.append(status)
-                    
-                    if user_id:
-                        where_conditions.append("o.user_id = %s")
-                        params.append(int(user_id))
-                    
-                    if station_id:
-                        where_conditions.append("o.station_id = %s")
-                        params.append(int(station_id))
-                    
-                    where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
-                    
-                    # Получаем общее количество
-                    count_query = f"SELECT COUNT(*) as total FROM orders o {where_clause}"
-                    await cur.execute(count_query, params)
-                    total = (await cur.fetchone())['total']
-                    
-                    # Получаем заказы
-                    query = f"""
-                        SELECT o.id, o.station_id, o.user_id, o.powerbank_id, o.status, o.timestamp,
-                               o.completed_at,
-                               s.box_id as station_box_id,
-                               u.phone_e164 as user_phone, u.fio as user_fio,
-                               p.serial_number as powerbank_serial
-                        FROM orders o
-                        LEFT JOIN station s ON o.station_id = s.station_id
-                        LEFT JOIN app_user u ON o.user_id = u.user_id
-                        LEFT JOIN powerbank p ON o.powerbank_id = p.id
-                        {where_clause}
-                        ORDER BY o.timestamp DESC
-                        LIMIT %s OFFSET %s
-                    """
-                    await cur.execute(query, params + [limit, offset])
-                    orders = await cur.fetchall()
+                    if use_extended:
+                        # Используем представление v_orders_extended для расширенных данных
+                        where_conditions = []
+                        params = []
+                        
+                        if status:
+                            where_conditions.append("status = %s")
+                            params.append(status)
+                        
+                        if user_id:
+                            where_conditions.append("user_id = %s")
+                            params.append(int(user_id))
+                        
+                        if station_id:
+                            where_conditions.append("station_id = %s")
+                            params.append(int(station_id))
+                        
+                        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+                        
+                        # Получаем общее количество из представления
+                        count_query = f"SELECT COUNT(*) as total FROM v_orders_extended {where_clause}"
+                        await cur.execute(count_query, params)
+                        total = (await cur.fetchone())['total']
+                        
+                        # Получаем расширенные данные заказов
+                        query = f"""
+                            SELECT * FROM v_orders_extended
+                            {where_clause}
+                            ORDER BY timestamp DESC
+                            LIMIT %s OFFSET %s
+                        """
+                        await cur.execute(query, params + [limit, offset])
+                        orders = await cur.fetchall()
+                    else:
+                        # Используем стандартный запрос для базовых данных
+                        where_conditions = []
+                        params = []
+                        
+                        if status:
+                            where_conditions.append("o.status = %s")
+                            params.append(status)
+                        
+                        if user_id:
+                            where_conditions.append("o.user_id = %s")
+                            params.append(int(user_id))
+                        
+                        if station_id:
+                            where_conditions.append("o.station_id = %s")
+                            params.append(int(station_id))
+                        
+                        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+                        
+                        # Получаем общее количество
+                        count_query = f"SELECT COUNT(*) as total FROM orders o {where_clause}"
+                        await cur.execute(count_query, params)
+                        total = (await cur.fetchone())['total']
+                        
+                        # Получаем заказы
+                        query = f"""
+                            SELECT o.id, o.station_id, o.user_id, o.powerbank_id, o.status, o.timestamp,
+                                   o.completed_at,
+                                   s.box_id as station_box_id,
+                                   u.phone_e164 as user_phone, u.fio as user_fio,
+                                   p.serial_number as powerbank_serial
+                            FROM orders o
+                            LEFT JOIN station s ON o.station_id = s.station_id
+                            LEFT JOIN app_user u ON o.user_id = u.user_id
+                            LEFT JOIN powerbank p ON o.powerbank_id = p.id
+                            {where_clause}
+                            ORDER BY o.timestamp DESC
+                            LIMIT %s OFFSET %s
+                        """
+                        await cur.execute(query, params + [limit, offset])
+                        orders = await cur.fetchall()
                     
                     return web.json_response(serialize_for_json({
                         "success": True,
@@ -141,7 +222,8 @@ class OrdersCRUD:
                             "limit": limit,
                             "total": total,
                             "pages": (total + limit - 1) // limit
-                        }
+                        },
+                        "extended": use_extended
                     }))
                     
         except Exception as e:
@@ -154,21 +236,30 @@ class OrdersCRUD:
         """GET /api/orders/{order_id} - Получить заказ по ID"""
         try:
             order_id = int(request.match_info['order_id'])
+            use_extended = request.query.get('extended', 'false').lower() == 'true'
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    await cur.execute("""
-                        SELECT o.id, o.station_id, o.user_id, o.powerbank_id, o.status, o.timestamp,
-                               o.completed_at,
-                               s.box_id as station_box_id,
-                               u.phone_e164 as user_phone, u.fio as user_fio,
-                               p.serial_number as powerbank_serial
-                        FROM orders o
-                        LEFT JOIN station s ON o.station_id = s.station_id
-                        LEFT JOIN app_user u ON o.user_id = u.user_id
-                        LEFT JOIN powerbank p ON o.powerbank_id = p.id
-                        WHERE o.id = %s
-                    """, (order_id,))
+                    if use_extended:
+                        # Используем представление v_orders_extended для расширенных данных
+                        await cur.execute("""
+                            SELECT * FROM v_orders_extended
+                            WHERE id = %s
+                        """, (order_id,))
+                    else:
+                        # Используем стандартный запрос
+                        await cur.execute("""
+                            SELECT o.id, o.station_id, o.user_id, o.powerbank_id, o.status, o.timestamp,
+                                   o.completed_at,
+                                   s.box_id as station_box_id,
+                                   u.phone_e164 as user_phone, u.fio as user_fio,
+                                   p.serial_number as powerbank_serial
+                            FROM orders o
+                            LEFT JOIN station s ON o.station_id = s.station_id
+                            LEFT JOIN app_user u ON o.user_id = u.user_id
+                            LEFT JOIN powerbank p ON o.powerbank_id = p.id
+                            WHERE o.id = %s
+                        """, (order_id,))
                     
                     order = await cur.fetchone()
                     if not order:
@@ -179,7 +270,8 @@ class OrdersCRUD:
                     
                     return web.json_response(serialize_for_json({
                         "success": True,
-                        "data": order
+                        "data": order,
+                        "extended": use_extended
                     }))
                     
         except ValueError:
@@ -289,10 +381,75 @@ class OrdersCRUD:
                 "error": str(e)
             }, status=500)
     
+    async def get_extended_orders(self, request: Request) -> Response:
+        """GET /api/orders/extended - Получить расширенные данные заказов"""
+        try:
+            page = int(request.query.get('page', 1))
+            limit = int(request.query.get('limit', 10))
+            status = request.query.get('status')
+            user_id = request.query.get('user_id')
+            station_id = request.query.get('station_id')
+            
+            offset = (page - 1) * limit
+            
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Строим условия для фильтрации
+                    where_conditions = []
+                    params = []
+                    
+                    if status:
+                        where_conditions.append("status = %s")
+                        params.append(status)
+                    
+                    if user_id:
+                        where_conditions.append("user_id = %s")
+                        params.append(int(user_id))
+                    
+                    if station_id:
+                        where_conditions.append("station_id = %s")
+                        params.append(int(station_id))
+                    
+                    where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+                    
+                    # Получаем общее количество
+                    count_query = f"SELECT COUNT(*) as total FROM v_orders_extended {where_clause}"
+                    await cur.execute(count_query, params)
+                    total = (await cur.fetchone())['total']
+                    
+                    # Получаем расширенные данные заказов
+                    query = f"""
+                        SELECT * FROM v_orders_extended
+                        {where_clause}
+                        ORDER BY timestamp DESC
+                        LIMIT %s OFFSET %s
+                    """
+                    await cur.execute(query, params + [limit, offset])
+                    orders = await cur.fetchall()
+                    
+                    return web.json_response(serialize_for_json({
+                        "success": True,
+                        "data": orders,
+                        "pagination": {
+                            "page": page,
+                            "limit": limit,
+                            "total": total,
+                            "pages": (total + limit - 1) // limit
+                        },
+                        "extended": True
+                    }))
+                    
+        except Exception as e:
+            return web.json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+
     def setup_routes(self, app):
         """Настраивает маршруты для orders CRUD"""
         app.router.add_post('/api/orders', self.create_order)
         app.router.add_get('/api/orders', self.get_orders)
+        app.router.add_get('/api/orders/extended', self.get_extended_orders)
         app.router.add_get('/api/orders/{order_id}', self.get_order)
         app.router.add_put('/api/orders/{order_id}', self.update_order)
         app.router.add_delete('/api/orders/{order_id}', self.delete_order)

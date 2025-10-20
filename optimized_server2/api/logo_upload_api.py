@@ -4,8 +4,10 @@ API для загрузки логотипов организационных е
 import os
 import uuid
 import aiofiles
+import aiohttp
 from aiohttp import web
 from aiohttp.web import Request, Response
+from urllib.parse import urlparse
 from utils.centralized_logger import get_logger
 from utils.auth_middleware import require_auth
 
@@ -26,9 +28,68 @@ class LogoUploadAPI:
         # Создаем папку для загрузок если её нет
         os.makedirs(self.upload_dir, exist_ok=True)
     
+    async def _validate_and_download_url(self, url: str) -> tuple[bytes, str]:
+        """Валидирует URL и загружает изображение"""
+        try:
+            # Парсим URL
+            parsed_url = urlparse(url)
+            if not parsed_url.scheme or not parsed_url.netloc:
+                raise ValueError("Некорректный URL")
+            
+            # Проверяем, что это HTTP или HTTPS
+            if parsed_url.scheme not in ['http', 'https']:
+                raise ValueError("Поддерживаются только HTTP и HTTPS URL")
+            
+            # Проверяем размер URL (защита от слишком длинных URL)
+            if len(url) > 2048:
+                raise ValueError("URL слишком длинный")
+            
+            # Загружаем изображение
+            timeout = aiohttp.ClientTimeout(total=30)  # 30 секунд таймаут
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        raise ValueError(f"Не удалось загрузить изображение. HTTP статус: {response.status}")
+                    
+                    # Проверяем Content-Type
+                    content_type = response.headers.get('Content-Type', '').lower()
+                    if not content_type.startswith('image/'):
+                        raise ValueError("URL не указывает на изображение")
+                    
+                    # Проверяем размер файла
+                    content_length = response.headers.get('Content-Length')
+                    if content_length and int(content_length) > self.max_file_size:
+                        raise ValueError(f"Размер изображения превышает {self.max_file_size // (1024*1024)}MB")
+                    
+                    # Читаем содержимое
+                    content = await response.read()
+                    
+                    # Дополнительная проверка размера после загрузки
+                    if len(content) > self.max_file_size:
+                        raise ValueError(f"Размер изображения превышает {self.max_file_size // (1024*1024)}MB")
+                    
+                    # Определяем расширение файла по Content-Type
+                    file_ext = '.jpg'  # по умолчанию
+                    if 'image/png' in content_type:
+                        file_ext = '.png'
+                    elif 'image/gif' in content_type:
+                        file_ext = '.gif'
+                    elif 'image/webp' in content_type:
+                        file_ext = '.webp'
+                    elif 'image/jpeg' in content_type:
+                        file_ext = '.jpg'
+                    
+                    return content, file_ext
+                    
+        except aiohttp.ClientError as e:
+            raise ValueError(f"Ошибка загрузки изображения: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Ошибка обработки URL: {str(e)}")
+    
     def setup_routes(self, app):
         """Настраивает маршруты для загрузки логотипов"""
         app.router.add_post('/api/org-units/{org_unit_id}/logo', self.upload_logo)
+        app.router.add_post('/api/org-units/{org_unit_id}/logo-url', self.upload_logo_from_url)
         app.router.add_delete('/api/org-units/{org_unit_id}/logo', self.delete_logo)
         app.router.add_get('/api/logos/{filename}', self.serve_logo)
     
@@ -72,16 +133,18 @@ class LogoUploadAPI:
                     "error": "Нет прав доступа к данной организационной единице"
                 }, status=403)
             
-            # Проверяем, что запрос содержит файл
+            # Проверяем, что запрос содержит данные
             if not request.has_body:
                 return web.json_response({
                     "success": False,
-                    "error": "Отсутствует файл для загрузки"
+                    "error": "Отсутствуют данные для загрузки"
                 }, status=400)
             
             content_type = request.headers.get('Content-Type', '')
             file_content = None
             filename = None
+            file_ext = None
+            logo_url = None
 
             if 'multipart/form-data' in content_type:
                 # Получаем multipart данные
@@ -93,18 +156,45 @@ class LogoUploadAPI:
                         filename = part.filename
                         file_content = await part.read()
                         break
+                    elif part.name == 'logo_url':
+                        # Получаем URL логотипа
+                        logo_url = await part.read()
+                        logo_url = logo_url.decode('utf-8').strip()
+                        break
             else:
-                # Фолбэк: принимаем сырое тело как файл (например, если фронт не выставил multipart)
+                # Проверяем, является ли запрос JSON с URL
                 try:
-                    file_content = await request.read()
-                    filename = f"{org_unit_id}_{uuid.uuid4().hex}.bin"
+                    data = await request.json()
+                    if 'logo_url' in data:
+                        logo_url = data['logo_url'].strip()
+                    else:
+                        # Фолбэк: принимаем сырое тело как файл
+                        file_content = await request.read()
+                        filename = f"{org_unit_id}_{uuid.uuid4().hex}.bin"
                 except Exception as e:
-                    self.logger.error(f"Не удалось прочитать тело запроса: {e}")
+                    # Если не JSON, пробуем как файл
+                    try:
+                        file_content = await request.read()
+                        filename = f"{org_unit_id}_{uuid.uuid4().hex}.bin"
+                    except Exception as read_error:
+                        self.logger.error(f"Не удалось прочитать тело запроса: {read_error}")
+            
+            # Обрабатываем URL логотипа
+            if logo_url:
+                try:
+                    file_content, file_ext = await self._validate_and_download_url(logo_url)
+                    filename = f"{org_unit_id}_{uuid.uuid4().hex}{file_ext}"
+                    self.logger.info(f"Загружен логотип по URL: {logo_url}")
+                except ValueError as e:
+                    return web.json_response({
+                        "success": False,
+                        "error": str(e)
+                    }, status=400)
             
             if not file_content:
                 return web.json_response({
                     "success": False,
-                    "error": "Отсутствует файл логотипа в запросе"
+                    "error": "Отсутствует файл логотипа или URL в запросе"
                 }, status=400)
             
             # Проверяем размер файла
@@ -114,30 +204,34 @@ class LogoUploadAPI:
                     "error": f"Размер файла превышает {self.max_file_size // (1024*1024)}MB"
                 }, status=400)
             
+            # Определяем расширение файла
+            if not file_ext:  # Если расширение не определено из URL
+                if filename:
+                    file_ext = os.path.splitext(filename)[1].lower()
+                    # Если пришел файл без расширения (фолбэк путь), пробуем по content-type
+                    if not file_ext:
+                        ct = request.headers.get('Content-Type', '')
+                        if 'image/jpeg' in ct:
+                            file_ext = '.jpg'
+                        elif 'image/png' in ct:
+                            file_ext = '.png'
+                        elif 'image/webp' in ct:
+                            file_ext = '.webp'
+                        elif 'image/gif' in ct:
+                            file_ext = '.gif'
+                        else:
+                            file_ext = '.jpg'
+                else:
+                    file_ext = '.jpg'  # по умолчанию
+            
             # Проверяем расширение файла
-            if filename:
-                file_ext = os.path.splitext(filename)[1].lower()
-                # Если пришел файл без расширения (фолбэк путь), пробуем по content-type
-                if not file_ext:
-                    ct = request.headers.get('Content-Type', '')
-                    if 'image/jpeg' in ct:
-                        file_ext = '.jpg'
-                    elif 'image/png' in ct:
-                        file_ext = '.png'
-                    elif 'image/webp' in ct:
-                        file_ext = '.webp'
-                    elif 'image/gif' in ct:
-                        file_ext = '.gif'
-                    else:
-                        file_ext = '.jpg'
-                if file_ext not in self.allowed_extensions:
-                    return web.json_response({
-                        "success": False,
-                        "error": f"Недопустимое расширение файла. Разрешены: {', '.join(self.allowed_extensions)}"
-                    }, status=400)
+            if file_ext not in self.allowed_extensions:
+                return web.json_response({
+                    "success": False,
+                    "error": f"Недопустимое расширение файла. Разрешены: {', '.join(self.allowed_extensions)}"
+                }, status=400)
             
             # Генерируем уникальное имя файла
-            file_ext = os.path.splitext(filename)[1].lower() if filename else '.jpg'
             unique_filename = f"{org_unit_id}_{uuid.uuid4().hex}{file_ext}"
             file_path = os.path.join(self.upload_dir, unique_filename)
             
@@ -201,6 +295,137 @@ class LogoUploadAPI:
             }, status=400)
         except Exception as e:
             self.logger.error(f"Ошибка загрузки логотипа: {e}")
+            return web.json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
+    async def upload_logo_from_url(self, request: Request) -> Response:
+        """POST /api/org-units/{org_unit_id}/logo-url - Загрузка логотипа по URL"""
+        try:
+            # Проверяем авторизацию
+            auth_result = await require_auth(request)
+            if not auth_result['success']:
+                return web.json_response({
+                    "success": False,
+                    "error": auth_result['error']
+                }, status=401)
+            
+            org_unit_id = int(request.match_info['org_unit_id'])
+            
+            # Получаем URL из запроса
+            try:
+                data = await request.json()
+                logo_url = data.get('logo_url', '').strip()
+                if not logo_url:
+                    return web.json_response({
+                        "success": False,
+                        "error": "URL логотипа не указан"
+                    }, status=400)
+            except Exception:
+                return web.json_response({
+                    "success": False,
+                    "error": "Некорректный JSON в запросе"
+                }, status=400)
+            
+            # Проверяем существование организационной единицы
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("""
+                        SELECT org_unit_id FROM org_unit 
+                        WHERE org_unit_id = %s
+                    """, (org_unit_id,))
+                    
+                    if not await cur.fetchone():
+                        return web.json_response({
+                            "success": False,
+                            "error": "Организационная единица не найдена"
+                        }, status=404)
+            
+            # Проверяем права доступа к организационной единице
+            user = auth_result['user']
+            if not await self._check_org_unit_access(user, org_unit_id):
+                return web.json_response({
+                    "success": False,
+                    "error": "Нет прав доступа к данной организационной единице"
+                }, status=403)
+            
+            # Загружаем изображение по URL
+            try:
+                file_content, file_ext = await self._validate_and_download_url(logo_url)
+                filename = f"{org_unit_id}_{uuid.uuid4().hex}{file_ext}"
+                self.logger.info(f"Загружен логотип по URL: {logo_url}")
+            except ValueError as e:
+                return web.json_response({
+                    "success": False,
+                    "error": str(e)
+                }, status=400)
+            
+            # Генерируем уникальное имя файла
+            unique_filename = f"{org_unit_id}_{uuid.uuid4().hex}{file_ext}"
+            file_path = os.path.join(self.upload_dir, unique_filename)
+            
+            # Сохраняем файл
+            try:
+                async with aiofiles.open(file_path, 'wb') as f:
+                    await f.write(file_content)
+                self.logger.info(f"Файл сохранен: {file_path}")
+            except Exception as e:
+                self.logger.error(f"Ошибка сохранения файла {file_path}: {e}")
+                return web.json_response({
+                    "success": False,
+                    "error": "Ошибка сохранения файла"
+                }, status=500)
+            
+            # Обновляем путь к логотипу в базе данных
+            logo_url_path = f"/api/logos/{unique_filename}"
+            
+            try:
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute("""
+                            UPDATE org_unit 
+                            SET logo_url = %s 
+                            WHERE org_unit_id = %s
+                        """, (logo_url_path, org_unit_id))
+                        
+                        if cur.rowcount == 0:
+                            # Удаляем загруженный файл если обновление не удалось
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                            return web.json_response({
+                                "success": False,
+                                "error": "Организационная единица не найдена"
+                            }, status=404)
+            except Exception as e:
+                # Удаляем загруженный файл при ошибке БД
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                self.logger.error(f"Ошибка обновления БД для org_unit_id={org_unit_id}: {e}")
+                return web.json_response({
+                    "success": False,
+                    "error": "Ошибка сохранения данных"
+                }, status=500)
+            
+            self.logger.info(f"Логотип загружен по URL для org_unit_id={org_unit_id}, файл: {unique_filename}")
+            
+            return web.json_response({
+                "success": True,
+                "data": {
+                    "logo_url": logo_url_path,
+                    "filename": unique_filename,
+                    "source_url": logo_url
+                },
+                "message": "Логотип успешно загружен по URL"
+            })
+            
+        except ValueError:
+            return web.json_response({
+                "success": False,
+                "error": "Некорректный ID организационной единицы"
+            }, status=400)
+        except Exception as e:
+            self.logger.error(f"Ошибка загрузки логотипа по URL: {e}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
