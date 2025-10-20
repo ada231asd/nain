@@ -210,22 +210,6 @@ LEFT JOIN user_favorites uf ON (o.user_id = uf.user_id AND o.station_id = uf.sta
 
 ### 📋 Общий CRUD API для заказов (`OrdersCRUD`)
 
-#### 1. Создание заказа
-
-**POST** `/api/orders`
-
-Создает новый заказ с расширенной валидацией.
-
-**Параметры запроса:**
-```json
-{
-    "station_id": 1,
-    "user_id": 1,
-    "powerbank_id": 1,
-    "org_unit_id": 1,
-    "status": "borrow"
-}
-```
 
 #### 2. Получение заказов
 
@@ -324,36 +308,6 @@ const data = await response.json();
 // - org_unit_name, org_unit_address
 // - user_fio, user_phone
 // - user_id, station_id, org_unit_id, powerbank_id
-```
-
-### Создание административного заказа
-```javascript
-const adminOrder = await fetch('/api/orders', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${admin_jwt_token}`
-    },
-    body: JSON.stringify({
-        station_id: 1,
-        user_id: 1,
-        powerbank_id: 1,
-        org_unit_id: 1,
-        status: 'force_eject',
-        is_admin_order: true,
-        admin_user_id: 1
-    })
-});
-```
-
-### Получение заказов с расширенными данными
-```javascript
-// Использование общего API с параметром extended
-const orders = await fetch('/api/orders?extended=true&status=borrow');
-
-// Или специальный endpoint для расширенных данных
-const extendedOrders = await fetch('/api/orders/extended?status=borrow');
-```
 
 ## Обработка ошибок
 
@@ -366,9 +320,3 @@ const extendedOrders = await fetch('/api/orders/extended?status=borrow');
 - `404` - Ресурс не найден
 - `500` - Внутренняя ошибка сервера
 
-## Безопасность
-
-1. **JWT аутентификация** - обязательна для пользовательских endpoints
-2. **Ролевая авторизация** - проверка прав доступа к операциям
-3. **Валидация данных** - все входные данные проверяются
-4. **Логирование действий** - все административные операции логируются

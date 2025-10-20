@@ -35,18 +35,18 @@
 
       <div class="station-card__powerbank-info">
         <div class="station-card__powerbank-item">
-          <span class="station-card__powerbank-label">Вернуть:</span>
-          <span class="station-card__powerbank-value station-card__powerbank-value--available">{{ availablePorts }}</span>
+          <span class="station-card__powerbank-label">доступно аккумуляторов:</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--available">{{ returnablePorts }}</span>
         </div>
         <div class="station-card__powerbank-item">
-          <span class="station-card__powerbank-label">Взять:</span>
-          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ returnablePorts }}</span>
+          <span class="station-card__powerbank-label">свободно слотов:</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ availablePorts }}</span>
         </div>
       </div>
       
-      <div v-if="station.lastSeen" class="station-card__last-seen">
+      <div v-if="lastSeenValue" class="station-card__last-seen">
         <span class="station-card__last-seen-label">Последний раз видели:</span>
-        <span class="station-card__last-seen-time">{{ formatLastSeen(station.lastSeen) }}</span>
+        <span class="station-card__last-seen-time">{{ formatLastSeen(lastSeenValue) }}</span>
       </div>
     </div>
     
@@ -103,7 +103,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import BaseButton from './BaseButton.vue'
 
 const props = defineProps({
@@ -167,22 +167,51 @@ const getStatusText = (status) => {
 }
 
 
+const parseTimestampToDate = (ts) => {
+  if (!ts) return null
+  // Accept Unix seconds, Unix ms, ISO strings
+  if (typeof ts === 'number') {
+    // Heuristic: seconds vs ms
+    if (ts < 2e10) {
+      return new Date(ts * 1000)
+    }
+    return new Date(ts)
+  }
+  if (typeof ts === 'string') {
+    // Normalize common backend formats, ensure it parses
+    // Add 'Z' if looks like UTC without zone
+    const isoLike = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(ts)
+    const withZone = /[zZ+\-]\d{0,2}:?\d{0,2}$/.test(ts)
+    const normalized = isoLike && !withZone ? `${ts}Z` : ts
+    const d = new Date(normalized)
+    if (!isNaN(d.getTime())) return d
+    // Try replacing space with 'T'
+    const try2 = new Date(ts.replace(' ', 'T'))
+    if (!isNaN(try2.getTime())) return try2
+  }
+  return null
+}
+
 const formatLastSeen = (timestamp) => {
-  if (!timestamp) return 'Неизвестно'
-  
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now - date
+  const date = parseTimestampToDate(timestamp)
+  if (!date) return 'Неизвестно'
+
+  const now = new Date(currentTime.value)
+  let diffMs = now.getTime() - date.getTime()
+
+  // Guard against clock skew (future timestamps)
+  if (diffMs < 0) diffMs = 0
+
   const diffMins = Math.floor(diffMs / (1000 * 60))
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  
+
   if (diffMins < 1) return 'Только что'
   if (diffMins < 60) return `${diffMins} мин назад`
   if (diffHours < 24) return `${diffHours} ч назад`
   if (diffDays < 7) return `${diffDays} дн назад`
-  
-  return date.toLocaleDateString('ru-RU')
+
+  return date.toLocaleString('ru-RU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 const formatDistance = (distance) => {
@@ -204,6 +233,24 @@ const handleCardClick = (event) => {
   }
   emit('toggleExpansion', props.station)
 }
+
+// Обновление времени "последний раз видели" раз в минуту
+const currentTime = ref(Date.now())
+const lastSeenValue = computed(() => props.station.lastSeen || props.station.last_seen || props.station.last_seen_at || props.station.lastSeenAt)
+let lastSeenTimer = null
+
+onMounted(() => {
+  lastSeenTimer = setInterval(() => {
+    currentTime.value = Date.now()
+  }, 60000)
+})
+
+onUnmounted(() => {
+  if (lastSeenTimer) {
+    clearInterval(lastSeenTimer)
+    lastSeenTimer = null
+  }
+})
 </script>
 
 <style scoped>
@@ -336,14 +383,14 @@ const handleCardClick = (event) => {
   background-color: var(--background-secondary);
   padding: 4px 8px;
   border-radius: 6px;
-  font-family: 'Courier New', monospace;
+  font-family: inherit;
 }
 
 .station-card__box-id--header {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'Courier New', monospace;
+  font-family: inherit;
   margin-right: 12px;
 }
 
