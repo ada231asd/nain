@@ -21,8 +21,11 @@ class ReturnPowerbankHandler:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.logger = get_logger('return_powerbank')
-        # Словарь для ожидания возврата с ошибкой: {user_id: {'station_id': int, 'error_type': int, 'timestamp': datetime, 'future': asyncio.Future}}
-        self.pending_error_returns = {}
+        # Общий (класс-уровня) словарь ожиданий, чтобы разные экземпляры видели одну очередь
+        if not hasattr(ReturnPowerbankHandler, '_pending_error_returns'):
+            ReturnPowerbankHandler._pending_error_returns = {}
+        # Экземплярный алиас для совместимости с обращениями через self.pending_error_returns
+        self.pending_error_returns = ReturnPowerbankHandler._pending_error_returns
 
     async def start_background_cleanup(self):
         """Запускает фоновую очистку просроченных запросов. Вызывать после старта event loop."""
@@ -57,14 +60,14 @@ class ReturnPowerbankHandler:
                 return {"success": False, "error": "У пользователя нет активных заказов"}
             
             # Проверяем, нет ли уже ожидающего запроса для этого пользователя
-            if user_id in self.pending_error_returns:
+            if user_id in ReturnPowerbankHandler._pending_error_returns:
                 return {"success": False, "error": "У пользователя уже есть ожидающий запрос на возврат с ошибкой"}
             
             # Создаем Future для Long Polling
             future = asyncio.Future()
             
             # Сохраняем запрос на возврат с ошибкой
-            self.pending_error_returns[user_id] = {
+            ReturnPowerbankHandler._pending_error_returns[user_id] = {
                 'station_id': station_id,
                 'error_type': error_type,
                 'timestamp': get_moscow_time(),
@@ -80,8 +83,8 @@ class ReturnPowerbankHandler:
                 return result
             except asyncio.TimeoutError:
                 # Удаляем просроченный запрос
-                if user_id in self.pending_error_returns:
-                    del self.pending_error_returns[user_id]
+                if user_id in ReturnPowerbankHandler._pending_error_returns:
+                    del ReturnPowerbankHandler._pending_error_returns[user_id]
                 return {
                     "success": False, 
                     "error": f"Таймаут ожидания вставки повербанка ({timeout_seconds} секунд). Повербанк не был вставлен в станцию."
@@ -89,8 +92,8 @@ class ReturnPowerbankHandler:
             
         except Exception as e:
             # Удаляем запрос в случае ошибки
-            if user_id in self.pending_error_returns:
-                del self.pending_error_returns[user_id]
+            if user_id in ReturnPowerbankHandler._pending_error_returns:
+                del ReturnPowerbankHandler._pending_error_returns[user_id]
             self.logger.error(f"Ошибка обработки запроса на возврат с ошибкой: {e}")
             return {"success": False, "error": f"Ошибка обработки запроса: {str(e)}"}
     
@@ -102,7 +105,7 @@ class ReturnPowerbankHandler:
         try:
             # Ищем пользователя, который ожидает возврат в эту станцию
             matching_user_id = None
-            for user_id, return_data in self.pending_error_returns.items():
+            for user_id, return_data in ReturnPowerbankHandler._pending_error_returns.items():
                 if return_data['station_id'] == station_id:
                     matching_user_id = user_id
                     break
@@ -152,21 +155,25 @@ class ReturnPowerbankHandler:
     async def _process_error_return(self, station_id: int, slot_number: int, powerbank_id: int, matching_user_id: int) -> Dict[str, Any]:
         """Единая обработка успешного возврата с ошибкой: статусы, заказ, лог, future."""
         try:
-            return_data = self.pending_error_returns.get(matching_user_id, {})
+            return_data = ReturnPowerbankHandler._pending_error_returns.get(matching_user_id, {})
             error_type = return_data.get('error_type')
             error_name = return_data.get('error_name')
             future = return_data.get('future')
 
-            # Проверяем, что повербанк принадлежит пользователю
+            # Ищем активный заказ по повербанку
             active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
-            if not active_order or active_order.user_id != matching_user_id:
-                self.logger.warning(f"Повербанк {powerbank_id} не принадлежит пользователю {matching_user_id}")
+            if not active_order:
                 if future and not future.done():
                     future.set_result({
                         "success": False,
-                        "error": "Повербанк не принадлежит ожидающему пользователю"
+                        "error": "Нет активного заказа для этого повербанка"
                     })
-                return {"success": False, "error": "Повербанк не принадлежит ожидающему пользователю"}
+                return {"success": False, "error": "Нет активного заказа для этого повербанка"}
+
+            # Принимаем возврат по фактическому владельцу заказа, даже если он отличается от инициатора ожидания
+            effective_user_id = active_order.user_id
+            if effective_user_id != matching_user_id:
+                self.logger.warning(f"Повербанк {powerbank_id} принадлежит пользователю {effective_user_id}, а ожидал {matching_user_id}. Продолжаем по владельцу заказа.")
 
             # Обновляем статус повербанка и тип ошибки
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
@@ -183,13 +190,13 @@ class ReturnPowerbankHandler:
             await StationPowerbank.add_powerbank(self.db_pool, station_id, powerbank_id, slot_number)
 
             # Удаляем из ожидающих
-            if matching_user_id in self.pending_error_returns:
-                del self.pending_error_returns[matching_user_id]
+            if matching_user_id in ReturnPowerbankHandler._pending_error_returns:
+                del ReturnPowerbankHandler._pending_error_returns[matching_user_id]
 
             # Логируем действие
             await ActionLog.create(
                 self.db_pool,
-                user_id=matching_user_id,
+                user_id=effective_user_id,
                 action_type='order_update',
                 entity_type='order',
                 entity_id=active_order.order_id,
@@ -199,7 +206,7 @@ class ReturnPowerbankHandler:
             result = {
                 "success": True,
                 "message": "Повербанк успешно возвращен с ошибкой",
-                "user_id": matching_user_id,
+                "user_id": effective_user_id,
                 "powerbank_id": powerbank_id,
                 "station_id": station_id,
                 "slot_number": slot_number,
@@ -208,6 +215,7 @@ class ReturnPowerbankHandler:
             }
 
             if future and not future.done():
+                # Отдаём инициатору успех с фактическим пользователем-владельцем заказа
                 future.set_result(result)
 
             return result
@@ -219,15 +227,15 @@ class ReturnPowerbankHandler:
         """
         Получает список ожидающих возврат с ошибкой
         """
-        return self.pending_error_returns.copy()
+        return ReturnPowerbankHandler._pending_error_returns.copy()
     
     async def cancel_error_return(self, user_id: int) -> Dict[str, Any]:
         """
         Отменяет ожидание возврата с ошибкой
         """
         try:
-            if user_id in self.pending_error_returns:
-                del self.pending_error_returns[user_id]
+            if user_id in ReturnPowerbankHandler._pending_error_returns:
+                del ReturnPowerbankHandler._pending_error_returns[user_id]
                 self.logger.info(f"Отменен запрос на возврат с ошибкой для пользователя {user_id}")
                 return {"success": True, "message": "Запрос на возврат с ошибкой отменен"}
             else:
@@ -245,13 +253,13 @@ class ReturnPowerbankHandler:
             current_time = get_moscow_time()
             expired_users = []
             
-            for user_id, return_data in self.pending_error_returns.items():
+            for user_id, return_data in ReturnPowerbankHandler._pending_error_returns.items():
                 age_minutes = (current_time - return_data['timestamp']).total_seconds() / 60
                 if age_minutes > max_age_minutes:
                     expired_users.append(user_id)
             
             for user_id in expired_users:
-                del self.pending_error_returns[user_id]
+                del ReturnPowerbankHandler._pending_error_returns[user_id]
                 self.logger.info(f"Удален просроченный запрос на возврат для пользователя {user_id}")
             
             return len(expired_users)

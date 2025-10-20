@@ -13,6 +13,7 @@ class AdminEndpoints:
     """HTTP endpoints для администратора"""
     
     def __init__(self, db_pool, connection_manager=None):
+        self.db_pool = db_pool
         self.admin_api = AdminPowerbankAPI(db_pool, connection_manager)
     
     async def get_unknown_powerbanks(self, request: Request) -> Response:

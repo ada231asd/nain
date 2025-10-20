@@ -20,6 +20,19 @@ class AdminPowerbankAPI:
     def __init__(self, db_pool, connection_manager=None):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
+        # Логгер может использоваться во всех методах; инициализируем безопасно
+        try:
+            from utils.centralized_logger import get_logger
+            self.logger = get_logger('admin_powerbank_api')
+        except Exception:
+            class _Dummy:
+                def error(self, *args, **kwargs):
+                    pass
+                def info(self, *args, **kwargs):
+                    pass
+                def warning(self, *args, **kwargs):
+                    pass
+            self.logger = _Dummy()
     
     async def get_unknown_powerbanks(self) -> List[Dict[str, Any]]:
         """Получает список повербанков со статусом unknown"""
