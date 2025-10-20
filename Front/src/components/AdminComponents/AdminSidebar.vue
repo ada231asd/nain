@@ -278,8 +278,8 @@ const getCurrentGroupLogo = () => {
   if (!group || !group.logo_url) return null
 
   // Если это относительный путь, добавляем базовый URL
-  if (group.logo_url.startsWith('/api/logos/')) {
-    return `${import.meta.env.VITE_PY_BACKEND_URL || 'http://localhost:8000'}${group.logo_url}`
+  if (group.logo_url.startsWith('/api/')) {
+    return group.logo_url
   }
 
   return group.logo_url

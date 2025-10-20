@@ -172,8 +172,8 @@ const fillForm = () => {
     
     // Устанавливаем предварительный просмотр существующего логотипа
     if (props.orgUnit.logo_url) {
-      logoPreview.value = props.orgUnit.logo_url.startsWith('/api/logos/') 
-        ? `${import.meta.env.VITE_PY_BACKEND_URL || 'http://localhost:8000'}${props.orgUnit.logo_url}`
+      logoPreview.value = props.orgUnit.logo_url.startsWith('/api/')
+        ? props.orgUnit.logo_url
         : props.orgUnit.logo_url
     }
   }
