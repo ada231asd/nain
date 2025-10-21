@@ -22,10 +22,8 @@ class RestartCabinetHandler:
     async def send_restart_command(self, station_id: int, admin_user_id: int) -> dict:
         """
         Отправляет команду перезагрузки кабинета на станцию
-        Возвращает результат операции
         """
         try:
-            # Получаем станцию из БД
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
                 return {
@@ -33,7 +31,6 @@ class RestartCabinetHandler:
                     "error": f"Станция с ID {station_id} не найдена"
                 }
             
-            # Получаем соединение для станции
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
                 return {
@@ -50,11 +47,6 @@ class RestartCabinetHandler:
             # Создаем пакет команды перезагрузки
             restart_packet = build_restart_cabinet_request(connection.secret_key, vsn=1)
             
-            # Выводим информацию о пакете для отладки
-            packet_hex = restart_packet.hex().upper()
-            print(f" Отправляем команду перезагрузки на станцию {station.box_id}")
-            print(f" Пакет команды (0x67): {packet_hex}")
-            print(f" Размер пакета: {len(restart_packet)} байт")
             
             # Отправляем команду
             if not connection.writer or connection.writer.is_closing():
@@ -68,24 +60,18 @@ class RestartCabinetHandler:
             
             # Меняем статус станции на inactive
             await station.update_status(self.db_pool, "inactive")
-            print(f" Статус станции {station.box_id} изменен на 'inactive'")
             
             # Логируем отправку команды в файл
             self.logger.info(f"Команда перезагрузки отправлена на станцию {station.box_id} (ID: {station_id}) | "
-                           f"Пакет: {packet_hex} | Админ: {admin_user_id} | Статус изменен на inactive")
-            
-            print(f"Команда перезагрузки отправлена на станцию {station.box_id} (ID: {station_id})")
+                           f"Админ: {admin_user_id} | Статус изменен на inactive")
             
             return {
                 "success": True,
-                "message": f"Команда перезагрузки отправлена на станцию {station.box_id}",
-                "station_box_id": station.box_id,
-                "packet_hex": restart_packet.hex().upper()
+                "message": f"Команда перезагрузки отправлена на станцию {station.box_id}"
             }
             
         except Exception as e:
             error_msg = f"Ошибка отправки команды перезагрузки: {str(e)}"
-            print(error_msg)
             
             # Логируем ошибку в файл
             self.logger.error(f"Ошибка отправки команды перезагрузки на станцию {station_id} | "
@@ -105,13 +91,9 @@ class RestartCabinetHandler:
             response = parse_restart_cabinet_response(data)
             
             if response.get("CheckSumValid", False):
-                print(f"Получен ответ на команду перезагрузки от станции {connection.box_id}")
-                
                 # Логируем получение ответа в файл
                 self.logger.info(f"Получен ответ на команду перезагрузки от станции {connection.box_id} (ID: {connection.station_id}) | "
                                f"Ответ: {response}")
-            else:
-                print(f"Получен некорректный ответ на команду перезагрузки от станции {connection.box_id}")
             
            
             return None

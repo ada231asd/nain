@@ -22,13 +22,11 @@ class QueryICCIDHandler:
         try:
             # Проверяем, что станция подключена
             if not connection or not connection.station_id:
-                print("Станция не подключена для запроса ICCID")
                 return None
             
             # Получаем секретный ключ
             secret_key = connection.secret_key
             if not secret_key:
-                print("Нет секретного ключа для команды ICCID")
                 return None
             
             # Создаем команду на запрос ICCID
@@ -37,7 +35,6 @@ class QueryICCIDHandler:
                 vsn=2
             )
             
-            print(f"Создана команда на запрос ICCID станции {station_id}")
             return iccid_command
             
         except Exception as e:
@@ -52,7 +49,6 @@ class QueryICCIDHandler:
         try:
             # Парсим ответ от станции
             iccid_response = parse_query_iccid_response(data)
-            print(f"Обработан ответ на запрос ICCID: {iccid_response}")
             
             station_id = connection.station_id
             if not station_id:
@@ -95,7 +91,6 @@ class QueryICCIDHandler:
                     """, (iccid, get_moscow_time(), station_id))
                     await conn.commit()
             
-            print(f"ICCID {iccid} сохранен для станции {station_id}")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -118,9 +113,6 @@ class QueryICCIDHandler:
             iccid_command = await self.handle_query_iccid_request(station_id, connection)
             
             if iccid_command:
-         
-               
-                print(f"Команда запроса ICCID отправлена на станцию {station_id}")
                 
                 return {
                     "success": True,

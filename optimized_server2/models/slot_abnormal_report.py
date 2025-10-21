@@ -105,7 +105,6 @@ class SlotAbnormalReport:
             )
         return reports
 
-    # Синоним, чтобы соответствовать вызовам API
     @classmethod
     async def get_by_station(cls, db_pool, station_id: int, limit: int = 100) -> List['SlotAbnormalReport']:
         return await cls.get_by_station_id(db_pool, station_id, limit)
@@ -144,7 +143,7 @@ class SlotAbnormalReport:
 
     @classmethod
     async def get_statistics(cls, db_pool) -> dict:
-        """Возвращает статистику по отчетам (по типу события и общее число)."""
+        """Возвращает статистику по отчетам """
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(

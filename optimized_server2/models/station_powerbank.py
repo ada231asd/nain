@@ -143,12 +143,10 @@ class StationPowerbank:
         """Добавляет повербанк в станцию"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                # Конвертируем значения в int, чтобы избежать MySQL warnings
                 level_int = int(level) if level is not None else None
                 voltage_int = int(voltage) if voltage is not None else None
                 temperature_int = int(temperature) if temperature is not None else None
                 
-                # Используем INSERT ... ON DUPLICATE KEY UPDATE для избежания дубликатов
                 moscow_time = get_moscow_time()
                 await cur.execute("""
                     INSERT INTO station_powerbank 
@@ -162,7 +160,6 @@ class StationPowerbank:
                     last_update = new_values.last_update
                 """, (station_id, powerbank_id, slot_number, level_int, voltage_int, temperature_int, moscow_time))
                 
-                # Получаем ID записи (новой или обновленной)
                 await cur.execute("""
                     SELECT id FROM station_powerbank 
                     WHERE station_id = %s AND slot_number = %s
@@ -225,7 +222,6 @@ class StationPowerbank:
         """Обновляет данные повербанка в станции"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                # Строим запрос динамически
                 updates = []
                 params = []
                 
@@ -270,7 +266,7 @@ class StationPowerbank:
     async def sync_station_powerbanks(cls, db_pool, station_id: int, slots_data: list) -> None:
         """
         Синхронизирует повербанки в станции с данными из пакета логина
-        Удаляет старые записи и добавляет ВСЕ повербанки (независимо от статуса)
+
         """
         
         async with db_pool.acquire() as conn:
@@ -280,7 +276,6 @@ class StationPowerbank:
                 
                 added_count = 0
                 
-                # Добавляем ВСЕ повербанки (независимо от статуса)
                 for slot in slots_data:
                     terminal_id = slot.get('TerminalID')
                     
@@ -324,7 +319,6 @@ class StationPowerbank:
                         ))
                         
                         added_count += 1
-                    # else: повербанк не найден - пропускаем
     
     async def update_data(self, db_pool, level: int = None, voltage: int = None, 
                          temperature: int = None) -> bool:

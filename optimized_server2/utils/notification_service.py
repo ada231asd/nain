@@ -17,8 +17,8 @@ class NotificationService:
         self.logger = logging.getLogger('notification_service')
         self.smtp_config = NOTIFICATION_CONFIG.get('smtp', {})
         self.email_enabled = self.smtp_config.get('enabled', True)
-        self.last_disable_time = None  # Время последнего отключения
-        self.disable_duration = 300  # 5 минут до автоматического включения
+        self.last_disable_time = None  
+        self.disable_duration = 300  
         
         # Проверяем доступность SMTP при инициализации
         if self.email_enabled:
@@ -73,7 +73,7 @@ class NotificationService:
         self.logger.info("Email принудительно включен")
     
     async def verify_email_delivery(self, to_email: str) -> bool:
-        """Проверяет возможность доставки email (базовая проверка)"""
+        """Проверяет возможность доставки email"""
         if not self._validate_email(to_email):
             self.logger.warning(f"Некорректный email адрес: {to_email}")
             return False
@@ -97,7 +97,7 @@ class NotificationService:
         # Проверяем возможность доставки
         if not await self.verify_email_delivery(to_email):
             self.logger.warning(f"Email {to_email} не прошел проверку доставки, пропускаем отправку")
-            return True  # Возвращаем True чтобы не блокировать регистрацию
+            return True  
         
         # Проверяем автоматическое включение
         self._check_auto_reenable()
@@ -105,7 +105,7 @@ class NotificationService:
         # Проверяем, включена ли отправка email
         if not self.email_enabled:
             self.logger.info(f"Отправка email отключена. Сообщение для {to_email}: {subject}")
-            return True  # Возвращаем True чтобы не блокировать регистрацию
+            return True  
         
         import asyncio
         
@@ -113,7 +113,7 @@ class NotificationService:
             try:
                 if attempt > 0:
                     self.logger.info(f"Повторная попытка отправки email #{attempt} на {to_email}")
-                    await asyncio.sleep(2)  # Пауза между попытками
+                    await asyncio.sleep(2)  
                 else:
                     self.logger.info(f"Отправка email на {to_email} через {self.smtp_config.get('host')}:{self.smtp_config.get('port')}")
                 
@@ -126,26 +126,26 @@ class NotificationService:
                 msg['X-Auto-Response-Suppress'] = 'All'  # Подавляем автоответы
                 msg['Precedence'] = 'bulk'  # Помечаем как массовую рассылку
                 
-                # Добавляем текстовую версию
+                
                 text_part = MIMEText(body, 'plain', 'utf-8')
                 msg.attach(text_part)
                 
-                # Добавляем HTML версию если есть
+            
                 if html_body:
                     html_part = MIMEText(html_body, 'html', 'utf-8')
                     msg.attach(html_part)
                 
                 # Отправляем email
                 with smtplib.SMTP(self.smtp_config.get('host'), self.smtp_config.get('port')) as server:
-                    server.set_debuglevel(0)  # Отключаем отладку для продакшена
+                    server.set_debuglevel(0)  
                     
                     if self.smtp_config.get('use_tls', True):
-                        if attempt == 0:  # Логируем только в первой попытке
+                        if attempt == 0:  
                             self.logger.info("Включаем TLS...")
                         server.starttls()
                     
                     if self.smtp_config.get('username') and self.smtp_config.get('password'):
-                        if attempt == 0:  # Логируем только в первой попытке
+                        if attempt == 0:  
                             self.logger.info(f"Авторизация как {self.smtp_config['username']}")
                         server.login(self.smtp_config['username'], self.smtp_config['password'])
                     
@@ -156,48 +156,41 @@ class NotificationService:
                 
             except smtplib.SMTPAuthenticationError as e:
                 self.logger.error(f"Ошибка аутентификации SMTP для {to_email}: {e}")
-                # Отключаем email при ошибке аутентификации (не повторяем)
                 self.email_enabled = False
                 return False
             except smtplib.SMTPRecipientsRefused as e:
-                # Ошибка "пользователь не существует" или "почтовый ящик недоступен"
                 self.logger.error(f"Отклонен получатель {to_email}: {e}")
-                # Не отключаем email полностью, но не повторяем для этого адреса
                 return False
             except smtplib.SMTPDataError as e:
-                # Ошибка данных (например, неправильный формат сообщения)
                 self.logger.error(f"Ошибка данных SMTP для {to_email}: {e}")
                 if attempt == max_retries:
                     return False
-                continue  # Повторяем попытку
+                continue  
             except smtplib.SMTPConnectError as e:
                 self.logger.error(f"Ошибка подключения к SMTP серверу для {to_email}: {e}")
                 if attempt == max_retries:
-                    # Временно отключаем email после всех попыток
                     import time
                     self.email_enabled = False
                     self.last_disable_time = time.time()
                     self.logger.warning(f"Временно отключаем email на {self.disable_duration} секунд из-за ошибок подключения")
                     return False
-                continue  # Повторяем попытку
+                continue  
             except smtplib.SMTPException as e:
                 self.logger.error(f"Ошибка SMTP при отправке на {to_email}: {e}")
                 if attempt == max_retries:
                     return False
-                continue  # Повторяем попытку
+                continue  
             except OSError as e:
-                # DNS resolution errors, network issues
                 self.logger.error(f"Сетевая ошибка при отправке email на {to_email}: {e}")
                 if attempt == max_retries:
                     return False
-                continue  # Повторяем попытку
+                continue  
             except Exception as e:
                 self.logger.error(f"Общая ошибка отправки email на {to_email}: {e}")
                 if attempt == max_retries:
                     return False
-                continue  # Повторяем попытку
+                continue  
         
-        # Если дошли сюда, все попытки исчерпаны
         self.logger.error(f"Не удалось отправить email на {to_email} после {max_retries + 1} попыток")
         return False
     
@@ -207,9 +200,6 @@ class NotificationService:
         subject = f"Подтверждение аккаунта {self.smtp_config.get('app_name', 'ЗАРЯД')}"
         max_retries = self.smtp_config.get('max_retries', 2)
         
-        # Телефон теперь используется как логин, дублирование не нужно
-        
-        # Текстовая версия
         if full_name:
             body = f"""Здравствуйте, {full_name}!
 
@@ -235,7 +225,6 @@ class NotificationService:
 С уважением,
 Команда ЗАРЯД"""
         
-        # HTML версия с жирным текстом
         if full_name:
             html_body = f"""
 <html>
@@ -302,7 +291,6 @@ class NotificationService:
         max_retries = self.smtp_config.get('max_retries', 2)
         
         
-        # Текстовая версия
         if full_name:
             body = f"""Здравствуйте, {full_name}!
 
@@ -326,7 +314,6 @@ class NotificationService:
 С уважением,
 Команда ЗАРЯД"""
         
-        # HTML версия
         if full_name:
             html_body = f"""
 <html>
@@ -413,36 +400,11 @@ class NotificationService:
         return await self.send_email(user_email, subject, body, html_body, max_retries)
 
 
-# Глобальный экземпляр сервиса
 notification_service = NotificationService()
 
 def reset_email_service():
-    """Сброс состояния email сервиса (для отладки)"""
+    """Сброс состояния email сервиса"""
     global notification_service
     notification_service.force_enable_email()
     print("Email сервис сброшен и включен")
 
-async def test_email_sending(test_email: str = "test@example.com") -> bool:
-    """Тестирует отправку email"""
-    global notification_service
-    
-    print(f"Тестируем отправку email на {test_email}")
-    
-    # Проверяем валидацию
-    is_valid = notification_service._validate_email(test_email)
-    print(f"Email валиден: {is_valid}")
-    
-    # Проверяем возможность доставки
-    can_deliver = await notification_service.verify_email_delivery(test_email)
-    print(f"Можно доставить: {can_deliver}")
-    
-    # Пробуем отправить тестовое сообщение
-    success = await notification_service.send_email(
-        to_email=test_email,
-        subject="Тестовое сообщение",
-        body="Это тестовое сообщение для проверки работы email сервиса.",
-        html_body="<p>Это <strong>тестовое сообщение</strong> для проверки работы email сервиса.</p>"
-    )
-    
-    print(f"Результат отправки: {success}")
-    return success

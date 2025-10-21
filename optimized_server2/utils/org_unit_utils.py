@@ -10,11 +10,6 @@ from utils.time_utils import get_moscow_time
 async def is_powerbank_compatible(db_pool, powerbank_org_id: int, station_org_id: int) -> bool:
     """
     Проверяет совместимость повербанка со станцией по организационным единицам
-    
-    Правила совместимости:
-    1. Один и тот же org_unit - совместимы
-    2. Повербанк в группе (родитель), станция в подгруппе этой группы - совместимы
-    3. Все остальные случаи - несовместимы
     """
     try:
         powerbank_unit = await OrgUnit.get_by_id(db_pool, powerbank_org_id)
@@ -23,20 +18,16 @@ async def is_powerbank_compatible(db_pool, powerbank_org_id: int, station_org_id
         if not powerbank_unit or not station_unit:
             return False
 
-        # 1. Один и тот же org_unit
         if powerbank_unit.org_unit_id == station_unit.org_unit_id:
             return True
 
-        # 2. Повербанк в группе (родитель), станция в подгруппе этой группы
         if (powerbank_unit.unit_type == 'group' and 
             station_unit.parent_org_unit_id == powerbank_unit.org_unit_id):
             return True
 
-        # 3. Все остальные случаи несовместимы
         return False
         
     except Exception as e:
-        # В случае ошибки считаем несовместимыми для безопасности
         print(f"Ошибка проверки совместимости org_unit: {e}")
         return False
 
@@ -82,7 +73,7 @@ async def log_powerbank_ejection_event(db_pool, station_id: int, slot_number: in
         logger = get_logger('powerbank_ejection')
         
         # Детальное логирование события выплева
-        logger.info(f"ВЫПЛЕВ ПОВЕРБАНКА: станция {station_id}, слот {slot_number}, "
+        logger.info(f"ВЫБРОС ПОВЕРБАНКА: станция {station_id}, слот {slot_number}, "
                    f"повербанк {powerbank_serial} (org_unit: {powerbank_org_id}), "
                    f"станция org_unit: {station_org_id}, причина: {reason}")
         

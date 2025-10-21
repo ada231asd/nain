@@ -19,7 +19,6 @@ class SetVoiceVolumeHandler:
     async def send_set_voice_volume_request(self, station_id: int, volume_level: int) -> dict:
         """
         Отправляет запрос установки уровня громкости на станцию
-        Возвращает результат операции
         """
         try:
             # Проверяем корректность уровня громкости

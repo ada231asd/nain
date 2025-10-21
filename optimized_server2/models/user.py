@@ -68,7 +68,6 @@ class User:
         if len(password) > PASSWORD_MAX_LENGTH:
             return False, f"Пароль не должен превышать {PASSWORD_MAX_LENGTH} символов"
         
-        # Проверяем на наличие только пробельных символов
         if password.strip() != password:
             return False, "Пароль не должен начинаться или заканчиваться пробелами"
         
@@ -222,7 +221,7 @@ class User:
         if not user:
             return None
         
-        # Проверяем пароль с защитой от timing атак
+        
         if not cls.verify_password(password, user.password_hash):
             return None
         

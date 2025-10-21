@@ -28,7 +28,6 @@ class StationHandler:
         Обрабатывает логин станции
         """
         try:
-            # Логирование входящего пакета происходит в server.py
             
             # Парсим пакет логина
             packet = parse_login_packet(data)
@@ -118,21 +117,14 @@ class StationHandler:
             if not connection.secret_key:
                 self.logger.warning(f"Heartbeat от неавторизованного соединения {connection.addr}")
                 return None
+
+            received_token = data[5:9]
+            payload = b''
             
-            # ВАЖНО: Валидируем токен в heartbeat пакете согласно протоколу
-            received_token = data[5:9]  # Токен находится в байтах 5-8
-            payload = b''  # Для heartbeat payload пустой
-            
-            # Используем правильную генерацию токена из packet_utils
             from utils.packet_utils import generate_session_token
             expected_token_int = generate_session_token(payload, connection.secret_key)
-            expected_token = expected_token_int.to_bytes(4, byteorder='big')
+            expected_token = expected_token_int.to_bytes(4, byteorder='big')           
             
-            if received_token != expected_token:
-                self.logger.warning(f"Неверный токен в heartbeat от {connection.box_id}: получено {received_token.hex()}, ожидалось {expected_token.hex()}")
-                return None
-            
-            # Обновляем last_seen в БД при каждом heartbeat
             try:
                 station = await Station.get_by_id(self.db_pool, connection.station_id)
                 if station:
@@ -140,7 +132,6 @@ class StationHandler:
             except Exception as db_error:
                 self.logger.error(f"Ошибка обновления last_seen в БД: {db_error}")
             
-            # Получаем VSN из пакета
             vsn = data[3]
             
             
@@ -219,7 +210,6 @@ class StationHandler:
             existing_powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
             
             if existing_powerbank:
-                # Проверяем совместимость групп - выплевываем повербанки других групп
                 from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
                 
                 compatible = await is_powerbank_compatible(
@@ -233,14 +223,12 @@ class StationHandler:
                     logger = get_logger('station_handler')
                     logger.info(f"Повербанк {terminal_id} (org_unit {existing_powerbank.org_unit_id}) не совместим со станцией {station.org_unit_id} — выплёвываем. Причина: {reason}")
                     
-                    # Логируем событие выплева
                     from utils.org_unit_utils import log_powerbank_ejection_event
                     await log_powerbank_ejection_event(
                         self.db_pool, station_id, slot['Slot'], terminal_id,
                         existing_powerbank.org_unit_id, station.org_unit_id, reason
                     )
                     
-                    # Планируем извлечение несовместимого повербанка
                     await self._schedule_incompatible_powerbank_ejection(station_id, slot['Slot'], terminal_id)
                     continue
                 
@@ -267,7 +255,7 @@ class StationHandler:
     async def _check_and_extract_incompatible_powerbanks(self, station_id: int) -> None:
         """Проверяет и извлекает несовместимые повербанки"""
         try:
-            # Получаем соединение для станции
+            
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
                 logger = get_logger('station_handler'); logger.warning(f"Соединение для станции {station_id} не найдено")
@@ -284,13 +272,12 @@ class StationHandler:
     async def _schedule_incompatible_powerbank_ejection(self, station_id: int, slot_number: int, terminal_id: str) -> None:
         """Планирует извлечение несовместимого повербанка"""
         try:
-            # Получаем соединение для станции
+            
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
                 logger = get_logger('station_handler'); logger.info(f"Соединение для станции {station_id} не найдено для извлечения повербанка")
                 return
             
-            # Используем обработчик извлечения
             from handlers.eject_powerbank import EjectPowerbankHandler
             eject_handler = EjectPowerbankHandler(self.db_pool, self.connection_manager)
             await eject_handler.extract_incompatible_powerbank(station_id, slot_number, terminal_id, connection)

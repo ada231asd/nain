@@ -19,10 +19,9 @@ class SetServerAddressHandler:
     async def send_set_server_address_request(self, station_id: int, server_address: str, server_port: str, heartbeat_interval: int = 30) -> dict:
         """
         Отправляет запрос установки адреса сервера на станцию
-        Возвращает результат операции
         """
         try:
-            # Валидация входных данных
+            
             if not server_address or not server_port:
                 return {
                     "success": False,
@@ -66,13 +65,6 @@ class SetServerAddressHandler:
                 vsn=1
             )
             
-            # Выводим информацию о пакете для отладки
-            packet_hex = set_address_packet.hex().upper()
-            print(f" Отправляем установку адреса сервера на станцию {station.box_id}")
-            print(f" Пакет команды (0x63): {packet_hex}")
-            print(f" Размер пакета: {len(set_address_packet)} байт")
-            print(f" Адрес сервера: {server_address}:{server_port}")
-            print(f" Интервал heartbeat: {heartbeat_interval} секунд")
             
             # Отправляем команду
             if not connection.writer or connection.writer.is_closing():
@@ -86,24 +78,15 @@ class SetServerAddressHandler:
             
             # Логируем отправку команды в файл
             self.logger.info(f"Установка адреса сервера отправлена на станцию {station.box_id} (ID: {station_id}) | "
-                           f"Адрес: {server_address}:{server_port} | Heartbeat: {heartbeat_interval} | Пакет: {packet_hex}")
-            
-            print(f"Установка адреса сервера отправлена на станцию {station.box_id} (ID: {station_id})")
-           
+                           f"Адрес: {server_address}:{server_port} | Heartbeat: {heartbeat_interval}")
             
             return {
                 "success": True,
-                "message": f"Установка адреса сервера {server_address}:{server_port} отправлена на станцию {station.box_id}",
-                "station_box_id": station.box_id,
-                "server_address": server_address,
-                "server_port": server_port,
-                "heartbeat_interval": heartbeat_interval,
-                "packet_hex": packet_hex
+                "message": f"Установка адреса сервера {server_address}:{server_port} отправлена на станцию {station.box_id}"
             }
             
         except Exception as e:
             error_msg = f"Ошибка отправки установки адреса сервера: {str(e)}"
-            print(error_msg)
             
             # Логируем ошибку в файл
             self.logger.error(f"Ошибка установки адреса сервера на станцию {station_id} | "
@@ -123,12 +106,7 @@ class SetServerAddressHandler:
             response = parse_set_server_address_response(data)
             
             if not response.get("CheckSumValid", False):
-                print(f"Получен некорректный ответ на установку адреса сервера от станции {connection.box_id}")
                 return
-            
-            print(f" Получен ответ на установку адреса сервера от станции {connection.box_id}")
-            print(f" Установка адреса сервера выполнена успешно")
-            print(f"  Станция {connection.box_id} перезагружается...")
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на установку адреса сервера от станции {connection.box_id} (ID: {connection.station_id}) | "

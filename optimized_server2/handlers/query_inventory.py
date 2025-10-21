@@ -44,13 +44,11 @@ class QueryInventoryHandler:
             connection.writer.write(inventory_request_packet)
             await connection.writer.drain()
 
-            self.logger.info(f"Запрос инвентаря отправлен на станцию {station.box_id} (ID: {station_id}) | Пакет: {packet_hex}")
-            print(f" Запрос инвентаря отправлен на станцию {station.box_id} (ID: {station_id})")
+            self.logger.info(f"Запрос инвентаря отправлен на станцию {station.box_id} (ID: {station_id})")
 
             return {
                 "success": True,
-                "message": f"Запрос инвентаря отправлен на станцию {station.box_id}.",
-                "packet_hex": packet_hex
+                "message": f"Запрос инвентаря отправлен на станцию {station.box_id}."
             }
         except Exception as e:
             self.logger.error(f"Ошибка отправки запроса инвентаря на станцию {station.box_id} (ID: {station_id}): {e}")
@@ -59,25 +57,18 @@ class QueryInventoryHandler:
     async def handle_inventory_response(self, data: bytes, connection: StationConnection) -> None:
         """
         Обрабатывает ответ на запрос инвентаря от станции
-        Сохраняет данные в кэш соединения и обновляет station_powerbank
         """
         try:
             # Парсим ответ
             response = parse_query_inventory_response(data)
             
             if not response.get("CheckSumValid", False):
-                print(f" Получен некорректный ответ на запрос инвентаря от станции {connection.box_id}")
                 return
-            
-            print(f" Получен ответ на запрос инвентаря от станции {connection.box_id}")
-            print(f"   Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}")
-            print(f"   Повербанков в ответе: {len(response.get('Slots', []))}")
             
             # Обновляем remain_num станции в БД
             station = await Station.get_by_id(self.db_pool, connection.station_id)
             if station:
                 await station.update_remain_num(self.db_pool, response.get('RemainNum', 0))
-                print(f"   Обновлен remain_num для станции {station.box_id}: {response.get('RemainNum', 0)}")
             
             # Используем InventoryManager для обновления station_powerbank
             from utils.inventory_manager import InventoryManager
@@ -96,14 +87,12 @@ class QueryInventoryHandler:
                 soh = slot_data['SOH']
                 status = slot_data['Status']
                 
-                # Отладочная информация
-                print(f"  Обрабатываем слот {slot_number}: TerminalID='{terminal_id}', Level={level}, Voltage={voltage}, SOH={soh}")
                 
                 # Проверяем, существует ли повербанк в таблице powerbank
                 powerbank = await Powerbank.get_by_serial(self.db_pool, terminal_id)
 
                 if powerbank:
-                    # Повербанк существует — вызываем обработчик возврата ТОЛЬКО если есть активный заказ borrow
+                    
                     try:
                         from models.order import Order
                         active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.powerbank_id)
@@ -115,19 +104,13 @@ class QueryInventoryHandler:
                         normal_return_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
                         result = await normal_return_handler.process_inventory_return(powerbank.powerbank_id)
 
-                        if result.get('success'):
-                            if result.get('order_id'):
-                                print(f" Обработан возврат повербанка {powerbank.powerbank_id}: {result.get('message')}")
-                        else:
-                            print(f" Ошибка обработки возврата повербанка {powerbank.powerbank_id}: {result.get('error')}")
                     
                     # Обновляем SOH
                     soh_int = int(soh) if soh is not None else 0
                     await powerbank.update_soh(self.db_pool, soh_int)
-                    print(f" Обновлен повербанк {terminal_id}: SOH {soh_int}")
                 else:
-                    # Повербанк не существует - InventoryManager уже создаст его со статусом 'unknown'
-                    print(f" Повербанк {terminal_id} не найден в БД - будет создан InventoryManager'ом")
+
+                    pass
 
                 # Добавляем данные слота в инвентарь
                 inventory_data.append({
@@ -149,7 +132,6 @@ class QueryInventoryHandler:
                 'last_update': get_moscow_time().isoformat()
             }
             
-            print(f" Инвентарь станции {connection.box_id} сохранен в кэш: {len(inventory_data)} слотов")
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос инвентаря от станции {connection.box_id} (ID: {connection.station_id}) | "
@@ -160,7 +142,6 @@ class QueryInventoryHandler:
             await self._check_and_extract_incompatible_powerbanks(connection.station_id)
             
         except Exception as e:
-            print(f" Ошибка обработки ответа на запрос инвентаря: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос инвентаря от станции {connection.box_id}: {e}")
 
     async def _check_and_extract_incompatible_powerbanks(self, station_id: int) -> None:

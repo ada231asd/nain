@@ -200,7 +200,7 @@ class UserPowerbankAPI:
 
         try:
             data = await request.json()
-            station_id = data.get('station_id')  # Только station_id, без powerbank_id
+            station_id = data.get('station_id')  
 
             if not station_id:
                 return json_fail("Не указан station_id", status=400)
@@ -328,7 +328,7 @@ class UserPowerbankAPI:
                 }, limit=updated_limit_info)
             else:
                 # Станция отклонила выдачу
-                await Order.cancel(self.db_pool, order.order_id)
+                await Order.delete(self.db_pool, order.order_id)
                 return json_fail(f"Станция отклонила выдачу: {borrow_result['message']}", status=400)
 
         except Exception as e:

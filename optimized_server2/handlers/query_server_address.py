@@ -44,13 +44,11 @@ class QueryServerAddressHandler:
             connection.writer.write(server_address_request_packet)
             await connection.writer.drain()
 
-            self.logger.info(f"Запрос адреса сервера отправлен на станцию {station.box_id} (ID: {station_id}) | Пакет: {packet_hex}")
-            print(f" Запрос адреса сервера отправлен на станцию {station.box_id} (ID: {station_id})")
+            self.logger.info(f"Запрос адреса сервера отправлен на станцию {station.box_id} (ID: {station_id})")
 
             return {
                 "success": True,
-                "message": f"Запрос адреса сервера отправлен на станцию {station.box_id}.",
-                "packet_hex": packet_hex
+                "message": f"Запрос адреса сервера отправлен на станцию {station.box_id}."
             }
         except Exception as e:
             self.logger.error(f"Ошибка отправки запроса адреса сервера на станцию {station.box_id} (ID: {station_id}): {e}")
@@ -65,15 +63,7 @@ class QueryServerAddressHandler:
             response = parse_query_server_address_response(data)
             
             if not response.get("CheckSumValid", False):
-                print(f" Получен некорректный ответ на запрос адреса сервера от станции {connection.box_id}")
                 return
-            
-            print(f" Получен ответ на запрос адреса сервера от станции {connection.box_id}")
-            print(f" Адрес сервера: {response.get('Address', 'N/A')}")
-            print(f" Порт сервера: {response.get('Ports', 'N/A')}")
-            print(f" Интервал heartbeat: {response.get('Heartbeat', 'N/A')}")
-            
-            print(f" Адрес сервера станции {connection.box_id} получен")
             
             # Сохраняем данные адреса сервера в объект соединения для передачи на фронтенд
             connection.server_address_data = {
@@ -89,9 +79,7 @@ class QueryServerAddressHandler:
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос адреса сервера от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Адрес: {response.get('Address', 'N/A')} | Порт: {response.get('Ports', 'N/A')} | "
-                           f"Heartbeat: {response.get('Heartbeat', 'N/A')}")
+                           f"Адрес: {response.get('Address', 'N/A')} | Порт: {response.get('Ports', 'N/A')}")
             
         except Exception as e:
-            print(f" Ошибка обработки ответа на запрос адреса сервера: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос адреса сервера от станции {connection.box_id}: {e}")

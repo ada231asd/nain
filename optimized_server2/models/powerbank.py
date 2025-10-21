@@ -75,7 +75,7 @@ class Powerbank:
     
     @classmethod
     async def get_by_serial_number(cls, db_pool, serial_number: str) -> Optional['Powerbank']:
-        """Получает повербанк по серийному номеру (алиас для get_by_serial)"""
+        """Получает повербанк по серийному номеру"""
         return await cls.get_by_serial(db_pool, serial_number)
     
     @classmethod
@@ -102,7 +102,7 @@ class Powerbank:
     
     @classmethod
     async def create_active(cls, db_pool, serial_number: str, org_unit_id: int, soh: int = 100) -> 'Powerbank':
-        """Создает повербанк со статусом active (как в старом сервере)"""
+        """Создает повербанк со статусом active"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute(
@@ -196,10 +196,7 @@ class Powerbank:
     
     @classmethod
     async def get_by_terminal_id(cls, db_pool, terminal_id: str) -> Optional['Powerbank']:
-        """Получает повербанк по terminal_id станции.
-
-        По текущей схеме terminal_id сопоставляется с полем serial_number в таблице powerbank.
-        """
+        """Получает повербанк по terminal_id станции."""
         if not terminal_id:
             return None
         async with db_pool.acquire() as conn:

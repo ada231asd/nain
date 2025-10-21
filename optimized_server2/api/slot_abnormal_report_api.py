@@ -145,7 +145,7 @@ class SlotAbnormalReportAPI:
                         "timestamp": None
                     })
                 except Exception as ws_error:
-                    print(f"Ошибка отправки WebSocket уведомления об удалении: {ws_error}")
+                    pass
                 
                 return {
                     "success": True,

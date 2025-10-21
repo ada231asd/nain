@@ -111,8 +111,6 @@ class AuthHandler:
                     'error': 'Приглашение не найдено'
                 }, status=404)
             
-            # Приглашения теперь постоянные, проверка срока действия не нужна
-            
             # Проверяем, не использовано ли уже приглашение
             if invitation_info.get('used', False):
                 return web.json_response({
@@ -169,7 +167,7 @@ class AuthHandler:
             
             # Защита от атак по стороннему каналу - проверяем длину пароля
             if len(password) > PASSWORD_MAX_LENGTH:
-                self.logger.warning(f" ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
+                self.logger.warning(f"ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
                 return web.json_response({
                     'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
                 }, status=401)
@@ -177,7 +175,7 @@ class AuthHandler:
             # Валидация пароля
             is_valid, error = User.validate_password(password)
             if not is_valid:
-                self.logger.warning(f" НЕКОРРЕКТНЫЙ ПАРОЛЬ: {error} для телефона {phone_e164}")
+                self.logger.warning(f"НЕКОРРЕКТНЫЙ ПАРОЛЬ: {error} для телефона {phone_e164}")
                 return web.json_response({
                     'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
                 }, status=401)
@@ -439,7 +437,6 @@ class AuthHandler:
                         'message': 'Пользователь подтвержден, но не удалось отправить уведомление на email.'
                     })
             except Exception as e:
-                # Если не удалось отправить email, всё равно возвращаем успех
                 return web.json_response({
                     'message': f'Пользователь подтвержден, но ошибка отправки уведомления: {str(e)}'
                 })
@@ -505,7 +502,7 @@ class AuthHandler:
             }, status=500)
     
     async def reset_email_service(self, request):
-        """Сброс состояния email сервиса (только для администраторов)"""
+        """Сброс состояния email сервиса """
         try:
             # Извлекаем токен из заголовка
             auth_header = request.headers.get('Authorization')

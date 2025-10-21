@@ -48,11 +48,6 @@ class QueryVoiceVolumeHandler:
             # Создаем пакет запроса громкости
             voice_volume_packet = build_query_voice_volume_request(connection.secret_key, vsn=1)
             
-            # Выводим информацию о пакете для отладки
-            packet_hex = voice_volume_packet.hex().upper()
-            print(f" Отправляем запрос уровня громкости на станцию {station.box_id}")
-            print(f" Пакет команды (0x77): {packet_hex}")
-            print(f" Размер пакета: {len(voice_volume_packet)} байт")
             
             # Отправляем команду
             if not connection.writer or connection.writer.is_closing():
@@ -65,21 +60,15 @@ class QueryVoiceVolumeHandler:
             await connection.writer.drain()
             
             # Логируем отправку команды в файл
-            self.logger.info(f"Запрос уровня громкости отправлен на станцию {station.box_id} (ID: {station_id}) | "
-                           f"Пакет: {packet_hex}")
-            
-            print(f"Запрос уровня громкости отправлен на станцию {station.box_id} (ID: {station_id})")
+            self.logger.info(f"Запрос уровня громкости отправлен на станцию {station.box_id} (ID: {station_id})")
             
             return {
                 "success": True,
-                "message": f"Запрос уровня громкости отправлен на станцию {station.box_id}",
-                "station_box_id": station.box_id,
-                "packet_hex": packet_hex
+                "message": f"Запрос уровня громкости отправлен на станцию {station.box_id}"
             }
             
         except Exception as e:
             error_msg = f"Ошибка отправки запроса уровня громкости: {str(e)}"
-            print(error_msg)
             
             # Логируем ошибку в файл
             self.logger.error(f"Ошибка отправки запроса уровня громкости на станцию {station_id} | "
@@ -99,27 +88,16 @@ class QueryVoiceVolumeHandler:
             response = parse_query_voice_volume_response(data)
             
             if not response.get("CheckSumValid", False) or response.get("Error"):
-                print(f" Получен некорректный ответ на запрос уровня громкости от станции {connection.box_id}: {response.get('Error', 'Неверный checksum')}")
                 self.logger.error(f"Неверный ответ уровня громкости от станции {connection.box_id}: {response.get('Error', 'Неверный checksum')}")
                 return
             
-            # Выводим детальную информацию об ответе
+            # Получаем данные из ответа
             volume_level = response.get('VolumeLevel', 'N/A')
             packet_len = response.get('PacketLen', 'N/A')
             vsn = response.get('VSN', 'N/A')
             checksum = response.get('CheckSum', 'N/A')
             token = response.get('Token', 'N/A')
             raw_packet = response.get('RawPacket', 'N/A')
-            
-            print(f" Получен ответ на запрос уровня громкости от станции {connection.box_id}")
-            print(f" Пакет ответа (0x77): {raw_packet}")
-            print(f" Размер пакета: {packet_len} байт")
-            print(f" Уровень громкости: {volume_level}")
-            print(f" VSN: {vsn}")
-            print(f" CheckSum: {checksum}")
-            print(f" Token: {token}")
-            
-            print(f" Уровень громкости станции {connection.box_id} получен")
             
             # Сохраняем данные уровня громкости в объект соединения для передачи на фронтенд
             connection.voice_volume_data = {
@@ -134,9 +112,8 @@ class QueryVoiceVolumeHandler:
             
             # Логируем получение ответа в файл
             self.logger.info(f"Получен ответ на запрос уровня громкости от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Уровень громкости: {volume_level} | Пакет: {raw_packet}")
+                           f"Уровень громкости: {volume_level}")
             
         except Exception as e:
-            print(f" Ошибка обработки ответа на запрос уровня громкости от станции {connection.box_id}: {e}")
             self.logger.error(f"Ошибка обработки ответа на запрос уровня громкости от станции {connection.box_id}: {e}")
 

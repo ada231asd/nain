@@ -20,18 +20,7 @@ class PowerbankStatus:
         page: int = 1,
         limit: int = 50
     ) -> Tuple[List[Dict[str, Any]], int]:
-        """
-        Получить повербанки с их статусами
-        
-        Args:
-            status_filter: Фильтр по статусу ('in_station', 'in_use', 'not_returned')
-            org_unit_id: Фильтр по группе
-            page: Номер страницы
-            limit: Количество записей на странице
-            
-        Returns:
-            Tuple[List[Dict], int]: (список повербанков, общее количество)
-        """
+        """Получить повербанки с их статусами"""
         try:
             logger = get_logger('powerbank_status')
             
@@ -108,15 +97,7 @@ class PowerbankStatus:
             raise e
     
     async def get_powerbank_status_summary(self, org_unit_id: Optional[int] = None) -> Dict[str, int]:
-        """
-        Получить сводку по статусам повербанков
-        
-        Args:
-            org_unit_id: Фильтр по группе
-            
-        Returns:
-            Dict[str, int]: Словарь со счетчиками по статусам
-        """
+        """Получить сводку по статусам повербанков"""
         try:
             logger = get_logger('powerbank_status')
             
@@ -164,15 +145,7 @@ class PowerbankStatus:
             raise e
     
     async def get_powerbank_by_id(self, powerbank_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Получить конкретный повербанк со статусом
-        
-        Args:
-            powerbank_id: ID повербанка
-            
-        Returns:
-            Optional[Dict]: Данные повербанка или None
-        """
+        """Получить конкретный повербанк со статусом"""
         try:
             logger = get_logger('powerbank_status')
             

@@ -38,10 +38,7 @@ class StationResolver:
 
 
 async def get_station_id_by_box_id(db_pool, box_id: str) -> Optional[int]:
-    """Возвращает station_id по box_id из БД.
-
-    Используется обработчиком возврата, ожидающим эту функцию в модуле utils.station_resolver.
-    """
+    """Возвращает station_id по box_id из БД."""
     if not box_id:
         return None
     try:
@@ -52,8 +49,7 @@ async def get_station_id_by_box_id(db_pool, box_id: str) -> Optional[int]:
                 if row and 'station_id' in row:
                     return int(row['station_id'])
     except Exception as e:
-        # Локальный импорт логгера не требуется; функция должна быть безопасной
-        # для использования в местах, где нет self.logger
+     
         pass
     return None
     

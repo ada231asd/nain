@@ -21,7 +21,6 @@ class Order:
         self.status = status
         self.timestamp = timestamp or get_moscow_time()
         self.completed_at = completed_at
-        # Используем логику для borrow_time и return_time на основе существующих полей
         self.borrow_time = borrow_time or (timestamp if status == 'borrow' else None)
         self.return_time = return_time or (completed_at if status == 'return' else None)
     
@@ -68,8 +67,6 @@ class Order:
                         ON DUPLICATE KEY UPDATE fio = new_user.fio
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
 
-                # Определяем значения для completed_at в зависимости от статуса
-                # Для 'return' устанавливаем completed_at = current_time
                 completed_at_value = current_time if status == 'return' else None
 
                 # Получаем org_unit_id станции
@@ -184,7 +181,7 @@ class Order:
                 except Exception:
                     org_unit_id_value = None
 
-                # Для заказов на возврат сразу устанавливаем completed_at
+
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -427,39 +424,24 @@ class Order:
                 result = await cursor.fetchone()
                 return result[0] if result else 0
 
-    @classmethod
-    async def cancel(cls, db_pool, order_id: int) -> bool:
-        """Отменяет заказ"""
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute("""
-                    UPDATE orders SET status = 'cancelled' WHERE id = %s
-                """, (order_id,))
-                
-                return cursor.rowcount > 0
     
     async def update_status(self, db_pool, new_status: str) -> bool:
-        """Обновляет статус заказа. Для 'return' и 'completed' устанавливает completed_at."""
+        """Обновляет статус заказа. Для 'return' устанавливает completed_at."""
         current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                if new_status in ('return', 'completed'):
+                if new_status == 'return':
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = %s WHERE id = %s",
                         (new_status, current_time, self.order_id)
                     )
                     self.completed_at = current_time
-                elif new_status in ('borrow', 'force_eject'):
+                else:  # Для 'borrow' и других статусов
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s",
                         (new_status, self.order_id)
                     )
                     self.completed_at = None
-                else:
-                    await cursor.execute(
-                        "UPDATE orders SET status = %s WHERE id = %s",
-                        (new_status, self.order_id)
-                    )
                 self.status = new_status
                 return True
     
@@ -501,22 +483,11 @@ class Order:
                 
                 return cursor.rowcount > 0
     
-    @classmethod
-    async def complete_order(cls, db_pool, order_id: int) -> bool:
-        """Завершает заказ (меняет статус на 'completed')"""
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute("""
-                    UPDATE orders SET status = 'completed' WHERE id = %s
-                """, (order_id,))
-                
-                return cursor.rowcount > 0
     
     @classmethod
     async def update_order_status(cls, db_pool, order_id: int, new_status: str) -> bool:
         """Обновляет статус заказа"""
-        # Проверяем, что статус соответствует допустимым значениям
-        allowed_statuses = ['borrow', 'return', 'completed', 'cancelled', 'force_eject']
+        allowed_statuses = ['borrow', 'return']
         if new_status not in allowed_statuses:
             print(f"Недопустимый статус заказа: {new_status}. Допустимые: {allowed_statuses}")
             return False
@@ -524,24 +495,11 @@ class Order:
         current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                # Обновляем статус и связанные поля времени
                 if new_status == 'return':
-                    # При возврате устанавливаем completed_at
                     await cursor.execute("""
                         UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
                     """, (new_status, current_time, order_id))
-                elif new_status == 'completed':
-                    # При завершении устанавливаем completed_at
-                    await cursor.execute("""
-                        UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
-                    """, (new_status, current_time, order_id))
-                elif new_status == 'cancelled':
-                    # При отмене сбрасываем completed_at
-                    await cursor.execute("""
-                        UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
-                    """, (new_status, order_id))
-                else:
-                    # Для других статусов (borrow, force_eject) сбрасываем completed_at
+                else:  # Для 'borrow' и других статусов
                     await cursor.execute("""
                         UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
                     """, (new_status, order_id))

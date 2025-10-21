@@ -75,9 +75,7 @@ class InventoryManager:
     async def _sync_inventory_with_database(self, station_id: int, slots: list) -> None:
         """
         Синхронизирует данные инвентаря с таблицей station_powerbank, обновляя ТОЛЬКО изменения.
-        - Если значения идентичны, запись не трогаем
-        - Если отличаются, обновляем
-        - Если в БД есть запись, а в инвентаре слот пуст — удаляем
+
         """
         try:
             logger = get_logger('inventory_manager')
@@ -107,15 +105,14 @@ class InventoryManager:
                     # Разрешаем только валидные повербанки
                     powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
                     if not powerbank_id:
-                        # Создадим unknown при необходимости
+                        
                         created = await self._create_and_add_unknown_powerbank(
                             station_id, slot_number, terminal_id, level, voltage, temperature
                         )
                         if created:
-                            # После создания unknown, получим id
+                  
                             powerbank_id = await self._get_powerbank_id_by_terminal_id(terminal_id)
                     if not powerbank_id:
-                        # Не смогли сопоставить/создать — пропускаем
                         continue
 
                     target_by_slot[slot_number] = {
@@ -127,7 +124,6 @@ class InventoryManager:
 
                     existing = current_by_slot.get(slot_number)
                     if existing:
-                        # Если тот же powerbank и метрики не изменились — пропускаем
                         same_pb = existing.powerbank_id == powerbank_id
                         same_level = (existing.level == target_by_slot[slot_number]['level'])
                         same_voltage = (existing.voltage == target_by_slot[slot_number]['voltage'])
@@ -135,7 +131,6 @@ class InventoryManager:
                         if same_pb and same_level and same_voltage and same_temperature:
                             unchanged += 1
                         else:
-                            # Обновляем (включая возможную смену powerbank_id в этом слоте)
                             await StationPowerbank.add_powerbank(
                                 self.db_pool,
                                 station_id,
@@ -148,7 +143,6 @@ class InventoryManager:
                             changes_applied += 1
                             logger.info(f"Обновлен слот {slot_number}: pb {existing.powerbank_id} -> {powerbank_id}, lvl={target_by_slot[slot_number]['level']}, volt={target_by_slot[slot_number]['voltage']}, temp={target_by_slot[slot_number]['temperature']}")
                     else:
-                        # Не было записи — добавляем
                         await StationPowerbank.add_powerbank(
                             self.db_pool,
                             station_id,
@@ -161,11 +155,9 @@ class InventoryManager:
                         changes_applied += 1
                         logger.info(f"Добавлен слот {slot_number}: pb {powerbank_id}")
 
-            # Удаляем записи, которых больше нет в инвентаре (слоты пустые)
             removed = 0
             for slot_number, existing in current_by_slot.items():
                 if slot_number not in target_by_slot:
-                    # В ответе слот пуст или pb отсутствует — удаляем запись
                     deleted = await StationPowerbank.remove_powerbank(self.db_pool, station_id, slot_number)
                     if deleted:
                         removed += 1
@@ -213,9 +205,7 @@ class InventoryManager:
             logger = get_logger('inventory_manager')
             logger.info(f"Добавлен существующий повербанк {powerbank_id} в слот {slot_number} станции {station_id}")
             
-            # Проверяем, есть ли ожидающие возврат с ошибкой пользователи
             try:
-                # Пытаемся получить обработчик возврата из глобального контекста
                 import sys
                 return_handler = None
                 
@@ -231,7 +221,6 @@ class InventoryManager:
                     if result.get('success'):
                         logger.info(f"Обработан возврат с ошибкой: {result.get('message', '')}")
                     else:
-                        # Это нормально, если нет ожидающих возврат пользователей
                         logger.debug(f"Нет ожидающих возврат пользователей для повербанка {powerbank_id}: {result.get('error', '')}")
                 else:
                     logger.debug("Обработчик возврата не найден, пропускаем проверку")

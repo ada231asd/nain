@@ -49,7 +49,7 @@ class Station:
                 station_data = await cur.fetchone()
                 
                 if station_data:
-                    # Нормализуем datetime поля к московскому времени
+                    
                     from utils.time_utils import normalize_datetime_to_moscow
                     
                     return cls(
@@ -179,7 +179,7 @@ class Station:
                 
                 stations = []
                 for result in results:
-                    # Нормализуем datetime поля к московскому времени
+                    
                     from utils.time_utils import normalize_datetime_to_moscow
                     
                     stations.append(cls(
@@ -209,7 +209,7 @@ class Station:
                 
                 stations = []
                 for result in results:
-                    # Нормализуем datetime поля к московскому времени
+                    
                     from utils.time_utils import normalize_datetime_to_moscow
                     
                     stations.append(cls(

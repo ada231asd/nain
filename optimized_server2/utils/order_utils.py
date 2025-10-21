@@ -11,14 +11,6 @@ async def check_duplicate_borrow_order(db_pool, user_id: int, powerbank_id: int,
     """
     Проверяет наличие дублирующих заказов на выдачу
     
-    Args:
-        db_pool: Пул соединений с БД
-        user_id: ID пользователя
-        powerbank_id: ID powerbank'а
-        station_id: ID станции
-        
-    Returns:
-        tuple[bool, str]: (есть_дубликат, сообщение)
     """
     try:
         logger = get_logger('order_utils')
@@ -50,13 +42,6 @@ async def check_duplicate_borrow_order(db_pool, user_id: int, powerbank_id: int,
 async def check_powerbank_availability(db_pool, powerbank_id: int) -> Tuple[bool, str]:
     """
     Проверяет доступность powerbank'а для выдачи
-    
-    Args:
-        db_pool: Пул соединений с БД
-        powerbank_id: ID powerbank'а
-        
-    Returns:
-        tuple[bool, str]: (доступен, сообщение)
     """
     try:
         from models.powerbank import Powerbank
@@ -99,12 +84,6 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
     """
     Проверяет, не превышен ли лимит повербанков для пользователя
     
-    Args:
-        db_pool: Пул соединений с БД
-        user_id: ID пользователя
-        
-    Returns:
-        tuple[bool, str]: (лимит_не_превышен, сообщение)
     """
     try:
         logger = get_logger('order_utils')
@@ -191,7 +170,6 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
 async def get_user_limit_info(db_pool, user_id: int) -> Dict[str, Any]:
     """
     Возвращает подробную информацию о лимите пользователя:
-    { user_id, individual_limit, group_default_limit, group_name, effective_limit, limit_type, active_count }
     """
     try:
         async with db_pool.acquire() as conn:
@@ -282,7 +260,7 @@ async def get_user_limit_info(db_pool, user_id: int) -> Dict[str, Any]:
     except Exception as e:
         logger = get_logger('order_utils')
         logger.error(f"Ошибка получения информации о лимите пользователя {user_id}: {e}")
-        # Возвращаем безопасный дефолт, чтобы не ломать клиент
+
         return {
             "user_id": user_id,
             "individual_limit": None,

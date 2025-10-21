@@ -30,13 +30,11 @@ class EjectPowerbankHandler:
             )
             
             if not station_powerbank:
-                print(f"В слоте {slot_number} станции {station_id} нет повербанка для извлечения")
                 return None
             
             # Получаем секретный ключ
             secret_key = connection.secret_key
             if not secret_key:
-                print("Нет секретного ключа для команды извлечения")
                 return None
             
             # Создаем команду на принудительное извлечение
@@ -46,7 +44,6 @@ class EjectPowerbankHandler:
                 vsn=2  
             )
             
-            print(f"Создана команда на принудительное извлечение повербанка из слота {slot_number}")
             return eject_command
             
         except Exception as e:
@@ -81,12 +78,8 @@ class EjectPowerbankHandler:
                         # Увеличиваем remain_num на количество извлеченных повербанков
                         await station.update_remain_num(self.db_pool, int(station.remain_num) + removed_count)
                     
-                    print(f"Успешно извлечено {removed_count} повербанков из станции {station_id}")
-                    
                     # Запрашиваем инвентарь только при успешном извлечении для обновления данных
                     await self._request_inventory_after_operation(station_id)
-                else:
-                    print(f"Не найдены повербанки в станции {station_id} для извлечения")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -111,9 +104,9 @@ class EjectPowerbankHandler:
                     # Увеличиваем remain_num при извлечении
                     await station.update_remain_num(self.db_pool, int(station.remain_num) + 1)
                 
-                print(f"Повербанк успешно извлечен из слота {slot_number} станции {station_id} и данные обновлены в БД")
+                pass
             else:
-                print(f"Не удалось удалить повербанк из слота {slot_number}")
+                pass
                 
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -143,13 +136,10 @@ class EjectPowerbankHandler:
                 if connection.writer and not connection.writer.is_closing():
                     connection.writer.write(eject_command)
                     await connection.writer.drain()
-                    print(f"Отправлена команда на извлечение несовместимого повербанка {terminal_id}")
                     self.logger.info(f"Команда извлечения отправлена для повербанка {terminal_id} из слота {slot_number} станции {station_id}")
                 else:
-                    print(f"Соединение со станцией недоступно для извлечения повербанка {terminal_id}")
                     self.logger.warning(f"Соединение со станцией {station_id} недоступно для извлечения повербанка {terminal_id}")
             else:
-                print(f"Не удалось создать команду на извлечение повербанка {terminal_id}")
                 self.logger.warning(f"Не удалось создать команду на извлечение повербанка {terminal_id} из слота {slot_number} станции {station_id}")
                 
         except Exception as e:
@@ -184,10 +174,8 @@ class EjectPowerbankHandler:
                 if powerbank:
                     # НЕ выплевываем повербанки со статусом 'unknown' - они должны остаться в станции
                     if powerbank.status == 'unknown':
-                        print(f"Повербанк {powerbank.serial_number} в слоте {sp.slot_number} имеет статус 'unknown' - оставляем в станции")
                         continue
                     
-                    # Проверяем совместимость с использованием новой утилиты
                     from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
                     
                     compatible = await is_powerbank_compatible(
@@ -198,7 +186,6 @@ class EjectPowerbankHandler:
                         reason = await get_compatibility_reason(
                             self.db_pool, powerbank.org_unit_id, station_org_unit_id
                         )
-                        print(f"Найден несовместимый повербанк в слоте {sp.slot_number}")
                         self.logger.info(f"Повербанк {powerbank.serial_number} (org_unit: {powerbank.org_unit_id}) не совместим со станцией {station_id} (org_unit: {station_org_unit_id}). Причина: {reason}")
                         
                         # Логируем событие выплева
@@ -249,11 +236,9 @@ class EjectPowerbankHandler:
             # Получаем соединение со станцией
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                print(f"Соединение со станцией {station_id} не найдено")
                 return
             
             await inventory_manager.request_inventory_after_operation(station_id, connection)
-            print(f" Запрос инвентаря отправлен после операции извлечения")
             
         except Exception as e:
-            print(f" Ошибка запроса инвентаря после операции: {e}")
+            pass

@@ -40,10 +40,8 @@ def format_moscow_time(dt: Optional[datetime] = None, format_str: str = "%Y-%m-%
     if dt is None:
         dt = get_moscow_time()
     elif dt.tzinfo is None:
-        # Если время без временной зоны, считаем его московским
         dt = dt.replace(tzinfo=MOSCOW_TZ)
     elif dt.tzinfo != MOSCOW_TZ:
-        # Конвертируем в московское время
         dt = dt.astimezone(MOSCOW_TZ)
     
     return dt.strftime(format_str)
@@ -61,7 +59,7 @@ def format_moscow_time_with_microseconds(dt: Optional[datetime] = None) -> str:
     elif dt.tzinfo != MOSCOW_TZ:
         dt = dt.astimezone(MOSCOW_TZ)
     
-    return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # Убираем последние 3 цифры микросекунд
+    return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  
 
 
 def to_moscow_time(dt: datetime) -> datetime:
@@ -85,13 +83,10 @@ def normalize_datetime_to_moscow(dt: Optional[datetime]) -> Optional[datetime]:
         return None
     
     if dt.tzinfo is None:
-        # Если время без временной зоны, считаем его московским
         return dt.replace(tzinfo=MOSCOW_TZ)
     elif dt.tzinfo != MOSCOW_TZ:
-        # Конвертируем в московское время
         return dt.astimezone(MOSCOW_TZ)
     else:
-        # Уже московское время
         return dt
 
 

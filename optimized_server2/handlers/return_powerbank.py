@@ -21,10 +21,8 @@ class ReturnPowerbankHandler:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.logger = get_logger('return_powerbank')
-        # Общий (класс-уровня) словарь ожиданий, чтобы разные экземпляры видели одну очередь
         if not hasattr(ReturnPowerbankHandler, '_pending_error_returns'):
             ReturnPowerbankHandler._pending_error_returns = {}
-        # Экземплярный алиас для совместимости с обращениями через self.pending_error_returns
         self.pending_error_returns = ReturnPowerbankHandler._pending_error_returns
 
     async def start_background_cleanup(self):
@@ -100,7 +98,7 @@ class ReturnPowerbankHandler:
     async def handle_powerbank_insertion(self, station_id: int, slot_number: int, powerbank_id: int) -> Dict[str, Any]:
         """
         Обрабатывает вставку повербанка в станцию
-        Сопоставляет с ожидающими возврат пользователями и уведомляет Future
+            
         """
         try:
             # Ищем пользователя, который ожидает возврат в эту станцию
@@ -170,7 +168,7 @@ class ReturnPowerbankHandler:
                     })
                 return {"success": False, "error": "Нет активного заказа для этого повербанка"}
 
-            # Принимаем возврат по фактическому владельцу заказа, даже если он отличается от инициатора ожидания
+           
             effective_user_id = active_order.user_id
             if effective_user_id != matching_user_id:
                 self.logger.warning(f"Повербанк {powerbank_id} принадлежит пользователю {effective_user_id}, а ожидал {matching_user_id}. Продолжаем по владельцу заказа.")
@@ -215,7 +213,6 @@ class ReturnPowerbankHandler:
             }
 
             if future and not future.done():
-                # Отдаём инициатору успех с фактическим пользователем-владельцем заказа
                 future.set_result(result)
 
             return result
@@ -335,12 +332,10 @@ class ReturnPowerbankHandler:
                     token=connection.token
                 )
             
-            # Проверяем, есть ли ожидающий возврат с ошибкой для этой станции/пользователя
             powerbank_id = powerbank.powerbank_id
             matching_user_id = None
             error_type = None
 
-            # 1) Пытаемся сопоставить по активному заказу пользователя (более надёжно)
             try:
                 active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
             except Exception:
@@ -348,12 +343,10 @@ class ReturnPowerbankHandler:
 
             if active_order and active_order.user_id in self.pending_error_returns:
                 pending = self.pending_error_returns.get(active_order.user_id)
-                # Дополнительно проверим станцию, если она указана
                 if not pending or pending.get('station_id') is None or pending.get('station_id') == station_id:
                     matching_user_id = active_order.user_id
                     error_type = pending.get('error_type') if pending else None
 
-            # 2) Если по пользователю не нашли, пробуем старую логику по станции
             if not matching_user_id:
                 for user_id, return_data in self.pending_error_returns.items():
                     if return_data.get('station_id') == station_id:
@@ -383,8 +376,7 @@ class ReturnPowerbankHandler:
                     token=connection.token
                 )
             else:
-                # Нет ожидающих возврат с ошибкой пользователей - это обычный возврат
-                # Перенаправляем на обработчик обычного возврата
+             
                 from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
                 normal_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
                 return await normal_handler.handle_return_request(data, connection)

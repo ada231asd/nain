@@ -309,10 +309,6 @@ class AdminPowerbankAPI:
                     """, (powerbank_id,))
                     
                     existing = await cur.fetchone()
-                    if existing:
-                        print(f"Повербанк {serial_number} уже находится в станции {existing[0]}, слот {existing[1]}")
-                    else:
-                        print(f"Повербанк {serial_number} активирован и готов к использованию в группе {org_unit_id}")
                         
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -338,8 +334,6 @@ class AdminPowerbankAPI:
                             AND p.status = 'active'
                         )
                     """)
-                    
-                    print(f"Повербанк {powerbank_id} удален из всех станций")
                     
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -503,9 +497,6 @@ class AdminPowerbankAPI:
                                 
                                 connection.writer.write(force_eject_command)
                                 await connection.writer.drain()
-                                print(f"Команда принудительного извлечения отправлена станции {station_id}, слот {slot_number}")
-                            else:
-                                print(f"TCP соединение со станцией {station_id} недоступно")
                         except Exception as e:
                             self.logger.error(f"Ошибка: {e}")
                     

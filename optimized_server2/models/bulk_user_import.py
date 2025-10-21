@@ -27,11 +27,11 @@ class BulkUserImport:
         # Убираем все пробелы и дефисы
         phone = re.sub(r'[\s\-\(\)]', '', phone.strip())
         
-        # Проверяем формат E164 (начинается с + и содержит только цифры)
+        # Проверяем формат E164 
         if phone.startswith('+') and len(phone) >= 10 and phone[1:].isdigit():
             return True
         
-        # Если номер без +, добавляем +7 для российских номеров
+        # Если номер без +, добавляем +7
         if phone.startswith('7') and len(phone) == 11 and phone.isdigit():
             return True
         
@@ -84,12 +84,7 @@ class BulkUserImport:
     async def parse_excel_file(self, file_content: bytes) -> Tuple[List[Dict[str, Any]], List[str]]:
         """
         Парсит Excel файл и возвращает список пользователей и ошибки валидации
-        
-        Args:
-            file_content: Содержимое Excel файла в байтах
-            
-        Returns:
-            Tuple[List[Dict], List[str]]: (список пользователей, список ошибок)
+       
         """
         try:
             # Читаем Excel файл
@@ -106,7 +101,7 @@ class BulkUserImport:
             errors = []
             
             for index, row in df.iterrows():
-                row_number = index + 2  # +2 потому что индекс с 0, а в Excel строки с 1, плюс заголовок
+                row_number = index + 2
                 
                 # Извлекаем данные
                 fio = str(row['fio']).strip() if pd.notna(row['fio']) else ""
@@ -151,11 +146,6 @@ class BulkUserImport:
         """
         Проверяет существующих пользователей в базе данных
         
-        Args:
-            users: Список пользователей для проверки
-            
-        Returns:
-            Tuple[List[Dict], List[str]]: (новые пользователи, ошибки)
         """
         try:
             if not users:
@@ -213,14 +203,7 @@ class BulkUserImport:
                                 progress_callback=None) -> Tuple[List[Dict[str, Any]], List[str]]:
         """
         Создает пользователей в базе данных и отправляет пароли на email
-        
-        Args:
-            users: Список пользователей для создания
-            org_unit_id: ID группы для привязки пользователей
-            progress_callback: Callback функция для отправки прогресса
-            
-        Returns:
-            Tuple[List[Dict], List[str]]: (созданные пользователи, ошибки)
+       
         """
         try:
             if not users:
@@ -228,9 +211,6 @@ class BulkUserImport:
             
             created_users = []
             errors = []
-            
-            # User.create_user использует autocommit=True, поэтому не нужно отдельное соединение
-            # Но если есть org_unit_id, нужно добавить роли, поэтому создаем соединение
             total_users = len(users)
             for index, user in enumerate(users, 1):
                 try:
@@ -244,7 +224,7 @@ class BulkUserImport:
                             'status': 'creating'
                         })
                     
-                    # Создаем пользователя (autocommit=True автоматически сохраняет)
+                    # Создаем пользователя
                     user_obj, password = await User.create_user(
                         self.db_pool, 
                         user['phone_e164'], 
@@ -260,7 +240,6 @@ class BulkUserImport:
                                     INSERT INTO user_role (user_id, org_unit_id, role, created_at)
                                     VALUES (%s, %s, 'user', NOW())
                                 """, (user_obj.user_id, org_unit_id))
-                                # autocommit=True автоматически сохранит
                     
                     # Отправляем прогресс
                     if progress_callback:
@@ -332,13 +311,6 @@ class BulkUserImport:
         """
         Полный процесс импорта пользователей из Excel файла
         
-        Args:
-            file_content: Содержимое Excel файла в байтах
-            org_unit_id: ID группы для привязки пользователей
-            progress_callback: Callback функция для отправки прогресса
-            
-        Returns:
-            Dict[str, Any]: Результат импорта
         """
         try:
             self.logger.info("Начало импорта пользователей из Excel файла")

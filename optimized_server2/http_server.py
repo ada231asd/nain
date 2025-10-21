@@ -83,7 +83,7 @@ class HTTPServer:
     
     def create_app(self, connection_manager=None) -> Application:
         """Создает HTTP приложение"""
-        # Увеличиваем максимальный размер входящего запроса, чтобы избежать 413 на загрузках
+        
         client_max_size_bytes = 20 * 1024 * 1024  # 20 MB
         app = web.Application(client_max_size=client_max_size_bytes)
         app['client_max_size_bytes'] = client_max_size_bytes
@@ -162,12 +162,8 @@ class HTTPServer:
         # Создаем обработчики
         self.auth_handler = AuthHandler(self.db_pool)
         self.admin_endpoints = AdminEndpoints(self.db_pool, connection_manager)  
-        # Используем общий экземпляр borrow_handler из серверного слоя, если доступен
         shared_borrow_handler = None
         try:
-            # server.py создаёт self.borrow_handler; если create_app вызывается оттуда,
-            # мы можем получить общий экземпляр из connection_manager-хранилища или передать явно.
-            # Здесь пробуем взять из self (если атрибут внедрён извне)
             shared_borrow_handler = getattr(self, 'shared_borrow_handler', None)
         except Exception:
             shared_borrow_handler = None
@@ -262,10 +258,9 @@ class HTTPServer:
         app.router.add_get('/api/user/orders', self.user_powerbank_api.get_user_orders)
         app.router.add_post('/api/user/powerbanks/borrow', self.user_powerbank_api.borrow_powerbank)
         app.router.add_post('/api/user/powerbanks/return', self.user_powerbank_api.return_powerbank)
-        # app.router.add_post('/api/return-powerbank', self.user_powerbank_api.return_powerbank)  # Удален неправильный алиас
-        app.router.add_post('/api/return-damage', self.user_powerbank_api.return_damage_powerbank)  # Возврат с поломкой
-        app.router.add_post('/api/return-error', self.user_powerbank_api.return_error_powerbank)  # Возврат с ошибкой
-        app.router.add_get('/api/powerbank-error-types', self.user_powerbank_api.get_powerbank_error_types)  # Типы ошибок
+        app.router.add_post('/api/return-damage', self.user_powerbank_api.return_damage_powerbank) 
+        app.router.add_post('/api/return-error', self.user_powerbank_api.return_error_powerbank) 
+        app.router.add_get('/api/powerbank-error-types', self.user_powerbank_api.get_powerbank_error_types) 
         app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
         app.router.add_get('/api/user/stations/availability', self.user_powerbank_api.get_available_slots_with_limits)
         app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)

@@ -93,7 +93,7 @@ class NormalReturnPowerbankHandler:
         try:
             from utils.packet_utils import parse_return_power_bank_request, build_return_power_bank_response
             from utils.station_resolver import get_station_id_by_box_id
-            # Приоритет: если есть ожидающий возврат с ошибкой — передаём обработку соответствующему хендлеру
+          
             try:
                 from handlers.return_powerbank import ReturnPowerbankHandler
                 error_return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
@@ -101,7 +101,7 @@ class NormalReturnPowerbankHandler:
                 if delegated is not None:
                     return delegated
             except Exception:
-                # Если что-то пошло не так при делегации, продолжаем обычную обработку
+               
                 pass
             
             # Парсим данные запроса
@@ -122,7 +122,7 @@ class NormalReturnPowerbankHandler:
             
             self.logger.info(f"Получен запрос на обычный возврат повербанка: слот {slot}, terminal_id {terminal_id}")
 
-            # Версия протокола (VSN) берём из пакета
+            
             vsn = parsed_data.get('VSN', 1)
             
             # Получаем ID станции

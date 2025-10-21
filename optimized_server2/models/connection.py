@@ -24,9 +24,9 @@ class StationConnection:
         self.secret_key: Optional[bytes] = None
         self.station_status = "pending"
         self.borrow_sent = False
-        self.inventory_requested = False  # Флаг запроса инвентаря при логине
-        self.connected_at = get_moscow_time()  # Время подключения
-        self.last_db_update = None  # Время последнего обновления БД
+        self.inventory_requested = False
+        self.connected_at = get_moscow_time()
+        self.last_db_update = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует соединение в словарь"""
@@ -55,8 +55,8 @@ class StationConnection:
         self.token = token
         self.secret_key = secret_key
         self.station_status = "active"
-        self.inventory_requested = False  # Сбрасываем флаг при новом логине
-        self.last_db_update = None  # Сбрасываем время последнего обновления БД
+        self.inventory_requested = False
+        self.last_db_update = None
         self.update_heartbeat()
     
 

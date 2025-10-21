@@ -227,7 +227,7 @@ class BorrowPowerbankAPI:
             
             if not borrow_result["success"]:
                 # Если команда не отправилась или станция отклонила, отменяем заказ
-                await Order.cancel(self.db_pool, order.order_id)
+                await Order.delete(self.db_pool, order.order_id)
                 return {
                     "success": False,
                     "error": f"Ошибка выдачи повербанка: {borrow_result['message']}"
@@ -376,7 +376,6 @@ class BorrowPowerbankAPI:
                     # Проверяем, что повербанк не находится в активном заказе
                     existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
                     if existing_order:
-                        print(f" Повербанк {powerbank.serial_number} уже в заказе, пропускаем")
                         continue
                     
                     has_errors = self._check_powerbank_errors(sp)
@@ -480,14 +479,12 @@ class BorrowPowerbankAPI:
             # Получаем соединение со станцией
             connection = self.borrow_handler.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                print(f"Соединение со станцией {station_id} не найдено")
                 return
             
             await inventory_manager.request_inventory_after_operation(station_id, connection)
-            print(f"Запрос инвентаря отправлен после операции выдачи")
             
         except Exception as e:
-            print(f"Ошибка запроса инвентаря после операции: {e}")
+            pass
     
     async def request_optimal_borrow(self, station_id: int, user_id: int) -> Dict[str, Any]:
         """
@@ -580,7 +577,7 @@ class BorrowPowerbankAPI:
             
             if not borrow_result["success"]:
                 # Если команда не отправилась или станция отклонила, отменяем заказ
-                await Order.cancel(self.db_pool, order.order_id)
+                await Order.delete(self.db_pool, order.order_id)
                 return {
                     "success": False,
                     "error": f"Ошибка выдачи повербанка: {borrow_result['message']}"

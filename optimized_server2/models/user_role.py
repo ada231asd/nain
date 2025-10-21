@@ -29,10 +29,7 @@ class UserRole:
     
     @classmethod
     async def get_primary_role(cls, db_pool, user_id: int) -> Optional['UserRole']:
-        """Возвращает основную роль пользователя.
-        Логика: выбираем самую последнюю по времени создания роль пользователя.
-        Если ролей нет — возвращаем None.
-        """
+        """Возвращает основную роль пользователя."""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute("""

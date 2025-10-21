@@ -106,7 +106,7 @@ class OptimizedServer:
         checksum = data[4]
         token = data[5:9]
         
-        # Извлекаем payload (данные после токена)
+        # Извлекаем payload
         payload_start = 9
         payload_end = 2 + packet_data_len
         payload = data[payload_start:payload_end] if payload_end > payload_start else b''
@@ -183,9 +183,6 @@ class OptimizedServer:
             }
             command_name = command_names.get(command, f"Unknown(0x{command:02X})")
             
-            # Логируем только важные команды
-            if command != 0x61:  # Не логируем heartbeat
-                print(f"📦 Пакет {command_name} от станции {connection.box_id}")
             
             # Логируем входящий пакет
             from utils.packet_utils import log_packet
@@ -237,8 +234,7 @@ class OptimizedServer:
                 return False
             
             elif command == 0x66:  # Return Power Bank
-                # Станция отправляет данные о вставленном повербанке (Request 3.5.1)
-                # Сервер отвечает с Result (Response 3.5.2)
+                
                 # Сначала проверяем, есть ли ожидающие возврат с ошибкой пользователи
                 response = await self.return_handler.handle_tcp_error_return_request(data, connection)
                 if response:
@@ -298,7 +294,7 @@ class OptimizedServer:
                 self.logger.warning(f"Неизвестная команда 0x{command:02X} от станции {connection.box_id}")
                 return False
             
-            # Отправляем ответ (heartbeat уже обработан выше)
+            # Отправляем ответ
             if response and command != 0x61:
                 # Проверяем соответствие writer и connection.fd
                 writer_fd = writer.transport.get_extra_info('socket').fileno()
@@ -325,7 +321,6 @@ class OptimizedServer:
         
         self.logger.debug(f"Подключен: {addr} (fd={fd}) в {connection_time.strftime('%H:%M:%S')}")
         
-        # Отключили ведение статистики подключений
         
         # Создаем соединение
         connection = StationConnection(fd, addr, writer=writer)
@@ -343,7 +338,7 @@ class OptimizedServer:
                 try:
                     packet_count += 1
                     
-                    # Читаем заголовок пакета мгновенно
+                    # Читаем заголовок пакета
                     try:
                         header = await reader.readexactly(2)
                         if not header:
@@ -354,7 +349,7 @@ class OptimizedServer:
                     # Получаем длину данных из заголовка (big-endian)
                     packet_data_len = int.from_bytes(header, byteorder='big')
                     
-                    # Читаем данные пакета мгновенно
+                    # Читаем данные пакета
                     try:
                         packet_data = await reader.readexactly(packet_data_len)
                     except asyncio.IncompleteReadError as e:
@@ -362,10 +357,9 @@ class OptimizedServer:
                     except Exception as e:
                         break
                     
-                    # Собираем полный пакет (заголовок + данные)
+                    # Собираем полный пакет
                     data = header + packet_data
                     
-                    # ВАЖНО: Валидируем пакет перед обработкой
                     if not await self._validate_packet(data, connection):
                         continue
                         
@@ -407,8 +401,6 @@ class OptimizedServer:
                 self.logger.debug(f"Отключен: {addr} (fd={fd}) - нормальное закрытие, осталось соединений: {remaining_connections}")
             self.connection_manager.remove_connection(fd)
             
-          
-            
             # Безопасное закрытие соединения
             try:
                 if not writer.is_closing():
@@ -448,17 +440,14 @@ class OptimizedServer:
             self.set_server_address_handler = SetServerAddressHandler(self.db_pool, self.connection_manager)
             self.query_server_address_handler = QueryServerAddressHandler(self.db_pool, self.connection_manager)
             
-            # Создаем HTTP сервер и передаем общий borrow_handler внутрь, чтобы HTTP API и TCP
-            # обрабатывали выдачу одним и тем же экземпляром (общий pending_requests)
+            
             self.http_server = HTTPServer()
             self.http_server.db_pool = self.db_pool
-            # Инъекция общего обработчика для последующего использования в BorrowEndpoints/BorrowPowerbankAPI
+            # Инъекция общего обработчика для последующего использования
             setattr(self.http_server, 'shared_borrow_handler', self.borrow_handler)
-            # Инъекция обработчика возврата для использования в InventoryManager
+            # Инъекция обработчика возврата для использования
             setattr(self.http_server, 'shared_return_handler', self.return_handler)
             
-    
-           
             self.running = True
             
             # Запускаем TCP серверы на всех указанных портах
@@ -468,8 +457,6 @@ class OptimizedServer:
                 server_kwargs = {
                     'reuse_address': True
                 }
-                
-                # reuse_port поддерживается только в Linux
                 if platform.system() == 'Linux':
                     server_kwargs['reuse_port'] = True
                 
@@ -498,13 +485,10 @@ class OptimizedServer:
             await ws_site.start()
             print(f"HTTP сервер запущен на 0.0.0.0:{HTTP_PORT}")
             print(f"WebSocket сервер запущен на 0.0.0.0:8001")
-            print(f"Сервер мониторинга запущен на 0.0.0.0:8002")
             
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
-            
-           
             
             # Ждем завершения серверов
             try:
@@ -526,7 +510,7 @@ class OptimizedServer:
         """Мониторинг соединений"""
         while self.running:
             try:
-                # Очищаем неактивные соединения (таймаут 2 минуты для стабильности)
+                # Очищаем неактивные соединения
                 cleaned = self.connection_manager.cleanup_inactive_connections(120)
                 if cleaned > 0:
                     self.logger.info(f"Очищено {cleaned} неактивных соединений")
@@ -563,8 +547,7 @@ class OptimizedServer:
                                 self.connection_manager.close_connection(fd)
                 
                 
-                await asyncio.sleep(60)  # Проверяем каждые 60 секунд для лучшей производительности
-            
+                await asyncio.sleep(60)             
             except Exception as e:
                 self.logger.error(f"Ошибка в мониторинге соединений: {e}")
                 await asyncio.sleep(60)
