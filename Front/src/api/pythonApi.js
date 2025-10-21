@@ -156,18 +156,6 @@ export const pythonAPI = {
       }
     }), 'bulk import users')
   },
-  bulkImportUsersWithWebSocket: (file, orgUnitId = null) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    if (orgUnitId) {
-      formData.append('org_unit_id', orgUnitId)
-    }
-    return handleResponse(apiClient.post('/users/bulk-import-ws', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    }), 'bulk import users with websocket')
-  },
 
   // ОРГАНИЗАЦИОННЫЕ ЕДИНИЦЫ (полный CRUD)
   getOrgUnits: (params = {}) => handleResponse(apiClient.get('/org-units', { params }), 'get org units'),

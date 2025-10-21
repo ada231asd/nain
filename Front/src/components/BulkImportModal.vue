@@ -311,7 +311,6 @@ const fileInput = {
 const validationResult = ref({})
 const importResult = ref({})
 
-// Прогресс импорта (оставляем структуру для шаблона, но без WebSocket)
 const importProgress = ref({
   current: 0,
   total: 0,
@@ -417,9 +416,8 @@ const validateFile = async () => {
   }
 }
 
-// WebSocket больше не используется для импорта; работаем через REST API
 
-// Импорт пользователей (REST, без WebSocket)
+// Импорт пользователей
 const importUsers = async () => {
   try {
     isLoading.value = true

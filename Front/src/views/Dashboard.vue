@@ -148,7 +148,6 @@ import ErrorReportModal from '../components/ErrorReportModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
 import { formatMoscowTime } from '../utils/timeUtils'
-// WebSocket больше не используется для выдачи повербанков
 
 const router = useRouter()
 const route = useRoute()
@@ -1102,7 +1101,6 @@ const handleLogoError = () => {
   orgUnitLogo.value = null
 }
 
-// WebSocket уведомления удалены; фронтенд ожидает ответ API
 
 // Жизненный цикл
 onMounted(async () => {
@@ -1116,7 +1114,6 @@ onMounted(async () => {
     // Загружаем данные группы пользователя
     await loadUserOrgUnit()
     
-    // WebSocket больше не используется — полагаемся на синхронные ответы API
     
     // Не запускаем автоматическое обновление по таймеру
     // Обновление происходит только после действий
@@ -1133,7 +1130,6 @@ onUnmounted(() => {
   // Останавливаем автоматическое обновление
   stopAutoRefresh()
   
-  // WebSocket не используется
 })
 </script>
 

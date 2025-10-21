@@ -18,14 +18,10 @@ class BulkUserImportAPI:
     def __init__(self, db_pool):
         self.db_pool = db_pool
         self.bulk_import = BulkUserImport(db_pool)
-        # WebSocket для импорта больше не используется
     
-    # WebSocket-вариант импорта удален: используем только REST метод ниже
-    
-    # Фоновый импорт и события WebSocket удалены
     
     async def import_users_from_excel(self, request: Request) -> Response:
-        """POST /api/users/bulk-import - Импорт пользователей из Excel файла (старый метод без WebSocket)"""
+        """POST /api/users/bulk-import - Импорт пользователей из Excel файла"""
         try:
             logger = get_logger('bulk_user_import_api')
             

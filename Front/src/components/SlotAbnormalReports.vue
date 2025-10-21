@@ -156,10 +156,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { pythonAPI } from '../api/pythonApi'
 import { formatMoscowTime, getRelativeTime } from '../utils/timeUtils'
-import websocketClient from '../utils/websocketClient'
 
 const props = defineProps({
   stations: {
@@ -203,26 +202,6 @@ const isAllSelected = computed(() => {
 onMounted(() => {
   loadReports()
   loadStatistics()
-  setupWebSocket()
-})
-
-onUnmounted(() => {
-  // Отключаем WebSocket при размонтировании компонента
-  websocketClient.disconnect()
-})
-
-// Отслеживаем изменение активной вкладки
-watch(() => props.activeTab, (newTab, oldTab) => {
-  // Если уходим с вкладки аномалий слотов, отключаем WebSocket
-  if (oldTab === 'slot-abnormal-reports' && newTab !== 'slot-abnormal-reports') {
-    websocketClient.disconnect()
-    console.log('WebSocket отключен при уходе с раздела аномалий слотов')
-  }
-  // Если заходим на вкладку аномалий слотов, подключаем WebSocket
-  else if (newTab === 'slot-abnormal-reports' && oldTab !== 'slot-abnormal-reports') {
-    setupWebSocket()
-    console.log('WebSocket подключен при входе в раздел аномалий слотов')
-  }
 })
 
 const loadReports = async () => {
@@ -358,63 +337,6 @@ const changePage = (page) => {
   }
 }
 
-// WebSocket методы
-const setupWebSocket = async () => {
-  // Проверяем, нужно ли подключаться
-  if (!websocketClient.shouldConnect()) {
-    console.log('WebSocket уже подключен или подключается')
-    return
-  }
-
-  // Подписываемся на события
-  websocketClient.on('new_abnormal_report', (reportData) => {
-    // Добавляем новый отчет в начало списка
-    reports.value.unshift(reportData)
-    
-    // Показываем уведомление
-    showNewReportNotification(reportData)
-    
-    // Обновляем статистику
-    loadStatistics()
-  })
-  
-  websocketClient.on('recent_reports', (data) => {
-    if (data.success) {
-      reports.value = data.reports || []
-    }
-  })
-  
-  websocketClient.on('abnormal_report_deleted', (data) => {
-    // Удаляем отчет из локального списка
-    reports.value = reports.value.filter(r => r.report_id !== data.report_id)
-    console.log(`Отчет ${data.report_id} удален другим пользователем`)
-  })
-  
-  // Подключаемся к WebSocket
-  websocketClient.connect()
-  
-  // Ждем подключения и запрашиваем последние отчеты
-  try {
-    await websocketClient.waitForConnection()
-    websocketClient.getRecentReports(100)
-  } catch (error) {
-    console.warn('WebSocket недоступен, работаем без real-time обновлений:', error.message)
-    // Загружаем данные обычным способом, если WebSocket недоступен
-    loadReports()
-  }
-}
-
-const showNewReportNotification = (reportData) => {
-  // Простое уведомление в консоли (можно заменить на toast)
-  const stationInfo = reportData.box_id || `ID: ${reportData.station_id}`
-  const orgUnit = getStationOrgUnit(reportData.station_id)
-  const stationDisplay = orgUnit ? `${stationInfo} (${orgUnit})` : stationInfo
-  const eventText = getEventTypeText(reportData.event_type)
-  console.log(`🔔 Новая аномалия слота: ${stationDisplay}, слот ${reportData.slot_number}, ${eventText}`)
-  
-  // Можно добавить toast уведомление здесь
-  // toast.info(`Новая аномалия: ${stationDisplay}, слот ${reportData.slot_number}`)
-}
 
 // Получение информации о станции
 const getStationOrgUnit = (stationId) => {

@@ -136,16 +136,6 @@ class SlotAbnormalReportAPI:
             success = await SlotAbnormalReport.delete_by_id(self.db_pool, report_id)
             
             if success:
-                # Отправляем уведомление через WebSocket об удалении
-                try:
-                    from websocket_server import websocket_manager
-                    await websocket_manager.broadcast({
-                        "type": "abnormal_report_deleted",
-                        "report_id": report_id,
-                        "timestamp": None
-                    })
-                except Exception as ws_error:
-                    pass
                 
                 return {
                     "success": True,

@@ -60,7 +60,7 @@ class SlotAbnormalReportHandler:
             return None
     
     async def _save_abnormal_report_to_database(self, station_id: int, abnormal_report: Dict[str, Any]) -> None:
-        """Сохраняет отчет об аномалии слота в базу данных и в parsed_packets.json"""
+        """Сохраняет отчет об аномалии слота в базу данных"""
         try:
             # Используем новую модель для сохранения
             from models.slot_abnormal_report import SlotAbnormalReport
@@ -75,16 +75,6 @@ class SlotAbnormalReportHandler:
             )
             
             if report:
-                # Загружаем полную информацию о отчете с box_id
-                full_report = await SlotAbnormalReport.get_by_id(self.db_pool, report.report_id)
-                
-                # Сохраняем в parsed_packets.json
-                await self._save_to_parsed_packets(abnormal_report)
-                
-                # Отправляем уведомление через WebSocket с полной информацией
-                if full_report:
-                    await self._notify_websocket_clients(full_report)
-                
                 print(f"Отчет об аномалии слота сохранен для станции {station_id}, слот {abnormal_report['SlotNo']}")
             else:
                 self.logger.error(f"Не удалось создать отчет об аномалии для станции {station_id}")
@@ -92,53 +82,6 @@ class SlotAbnormalReportHandler:
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
     
-    async def _notify_websocket_clients(self, report) -> None:
-        """Отправляет уведомление о новой аномалии через WebSocket"""
-        try:
-            from websocket_server import notify_slot_abnormal_report
-            
-            # Преобразуем отчет в словарь для отправки
-            report_data = report.to_dict()
-            
-            # Отправляем уведомление
-            await notify_slot_abnormal_report(report_data)
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка отправки WebSocket уведомления: {e}")
-    
-    async def _save_to_parsed_packets(self, abnormal_report: Dict[str, Any]) -> None:
-        """Сохраняет разобранные данные в parsed_packets.json"""
-        try:
-            import json
-            import os
-            from datetime import datetime
-            
-            # Читаем существующий файл или создаем новый
-            filename = 'parsed_packets.json'
-            if os.path.exists(filename):
-                with open(filename, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-            else:
-                data = []
-            
-            # Добавляем новый пакет
-            packet_data = {
-                "timestamp": get_moscow_time().isoformat(),
-                "command": "0x83",
-                "type": "Slot Status Abnormal Report",
-                "data": abnormal_report
-            }
-            
-            data.append(packet_data)
-            
-            # Сохраняем обратно в файл
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            
-            print(f"Данные команды 0x83 сохранены в {filename}")
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка: {e}")
     
     async def get_station_abnormal_reports(self, station_id: int, limit: int = 50) -> Dict[str, Any]:
         """
