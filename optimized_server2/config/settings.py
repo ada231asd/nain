@@ -17,9 +17,9 @@ HTTP_PORT = 8000
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "root",
-    "password": "root",
-    "db": "zaryd",
+    "user": "appuser",
+    "password": "MyPassw0rd!",
+    "db": "zaryd2",
     "autocommit": True
 }
 
@@ -27,7 +27,7 @@ DB_CONFIG = {
 
 # Настройки логирования
 LOG_LEVEL = "INFO"
-TCP_PACKETS_LOG = "logs/tcp_packets.log"  
+# Все логи теперь записываются в единый файл logs/server.log  
 
 # Настройки JWT
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")

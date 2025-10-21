@@ -14,7 +14,7 @@ from utils.time_utils import get_moscow_time, get_moscow_now
 def log_packet(data: bytes, direction: str, station_box_id: str = "unknown", command_name: str = "Unknown"):
     """Логирование TCP пакета через логгер с точным временем"""
     try:
-        from utils.tcp_packet_logger import log_tcp_packet
+        from utils.unified_logger import log_tcp_packet
         import time
         
         hex_data = data.hex().upper()

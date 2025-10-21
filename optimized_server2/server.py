@@ -30,8 +30,7 @@ from handlers.query_server_address import QueryServerAddressHandler
 from http_server import HTTPServer
 from utils.packet_utils import parse_packet
 from utils.station_resolver import StationResolver
-from utils.centralized_logger import get_logger, close_logger, get_logger_stats
-from utils.tcp_packet_logger import close_tcp_logger, get_tcp_logger_stats
+from utils.unified_logger import get_logger, close_logger, get_logger_stats, log_server_event
 
 
 
@@ -568,7 +567,7 @@ class OptimizedServer:
         
         # Закрываем логгеры
         close_logger()
-        close_tcp_logger()
+        # TCP логгер теперь часть единого логгера
         self.logger.info("Логгеры закрыты")
     
     async def _deactivate_all_stations(self):
