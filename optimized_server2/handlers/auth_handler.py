@@ -112,20 +112,19 @@ class AuthHandler:
             from api.invitation_api import InvitationAPI
             invitation_api = InvitationAPI(self.db_pool)
             
+            # Логируем полученный токен для отладки
+            self.logger.info(f"🎫 Registration with invitation token: {invitation_token}")
+            
             # Получаем информацию о приглашении
             invitation_info = await invitation_api._get_invitation_info(invitation_token)
             
             if not invitation_info:
+                self.logger.warning(f"❌ Invitation not found for token: {invitation_token}")
                 return web.json_response({
                     'error': 'Приглашение не найдено'
                 }, status=404)
             
-            # Проверяем, не использовано ли уже приглашение
-            if invitation_info.get('used', False):
-                return web.json_response({
-                    'error': 'Приглашение уже использовано'
-                }, status=409)
-            
+            # Приглашения могут использоваться неограниченное количество раз
             # Создаем пользователя с привязкой к группе
             user, password = await invitation_api._create_user_with_invitation(
                 phone_e164, email, fio, invitation_info
@@ -140,9 +139,6 @@ class AuthHandler:
                 return web.json_response({
                     'error': 'Ошибка отправки email с паролем'
                 }, status=500)
-            
-            # Помечаем приглашение как использованное
-            await invitation_api._mark_invitation_as_used(invitation_token)
             
             return web.json_response({
                 'success': True,

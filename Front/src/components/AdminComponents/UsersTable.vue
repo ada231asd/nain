@@ -744,28 +744,24 @@ const generateInvitation = async () => {
       return
     }
     
-    // Генерируем токен на клиенте
-    const token = generateRandomToken()
-    
-    // Формируем ссылку с параметрами
-    const baseUrl = window.location.origin
-    const invitationLink = `${baseUrl}/register?invitation=${token}&org_unit_id=${orgUnitId}&role=user`
-    
-    console.log('Сгенерированная ссылка:', invitationLink)
-    console.log('Org Unit ID:', orgUnitId)
-    
-    // Сохраняем приглашение на сервере
-    await pythonAPI.storeInvitation({
-      token: token,
+    // Генерируем приглашение через серверный API
+    const response = await pythonAPI.generateInvitation({
       org_unit_id: orgUnitId,
       role: 'user'
     })
     
-    invitationResult.value = {
-      invitation_token: token,
-      invitation_link: invitationLink,
-      org_unit_id: orgUnitId,
-      role: 'user'
+    if (response.success) {
+      // Используем ссылку от сервера (безопасно, без org_unit_id и role в URL)
+      invitationResult.value = {
+        invitation_token: response.invitation_token,
+        invitation_link: response.invitation_link,
+        org_unit_id: response.org_unit_id,
+        role: response.role
+      }
+      
+      console.log('Приглашение создано:', response)
+    } else {
+      throw new Error(response.error || 'Не удалось создать приглашение')
     }
     
     // QR код будет сгенерирован автоматически через watcher на invitationResult

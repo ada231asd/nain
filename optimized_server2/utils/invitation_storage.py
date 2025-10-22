@@ -53,7 +53,7 @@ class InvitationStorage:
                 'token': token,
                 'org_unit_id': org_unit_id,
                 'role': role,
-                'creator_id': creator_id,
+                'created_by': creator_id,  # Используем 'created_by' для консистентности
                 'created_at': datetime.now().isoformat(),
                 'used': False
             }
@@ -105,6 +105,11 @@ class InvitationStorage:
         if expired_tokens:
             logger.info(f"Удалено {len(expired_tokens)} устаревших приглашений")
             self._save_to_file()
+    
+    def get_all_invitations(self) -> list:
+        """Получает список всех приглашений"""
+        self._cleanup_expired()
+        return list(self.invitations.values())
     
     def get_statistics(self) -> Dict[str, Any]:
         """Получает статистику по приглашениям"""

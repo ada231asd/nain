@@ -10,6 +10,7 @@ from aiohttp.web import Request, Response
 import aiomysql
 import json
 from utils.json_utils import serialize_for_json
+from utils.invitation_storage import invitation_storage
 
 
 class InvitationAPI:
@@ -21,17 +22,27 @@ class InvitationAPI:
     async def generate_invitation_link(self, request: Request) -> Response:
         """POST /api/invitations/generate - Генерация ссылки-приглашения"""
         try:
+            from utils.centralized_logger import get_logger
+            logger = get_logger('invitation_api')
+            
+            logger.info("🎫 Generating invitation link...")
+            
             data = await request.json()
+            logger.info(f"📝 Received data: {data}")
             
             # Проверяем авторизацию администратора
             user = request.get('user')
+            logger.info(f"👤 User from request: {user}")
+            
             if not user:
+                logger.warning("❌ No user in request")
                 return web.json_response({
                     'error': 'Требуется авторизация'
                 }, status=401)
             
             # Проверяем права администратора
             if not await self._check_admin_permissions(user['user_id']):
+                logger.warning(f"❌ User {user['user_id']} doesn't have admin permissions")
                 return web.json_response({
                     'error': 'Недостаточно прав для создания приглашений'
                 }, status=403)
@@ -40,31 +51,46 @@ class InvitationAPI:
             required_fields = ['org_unit_id', 'role']
             for field in required_fields:
                 if field not in data:
+                    logger.warning(f"❌ Missing field: {field}")
                     return web.json_response({
                         'error': f'Поле {field} обязательно'
                     }, status=400)
             
             org_unit_id = data['org_unit_id']
             role = data['role']
+            logger.info(f"✅ Org unit ID: {org_unit_id}, Role: {role}")
             
             # Проверяем существование организационной единицы
             if not await self._check_org_unit_exists(org_unit_id):
+                logger.warning(f"❌ Org unit {org_unit_id} not found")
                 return web.json_response({
                     'error': 'Организационная единица не найдена'
                 }, status=404)
             
             # Генерируем уникальный токен приглашения
             invitation_token = self._generate_invitation_token()
+            logger.info(f"🔑 Generated token: {invitation_token}")
             
-            # Сохраняем приглашение в БД (используем таблицу action_logs для хранения)
-            await self._save_invitation(invitation_token, org_unit_id, role, user['user_id'])
+            # Сохраняем приглашение в хранилище (в памяти)
+            success = invitation_storage.save_invitation(invitation_token, org_unit_id, role, user['user_id'])
+            if not success:
+                logger.error("❌ Failed to save invitation to storage")
+                return web.json_response({
+                    'error': 'Ошибка сохранения приглашения'
+                }, status=500)
+            logger.info("💾 Invitation saved to storage")
             
             # Формируем ссылку-приглашение
-            # Получаем URL из заголовков запроса
-            host = request.headers.get('Host', 'localhost:8000')
-            scheme = request.headers.get('X-Forwarded-Proto', 'http')
-            base_url = f"{scheme}://{host}"
-            invitation_link = f"{base_url}/register?invitation={invitation_token}"
+            # Используем настроенный URL фронтенда
+            from config.settings import FRONTEND_URL
+            base_url = FRONTEND_URL
+            logger.info(f"🌐 Base URL: {base_url}")
+            
+            # URL-кодируем токен для безопасной передачи в URL
+            from urllib.parse import quote
+            encoded_token = quote(invitation_token, safe='')
+            invitation_link = f"{base_url}/register?invitation={encoded_token}"
+            logger.info(f"🔗 Generated link: {invitation_link}")
             
             return web.json_response({
                 'success': True,
@@ -75,6 +101,9 @@ class InvitationAPI:
             })
             
         except Exception as e:
+            from utils.centralized_logger import get_logger
+            logger = get_logger('invitation_api')
+            logger.error(f"❌ Error generating invitation: {str(e)}", exc_info=True)
             return web.json_response({
                 'error': f'Ошибка создания приглашения: {str(e)}'
             }, status=500)
@@ -139,12 +168,7 @@ class InvitationAPI:
                 }, status=404)
             
             # Приглашения теперь постоянные, проверка срока действия не нужна
-            
-            # Проверяем, не использовано ли уже приглашение
-            if invitation_info['used']:
-                return web.json_response({
-                    'error': 'Приглашение уже использовано'
-                }, status=409)
+            # Приглашения могут использоваться неограниченное количество раз
             
             # Создаем пользователя с привязкой к группе
             user, password = await self._create_user_with_invitation(
@@ -152,7 +176,7 @@ class InvitationAPI:
             )
             
             # Отправляем пароль на email
-            from services.notification_service import notification_service
+            from utils.notification_service import notification_service
             email_sent = await notification_service.send_password_email(
                 email, password, fio, phone_e164
             )
@@ -161,9 +185,6 @@ class InvitationAPI:
                 return web.json_response({
                     'error': 'Ошибка отправки email с паролем'
                 }, status=500)
-            
-            # Помечаем приглашение как использованное
-            await self._mark_invitation_as_used(invitation_token)
             
             return web.json_response({
                 'success': True,
@@ -236,49 +257,24 @@ class InvitationAPI:
                 """, (org_unit_id,))
                 return await cur.fetchone() is not None
     
-    async def _save_invitation(self, token: str, org_unit_id: int, role: str, created_by: int):
-        """Сохраняет приглашение в БД"""
-        async with self.db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # Сохраняем приглашение в action_logs с типом 'invitation_create'
-                await cur.execute("""
-                    INSERT INTO action_logs (user_id, action_type, entity_type, entity_id, description, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    created_by,
-                    'invitation_create',
-                    'system',
-                    org_unit_id,
-                    json.dumps({
-                        'invitation_token': token,
-                        'org_unit_id': org_unit_id,
-                        'role': role,
-                        'used': False
-                    }),
-                    datetime.now()
-                ))
     
     async def _get_invitation_info(self, token: str) -> Optional[Dict[str, Any]]:
         """Получает информацию о приглашении"""
-        async with self.db_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute("""
-                    SELECT description, created_at FROM action_logs 
-                    WHERE action_type = 'invitation_create' 
-                    AND description LIKE %s
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                """, (f'%{token}%',))
-                
-                row = await cur.fetchone()
-                if not row:
-                    return None
-                
-                try:
-                    invitation_data = json.loads(row['description'])
-                    return invitation_data
-                except (json.JSONDecodeError, ValueError):
-                    return None
+        # Импортируем логгер
+        from utils.centralized_logger import get_logger
+        logger = get_logger('invitation_api')
+        
+        logger.info(f"🔍 Searching for invitation with token: {token}")
+        
+        # Получаем приглашение из хранилища
+        invitation = invitation_storage.get_invitation(token)
+        
+        if not invitation:
+            logger.warning(f"❌ No invitation found in storage for token: {token}")
+            return None
+        
+        logger.info(f"✅ Found invitation in storage for token: {token}")
+        return invitation
     
     async def _get_org_unit_info(self, org_unit_id: int) -> Dict[str, Any]:
         """Получает информацию об организационной единице"""
@@ -341,69 +337,43 @@ class InvitationAPI:
                 
                 return user, password
     
-    async def _mark_invitation_as_used(self, token: str):
-        """Помечает приглашение как использованное"""
-        async with self.db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # Находим запись с приглашением
-                await cur.execute("""
-                    SELECT id, description FROM action_logs 
-                    WHERE action_type = 'invitation_create' 
-                    AND description LIKE %s
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                """, (f'%{token}%',))
-                
-                row = await cur.fetchone()
-                if row:
-                    try:
-                        invitation_data = json.loads(row[1])
-                        invitation_data['used'] = True
-                        
-                        # Обновляем запись
-                        await cur.execute("""
-                            UPDATE action_logs 
-                            SET description = %s 
-                            WHERE id = %s
-                        """, (json.dumps(invitation_data), row[0]))
-                        
-                        await conn.commit()
-                    except (json.JSONDecodeError, ValueError):
-                        pass
     
     async def _get_invitations_list(self) -> list:
         """Получает список всех приглашений"""
+        # Получаем список из хранилища
+        invitations_raw = invitation_storage.get_all_invitations()
+        
+        invitations = []
+        for invitation in invitations_raw:
+            # Получаем информацию об организации
+            org_unit_info = await self._get_org_unit_info(invitation['org_unit_id'])
+            
+            # Получаем информацию о создателе
+            created_by_name = None
+            if 'created_by' in invitation:
+                user_info = await self._get_user_info(invitation['created_by'])
+                if user_info:
+                    created_by_name = user_info.get('fio', 'Unknown')
+            
+            invitations.append({
+                'token': invitation['token'],
+                'org_unit_id': invitation['org_unit_id'],
+                'org_unit_name': org_unit_info.get('name', 'Unknown') if org_unit_info else 'Unknown',
+                'role': invitation['role'],
+                'used': invitation.get('used', False),
+                'created_by': invitation.get('created_by'),
+                'created_by_name': created_by_name,
+                'created_at': invitation.get('created_at', '')
+            })
+        
+        return invitations
+    
+    async def _get_user_info(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Получает информацию о пользователе"""
         async with self.db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute("""
-                    SELECT al.id, al.user_id, al.entity_id as org_unit_id, al.description, al.created_at,
-                           ou.name as org_unit_name, u.fio as created_by_name
-                    FROM action_logs al
-                    LEFT JOIN org_unit ou ON al.entity_id = ou.org_unit_id
-                    LEFT JOIN app_user u ON al.user_id = u.user_id
-                    WHERE al.action_type = 'invitation_create'
-                    ORDER BY al.created_at DESC
-                """)
-                
-                rows = await cur.fetchall()
-                invitations = []
-                
-                for row in rows:
-                    try:
-                        invitation_data = json.loads(row['description'])
-                        
-                        invitations.append({
-                            'id': row['id'],
-                            'token': invitation_data['invitation_token'],
-                            'org_unit_id': row['org_unit_id'],
-                            'org_unit_name': row['org_unit_name'],
-                            'role': invitation_data['role'],
-                            'used': invitation_data.get('used', False),
-                            'created_by': row['user_id'],
-                            'created_by_name': row['created_by_name'],
-                            'created_at': row['created_at'].isoformat()
-                        })
-                    except (json.JSONDecodeError, ValueError):
-                        continue
-                
-                return invitations
+                    SELECT user_id, phone_e164, email, fio, status 
+                    FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                return await cur.fetchone()

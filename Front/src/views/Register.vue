@@ -318,6 +318,7 @@ async function handleSubmit() {
     // Если есть токен приглашения, добавляем его к данным регистрации
     if (invitationToken.value) {
       registrationData.invitation_token = invitationToken.value;
+      console.log('🎫 Sending invitation token:', invitationToken.value);
     }
     
     // Логируем данные перед отправкой
@@ -392,14 +393,16 @@ onMounted(async () => {
   const invitationTokenParam = route.query.invitation;
   if (invitationTokenParam) {
     invitationToken.value = invitationTokenParam;
+    console.log('🎫 Invitation token from URL:', invitationTokenParam);
     try {
-      // Пытаемся получить из нового хранилища
-      const response = await pythonAPI.getInvitationFromStorage(invitationTokenParam);
+      // Получаем информацию о приглашении из базы данных
+      const response = await pythonAPI.getInvitationInfo(invitationTokenParam);
+      console.log('✅ Invitation info response:', response);
       if (response.success && response.invitation) {
         invitationInfo.value = response.invitation;
       }
     } catch (error) {
-      console.error('Ошибка загрузки информации о приглашении:', error);
+      console.error('❌ Ошибка загрузки информации о приглашении:', error);
       serverErrorMessage.value = 'Ошибка загрузки приглашения. Попробуйте использовать другую ссылку.';
     }
   }
