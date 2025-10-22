@@ -12,7 +12,30 @@
             ←
           </button>
           
-          <h1 class="layout-header__title">{{ title }}</h1>
+          <!-- Логотип и название группы -->
+          <div v-if="orgUnit" class="layout-header__org-unit">
+            <div class="layout-header__org-unit-logo">
+              <img 
+                v-if="orgUnitLogo" 
+                :src="orgUnitLogo" 
+                :alt="orgUnit.name"
+                class="layout-header__org-unit-logo-img"
+                @error="handleLogoError"
+              />
+              <div v-else-if="isLoadingOrgUnit" class="layout-header__org-unit-logo-placeholder loading">
+                <div class="layout-header__loading-spinner"></div>
+              </div>
+              <div v-else class="layout-header__org-unit-logo-placeholder">
+                <span class="layout-header__org-unit-initials">{{ getOrgUnitInitials(orgUnit.name) }}</span>
+              </div>
+            </div>
+            <div class="layout-header__org-unit-info">
+              <h1 class="layout-header__title">{{ title }}</h1>
+              <p v-if="orgUnit.description" class="layout-header__org-unit-description">{{ orgUnit.description }}</p>
+            </div>
+          </div>
+          
+          <h1 v-else class="layout-header__title">{{ title }}</h1>
         </div>
         
         <div class="layout-header__right">
@@ -107,8 +130,22 @@ const props = defineProps({
   showBottomNavigation: {
     type: Boolean,
     default: false
+  },
+  orgUnit: {
+    type: Object,
+    default: null
+  },
+  orgUnitLogo: {
+    type: String,
+    default: null
+  },
+  isLoadingOrgUnit: {
+    type: Boolean,
+    default: false
   }
 })
+
+const emit = defineEmits(['logo-error'])
 
 const router = useRouter()
 const route = useRoute()
@@ -182,6 +219,23 @@ const getUserRoleText = (role) => {
     'user': 'Пользователь'
   }
   return roleMap[role] || role
+}
+
+const getOrgUnitInitials = (name) => {
+  if (!name) return 'Г'
+  
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length >= 2) {
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase()
+  } else if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase()
+  }
+  
+  return 'Г'
+}
+
+const handleLogoError = () => {
+  emit('logo-error')
 }
 
 const toggleUserMenu = () => {
@@ -304,6 +358,77 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+/* Стили для блока группы в хидере */
+.layout-header__org-unit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.layout-header__org-unit-logo {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layout-header__org-unit-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.layout-header__org-unit-logo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-color);
+  border-radius: 8px;
+}
+
+.layout-header__org-unit-logo-placeholder.loading {
+  background: var(--background-secondary);
+}
+
+.layout-header__org-unit-initials {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.layout-header__org-unit-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.layout-header__org-unit-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-header__loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 .layout-header__right {
@@ -488,6 +613,19 @@ onUnmounted(() => {
   
   .layout-header__title {
     font-size: 16px;
+  }
+  
+  .layout-header__org-unit-logo {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .layout-header__org-unit-initials {
+    font-size: 14px;
+  }
+  
+  .layout-header__org-unit-description {
+    display: none;
   }
   
   .layout-header__user-name {

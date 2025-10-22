@@ -1,28 +1,12 @@
 <template>
-  <DefaultLayout :title="userOrgUnit?.name || 'Главная'">
+  <DefaultLayout 
+    :title="userOrgUnit?.name || 'Главная'"
+    :org-unit="userOrgUnit"
+    :org-unit-logo="orgUnitLogo"
+    :is-loading-org-unit="isLoadingOrgUnit"
+    @logo-error="handleLogoError"
+  >
     <div class="dashboard-content">
-      <!-- Логотип группы пользователя -->
-      <div v-if="userOrgUnit" class="org-unit-header">
-        <div class="org-unit-logo-container">
-          <img 
-            v-if="orgUnitLogo" 
-            :src="orgUnitLogo" 
-            :alt="userOrgUnit.name"
-            class="org-unit-logo"
-            @error="handleLogoError"
-          />
-          <div v-else-if="isLoadingOrgUnit" class="org-unit-logo-placeholder loading">
-            <div class="loading-spinner"></div>
-          </div>
-          <div v-else class="org-unit-logo-placeholder">
-            <span class="org-unit-initials">{{ getOrgUnitInitials(userOrgUnit.name) }}</span>
-          </div>
-        </div>
-        <div class="org-unit-info">
-          <h2 class="org-unit-name">{{ userOrgUnit.name }}</h2>
-          <p v-if="userOrgUnit.description" class="org-unit-description">{{ userOrgUnit.description }}</p>
-        </div>
-      </div>
 
       <!-- Избранные станции -->
       <section class="favorites-section">
@@ -1259,20 +1243,7 @@ const formatTime = (timestamp) => formatMoscowTime(timestamp, {
   minute: '2-digit'
 })
 
-// Функции для работы с логотипом группы
-const getOrgUnitInitials = (name) => {
-  if (!name) return 'Г'
-  
-  const words = name.trim().split(' ').filter(word => word.length > 0)
-  if (words.length >= 2) {
-    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase()
-  } else if (words.length === 1) {
-    return words[0].charAt(0).toUpperCase()
-  }
-  
-  return 'Г'
-}
-
+// Функция для обработки ошибки логотипа
 const handleLogoError = () => {
   console.error('Ошибка загрузки логотипа группы')
   orgUnitLogo.value = null
@@ -1656,120 +1627,6 @@ onUnmounted(() => {
   }
 }
 
-/* Стили для логотипа группы */
-.org-unit-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  margin-bottom: 2rem;
-  color: white;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.org-unit-logo-container {
-  flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.org-unit-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.org-unit-logo-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-}
-
-.org-unit-logo-placeholder.loading {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.org-unit-initials {
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.org-unit-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.org-unit-name {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.org-unit-description {
-  margin: 0;
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.4;
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top: 3px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Мобильные стили для логотипа группы */
-@media (max-width: 768px) {
-  .org-unit-header {
-    flex-direction: column;
-    text-align: center;
-    padding: 1rem;
-    gap: 0.75rem;
-  }
-  
-  .org-unit-logo-container {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .org-unit-initials {
-    font-size: 1.5rem;
-  }
-  
-  .org-unit-name {
-    font-size: 1.25rem;
-  }
-  
-  .org-unit-description {
-    font-size: 0.9rem;
-  }
-}
 
 /* Стили для поиска */
 .search-loading {
