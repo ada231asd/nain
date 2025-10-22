@@ -5,6 +5,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     token: localStorage.getItem('auth_token') || null,
+    userLimits: null,
   }),
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
@@ -15,6 +16,10 @@ export const useAuthStore = defineStore('auth', {
     isServiceAdmin: (state) => state.user?.role === 'service_admin',
     isGroupAdmin: (state) => state.user?.role === 'group_admin',
     isSubgroupAdmin: (state) => state.user?.role === 'subgroup_admin',
+    availableByLimit: (state) => {
+      if (!state.userLimits) return null;
+      return state.userLimits.available_by_limit;
+    },
   },
   actions: {
     async login(credentials) {
@@ -28,12 +33,16 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.user; // Бэкенд уже возвращает user объект
         localStorage.setItem('auth_token', response.token);
 
+        // Загружаем лимиты пользователя сразу после логина
+        await this.fetchUserLimits();
+
         return response;
       } catch (error) {
         // Очищаем состояние при ошибке
         this.token = null;
         localStorage.removeItem('auth_token');
         this.user = null;
+        this.userLimits = null;
         throw error;
       }
     },
@@ -56,12 +65,33 @@ export const useAuthStore = defineStore('auth', {
 
         const response = await pythonAPI.getProfile();
         this.user = response.user;
+        
+        // Получаем также лимиты пользователя
+        await this.fetchUserLimits();
       } catch (error) {
         // Очищаем состояние при ошибке
         this.token = null;
         localStorage.removeItem('auth_token');
         this.user = null;
+        this.userLimits = null;
         throw error;
+      }
+    },
+    async fetchUserLimits() {
+      try {
+        if (!this.token) {
+          return;
+        }
+
+        const response = await pythonAPI.getUserStationsAvailability();
+        
+        // API возвращает структуру {success: true, data: {user_limits: {...}}}
+        if (response && response.data && response.data.user_limits) {
+          this.userLimits = response.data.user_limits;
+        }
+      } catch (error) {
+        console.error('Ошибка получения лимитов пользователя:', error);
+        this.userLimits = null;
       }
     },
     async logout() {
@@ -70,11 +100,13 @@ export const useAuthStore = defineStore('auth', {
         // Просто очищаем токен и пользователя
         this.token = null;
         this.user = null;
+        this.userLimits = null;
         localStorage.removeItem('auth_token');
       } catch (error) {
         // В любом случае очищаем состояние
         this.token = null;
         this.user = null;
+        this.userLimits = null;
         localStorage.removeItem('auth_token');
       }
     },

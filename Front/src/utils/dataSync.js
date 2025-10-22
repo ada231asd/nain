@@ -5,6 +5,7 @@
 
 import { useStationsStore } from '../stores/stations'
 import { useAdminStore } from '../stores/admin'
+import { useAuthStore } from '../stores/auth'
 import { pythonAPI } from '../api/pythonApi'
 
 /**
@@ -19,6 +20,7 @@ export const refreshAllDataAfterReturn = async (orderData, user, loadUserOrders)
     
     const stationsStore = useStationsStore()
     const adminStore = useAdminStore()
+    const authStore = useAuthStore()
     
     // Параллельно обновляем все необходимые данные
     const updatePromises = []
@@ -41,7 +43,14 @@ export const refreshAllDataAfterReturn = async (orderData, user, loadUserOrders)
       )
     }
     
-    // 3. Обновляем данные в админском store (если пользователь админ)
+    // 3. Обновляем лимиты пользователя
+    updatePromises.push(
+      authStore.fetchUserLimits().catch(error => {
+        console.warn('Не удалось обновить лимиты пользователя:', error)
+      })
+    )
+    
+    // 4. Обновляем данные в админском store (если пользователь админ)
     if (user?.role && ['subgroup_admin', 'group_admin', 'service_admin'].includes(user.role)) {
       updatePromises.push(
         adminStore.fetchOrders().catch(error => {
@@ -73,6 +82,7 @@ export const refreshAllDataAfterBorrow = async (stationId, userId, user, refresh
     
     const stationsStore = useStationsStore()
     const adminStore = useAdminStore()
+    const authStore = useAuthStore()
     
     // Параллельно обновляем все необходимые данные
     const updatePromises = []
@@ -93,7 +103,14 @@ export const refreshAllDataAfterBorrow = async (stationId, userId, user, refresh
       )
     }
     
-    // 3. Обновляем данные в админском store (если пользователь админ)
+    // 3. Обновляем лимиты пользователя
+    updatePromises.push(
+      authStore.fetchUserLimits().catch(error => {
+        console.warn('Не удалось обновить лимиты пользователя:', error)
+      })
+    )
+    
+    // 4. Обновляем данные в админском store (если пользователь админ)
     if (user?.role && ['subgroup_admin', 'group_admin', 'service_admin'].includes(user.role)) {
       updatePromises.push(
         adminStore.fetchOrders().catch(error => {

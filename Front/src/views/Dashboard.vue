@@ -283,13 +283,24 @@ const loadUserOrgUnit = async () => {
       // Если есть логотип, загружаем его
       if (orgUnitData.logo_url) {
         try {
-          console.log('Загружаем логотип:', orgUnitData.logo_url)
-          const logoBlob = await pythonAPI.getOrgUnitLogo(orgUnitData.logo_url)
+          const logoUrl = orgUnitData.logo_url
+          console.log('Обрабатываем логотип:', logoUrl)
           
-          // Создаем URL для blob
-          const logoUrl = URL.createObjectURL(logoBlob)
-          orgUnitLogo.value = logoUrl
-          console.log('Логотип загружен:', logoUrl)
+          // Проверяем, является ли это внешней ссылкой
+          if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+            // Внешняя ссылка - используем напрямую
+            console.log('Используем внешнюю ссылку на логотип:', logoUrl)
+            orgUnitLogo.value = logoUrl
+          } else {
+            // Локальный файл на сервере - запрашиваем через API
+            console.log('Загружаем логотип с сервера:', logoUrl)
+            const logoBlob = await pythonAPI.getOrgUnitLogo(logoUrl)
+            
+            // Создаем URL для blob
+            const blobUrl = URL.createObjectURL(logoBlob)
+            orgUnitLogo.value = blobUrl
+            console.log('Логотип загружен:', blobUrl)
+          }
         } catch (logoError) {
           console.error('Ошибка загрузки логотипа:', logoError)
           orgUnitLogo.value = null
@@ -1253,7 +1264,9 @@ const handleLogoError = () => {
 // Жизненный цикл
 onMounted(async () => {
   try {
-    console.log('onMounted: загружаем избранное для user_id:', user.value?.user_id)
+    // Загружаем лимиты пользователя
+    await auth.fetchUserLimits()
+    
     await stationsStore.fetchFavoriteStations(user.value?.user_id)
     
     // Загружаем QR-станцию если есть параметры

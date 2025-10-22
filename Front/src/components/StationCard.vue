@@ -35,24 +35,24 @@
 
       <div class="station-card__powerbank-info">
         <div class="station-card__powerbank-item">
-          <span class="station-card__powerbank-label">доступно аккумуляторов:</span>
-          <span class="station-card__powerbank-value station-card__powerbank-value--available">{{ returnablePorts }}</span>
+          <span class="station-card__powerbank-label">можно взять:</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--available">{{ availableForBorrow }}</span>
         </div>
         <div class="station-card__powerbank-item">
-          <span class="station-card__powerbank-label">свободно слотов:</span>
-          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ availablePorts }}</span>
+          <span class="station-card__powerbank-label">в станции:</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ availablePorts }}/{{ totalPorts }}</span>
         </div>
       </div>
       
       <div v-if="lastSeenValue" class="station-card__last-seen">
-        <span class="station-card__last-seen-label">Последний раз видели:</span>
+        <span class="station-card__last-seen-label">Последний раз в сети:</span>
         <span class="station-card__last-seen-time">{{ formatLastSeen(lastSeenValue) }}</span>
       </div>
     </div>
     
     <div class="station-card__actions" v-if="isExpanded">
       <BaseButton
-        v-if="showTakeBatteryButton && (availablePorts > 0 || station.status === 'active')"
+        v-if="showTakeBatteryButton && (availableForBorrow > 0 || station.status === 'active')"
         variant="success"
         size="small"
         @click="$emit('takeBattery', station)"
@@ -104,6 +104,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import BaseButton from './BaseButton.vue'
 
 const props = defineProps({
@@ -143,12 +144,46 @@ const props = defineProps({
 
 const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'returnWithError', 'adminClick', 'toggleExpansion'])
 
+const authStore = useAuthStore()
+
+// Свободные слоты в станции (количество свободных слотов)
 const availablePorts = computed(() => {
   return props.station.freePorts || 0
 })
 
 const totalPorts = computed(() => {
   return props.station.totalPorts || 0
+})
+
+// Проверка, является ли пользователь админом
+const isUserAdmin = computed(() => {
+  return authStore.isAdmin
+})
+
+// Доступно аккумуляторов для взятия (с учетом лимита пользователя)
+const availableForBorrow = computed(() => {
+  const freePorts = props.station.freePorts || 0
+  
+  // Для админов лимиты не применяются - показываем все свободные порты
+  if (isUserAdmin.value) {
+    return freePorts
+  }
+  
+  // Получаем лимиты из store
+  const availableByLimit = authStore.availableByLimit
+  
+  // Если нет данных о лимитах, показываем количество свободных портов
+  if (availableByLimit === null || availableByLimit === undefined) {
+    return freePorts
+  }
+  
+  // Для админов может быть "unlimited" (дополнительная проверка)
+  if (availableByLimit === 'unlimited') {
+    return freePorts
+  }
+  
+  // Возвращаем минимум из свободных портов и доступного по лимиту
+  return Math.min(freePorts, availableByLimit || 0)
 })
 
 const returnablePorts = computed(() => {
@@ -234,15 +269,16 @@ const handleCardClick = (event) => {
   emit('toggleExpansion', props.station)
 }
 
-// Обновление времени "последний раз видели" раз в минуту
+// Обновление времени "последний раз в сети" каждые 10 секунд для динамичности
 const currentTime = ref(Date.now())
 const lastSeenValue = computed(() => props.station.lastSeen || props.station.last_seen || props.station.last_seen_at || props.station.lastSeenAt)
 let lastSeenTimer = null
 
 onMounted(() => {
+  // Обновляем каждые 10 секунд для более динамичного отображения
   lastSeenTimer = setInterval(() => {
     currentTime.value = Date.now()
-  }, 60000)
+  }, 10000)
 })
 
 onUnmounted(() => {

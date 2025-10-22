@@ -575,6 +575,7 @@ export const pythonAPI = {
 
   // ПОЛЬЗОВАТЕЛЬСКИЕ ПАУЭРБАНКИ
   getUserPowerbanks: () => handleResponse(apiClient.get('/user/powerbanks'), 'get user powerbanks'),
+  getUserStationsAvailability: () => handleResponse(apiClient.get('/user/stations/availability'), 'get user stations availability'),
   borrowPowerbank: (stationId) => {
     validateId(stationId, 'station ID')
     return handleResponse(apiClient.post(`/borrow/stations/${stationId}/borrow`, undefined, { timeout: 90000 }), 'borrow powerbank')

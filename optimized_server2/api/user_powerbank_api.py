@@ -33,8 +33,8 @@ class UserPowerbankAPI:
             from utils.order_utils import get_user_limit_info
             limit_info = await get_user_limit_info(self.db_pool, user_id)
         
-            user_limit = limit_info.get('current_limit')
-            current_borrowed = limit_info.get('current_borrowed', 0)
+            user_limit = limit_info.get('effective_limit')
+            current_borrowed = limit_info.get('active_count', 0)
             limit_type = limit_info.get('limit_type')
         
         # Обрабатываем случай неограниченного лимита (для админов)
@@ -115,8 +115,8 @@ class UserPowerbankAPI:
             from utils.order_utils import get_user_limit_info
             limit_info = await get_user_limit_info(self.db_pool, user_id)
             
-            user_limit = limit_info.get('current_limit')
-            current_borrowed = limit_info.get('current_borrowed', 0)
+            user_limit = limit_info.get('effective_limit')
+            current_borrowed = limit_info.get('active_count', 0)
             limit_type = limit_info.get('limit_type')
             
             # Обрабатываем случай неограниченного лимита (для админов)
@@ -321,9 +321,9 @@ class UserPowerbankAPI:
                     "powerbank_serial": powerbank.serial_number,
                     "station_box_id": station.box_id,
                     "user_limits": {
-                        "max_limit": updated_limit_info.get('current_limit'),
-                        "current_borrowed": updated_limit_info.get('current_borrowed', 0),
-                        "available_by_limit": max(0, (updated_limit_info.get('current_limit') or 0) - updated_limit_info.get('current_borrowed', 0))
+                        "max_limit": updated_limit_info.get('effective_limit'),
+                        "current_borrowed": updated_limit_info.get('active_count', 0),
+                        "available_by_limit": max(0, (updated_limit_info.get('effective_limit') or 0) - updated_limit_info.get('active_count', 0))
                     }
                 }, limit=updated_limit_info)
             else:
@@ -440,12 +440,27 @@ class UserPowerbankAPI:
             from utils.order_utils import get_user_limit_info
             limit_info = await get_user_limit_info(self.db_pool, user_id)
             
-            # Определяем текущий лимит пользователя
-            user_limit = limit_info.get('current_limit', 0)
-            current_borrowed = limit_info.get('current_borrowed', 0)
+            self.logger.info(f"Информация о лимитах пользователя {user_id}: {limit_info}")
             
-            # Сколько еще можно взять повербанков
-            available_by_limit = max(0, user_limit - current_borrowed)
+            # Определяем текущий лимит пользователя
+            user_limit = limit_info.get('effective_limit')
+            current_borrowed = limit_info.get('active_count', 0)
+            limit_type = limit_info.get('limit_type')
+            
+            # Для админов (role_exempt) лимиты не применяются
+            if limit_type == 'role_exempt':
+                self.logger.info(f"Пользователь {user_id} - администратор, лимиты не применяются")
+                # Для админов не ограничиваем количество
+                user_limit_for_response = "unlimited"
+                available_by_limit_for_response = "unlimited"
+                # Для расчетов используем очень большое число
+                available_by_limit = 999999
+            else:
+                # Для обычных пользователей вычисляем доступное количество
+                user_limit = user_limit or 0
+                available_by_limit = max(0, user_limit - current_borrowed)
+                user_limit_for_response = user_limit
+                available_by_limit_for_response = available_by_limit
             
             # Получаем только активные станции
             stations = await Station.get_all_active(self.db_pool)
@@ -493,9 +508,9 @@ class UserPowerbankAPI:
                 "stations": stations_data,
                 "total_available_slots": total_available_slots,
                 "user_limits": {
-                    "max_limit": user_limit,
+                    "max_limit": user_limit_for_response,
                     "current_borrowed": current_borrowed,
-                    "available_by_limit": available_by_limit
+                    "available_by_limit": available_by_limit_for_response
                 }
             })
 
