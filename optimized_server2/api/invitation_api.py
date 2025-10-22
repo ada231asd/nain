@@ -60,8 +60,11 @@ class InvitationAPI:
             await self._save_invitation(invitation_token, org_unit_id, role, user['user_id'])
             
             # Формируем ссылку-приглашение
-            base_url = request.headers.get('Host', 'localhost:8000')
-            invitation_link = f"http://{base_url}/register?invitation={invitation_token}"
+            # Получаем URL из заголовков запроса
+            host = request.headers.get('Host', 'localhost:8000')
+            scheme = request.headers.get('X-Forwarded-Proto', 'http')
+            base_url = f"{scheme}://{host}"
+            invitation_link = f"{base_url}/register?invitation={invitation_token}"
             
             return web.json_response({
                 'success': True,
@@ -314,7 +317,7 @@ class InvitationAPI:
                 await cur.execute("""
                     INSERT INTO app_user (phone_e164, email, password_hash, fio, status, powerbank_limit)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (phone_e164, email, password_hash, fio, 'pending', 1))
+                """, (phone_e164, email, password_hash, fio, 'pending', None))
                 
                 user_id = cur.lastrowid
                 

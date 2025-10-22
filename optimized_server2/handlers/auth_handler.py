@@ -72,6 +72,15 @@ class AuthHandler:
                 self.db_pool, phone_e164, email, fio
             )
             
+            # Создаем роль пользователя по умолчанию (без привязки к группе)
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("""
+                        INSERT INTO user_role (user_id, role, org_unit_id)
+                        VALUES (%s, 'user', NULL)
+                    """, (user.user_id,))
+                    await conn.commit()
+            
             # Отправляем пароль на email с номером телефона
             email_sent = await notification_service.send_password_email(
                 email, password, fio, phone_e164
@@ -238,8 +247,24 @@ class AuthHandler:
                     'error': 'Пользователь не найден'
                 }, status=404)
             
+            # Получаем организационную единицу пользователя
+            org_unit_id = None
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("""
+                        SELECT org_unit_id FROM user_role 
+                        WHERE user_id = %s
+                        LIMIT 1
+                    """, (user.user_id,))
+                    result = await cur.fetchone()
+                    if result:
+                        org_unit_id = result[0]
+            
+            user_dict = user.to_dict()
+            user_dict['org_unit_id'] = org_unit_id
+            
             return web.json_response({
-                'user': user.to_dict()
+                'user': user_dict
             })
             
         except Exception as e:

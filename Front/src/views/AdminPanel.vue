@@ -71,7 +71,6 @@
               </div>
             </div>
 
-
             <!-- Все заказы -->
             <div v-if="activeTab === 'orders'" class="tab-pane">
               <div class="section-header">
