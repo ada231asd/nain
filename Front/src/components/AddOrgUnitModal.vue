@@ -63,6 +63,32 @@
         </div>
 
         <div class="form-group">
+          <label for="default_powerbank_limit">Лимит повербанков по умолчанию</label>
+          <input 
+            id="default_powerbank_limit" 
+            v-model.number="formData.default_powerbank_limit" 
+            type="number"
+            min="1"
+            class="form-input"
+            placeholder="1"
+          />
+          <small class="form-hint">Количество повербанков, которые может взять пользователь по умолчанию</small>
+        </div>
+
+        <div class="form-group">
+          <label for="reminder_hours">Время до напоминания (часы)</label>
+          <input 
+            id="reminder_hours" 
+            v-model.number="formData.reminder_hours" 
+            type="number"
+            min="1"
+            class="form-input"
+            placeholder="24"
+          />
+          <small class="form-hint">Через сколько часов отправлять напоминание о возврате повербанка</small>
+        </div>
+
+        <div class="form-group">
           <label for="logo">Логотип группы</label>
           <div class="logo-upload-section">
             <div v-if="logoPreview" class="logo-preview">
@@ -128,7 +154,9 @@ const formData = ref({
   unit_type: '',
   parent_org_unit_id: '',
   name: '',
-  adress: ''
+  adress: '',
+  default_powerbank_limit: 1,
+  reminder_hours: 24
 })
 
 const isEditing = computed(() => !!props.orgUnit)
@@ -151,7 +179,9 @@ const resetForm = () => {
     unit_type: '',
     parent_org_unit_id: '',
     name: '',
-    adress: ''
+    adress: '',
+    default_powerbank_limit: 1,
+    reminder_hours: 24
   }
   logoFile.value = null
   logoPreview.value = null
@@ -167,7 +197,9 @@ const fillForm = () => {
       unit_type: props.orgUnit.unit_type || '',
       parent_org_unit_id: props.orgUnit.parent_org_unit_id || '',
       name: props.orgUnit.name || '',
-      adress: props.orgUnit.adress || ''
+      adress: props.orgUnit.adress || '',
+      default_powerbank_limit: props.orgUnit.default_powerbank_limit || 1,
+      reminder_hours: props.orgUnit.reminder_hours || 24
     }
     
     // Устанавливаем предварительный просмотр существующего логотипа
@@ -425,6 +457,13 @@ watch(() => props.isVisible, (isVisible) => {
   margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid #e9ecef;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 0.85rem;
 }
 
 .btn-primary,

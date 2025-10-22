@@ -50,6 +50,29 @@
           </select>
         </div>
 
+        <div class="form-group">
+          <label>Индивидуальный лимит повербанков</label>
+          <div class="limit-input-container">
+            <input 
+              v-model.number="localForm.powerbank_limit" 
+              type="number" 
+              min="0"
+              class="form-input" 
+              placeholder="Оставьте пустым для лимита группы"
+            />
+            <button 
+              v-if="localForm.powerbank_limit !== null && localForm.powerbank_limit !== ''" 
+              type="button"
+              @click="clearLimit"
+              class="btn-clear-limit"
+              title="Удалить индивидуальный лимит"
+            >
+              ×
+            </button>
+          </div>
+          <small class="form-hint">Оставьте пустым, чтобы использовать лимит группы</small>
+        </div>
+
         <div class="modal-actions">
           <button type="submit" class="btn-save" :disabled="isLoading">Сохранить</button>
           <button type="button" class="btn-cancel" @click="onClose">Отмена</button>
@@ -83,7 +106,8 @@ const localForm = reactive({
   email: '',
   role: 'user',
   parent_org_unit_id: '',
-  status: 'pending'
+  status: 'pending',
+  powerbank_limit: null
 })
 
 // Доступные группы для выбора
@@ -99,12 +123,17 @@ watch(() => props.user, (u) => {
     localForm.role = u.role || 'user'
     localForm.parent_org_unit_id = u.parent_org_unit_id || u.org_unit_id || ''
     localForm.status = u.status || 'pending'
+    localForm.powerbank_limit = u.powerbank_limit || u.individual_limit || null
   }
 }, { immediate: true })
 
 const showDecisionButtons = computed(() => localForm.status === 'pending')
 
 const onClose = () => emit('close')
+
+const clearLimit = () => {
+  localForm.powerbank_limit = null
+}
 
 const onSave = async () => {
   isLoading.value = true
@@ -117,6 +146,14 @@ const onSave = async () => {
       delete formData.parent_org_unit_id
     } else {
       formData.parent_org_unit_id = parseInt(formData.parent_org_unit_id)
+    }
+    
+    // Преобразуем powerbank_limit в число или null
+    // ВАЖНО: всегда передаем powerbank_limit, даже если null (для возможности сброса лимита)
+    if (formData.powerbank_limit === '' || formData.powerbank_limit === null || formData.powerbank_limit === undefined) {
+      formData.powerbank_limit = null
+    } else {
+      formData.powerbank_limit = parseInt(formData.powerbank_limit)
     }
     
     // Статус уже в правильном формате (pending/active/blocked)
@@ -155,5 +192,9 @@ const onReject = () => emit('reject')
 .decision-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
 .btn-approve { background: #28a745; color: white; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; }
 .btn-reject { background: #dc3545; color: white; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; }
+.form-hint { display: block; margin-top: 4px; color: #666; font-size: 0.85rem; }
+.limit-input-container { position: relative; display: flex; align-items: center; }
+.btn-clear-limit { position: absolute; right: 8px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s; }
+.btn-clear-limit:hover { opacity: 1; }
 @media (max-width: 768px) { .modal-content { min-width: 90vw; } }
 </style>

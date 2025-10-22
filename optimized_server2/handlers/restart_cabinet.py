@@ -67,7 +67,9 @@ class RestartCabinetHandler:
             
             return {
                 "success": True,
-                "message": f"Команда перезагрузки отправлена на станцию {station.box_id}"
+                "message": f"Команда перезагрузки отправлена на станцию {station.box_id}",
+                "station_box_id": station.box_id,
+                "packet_hex": restart_packet.hex().upper()
             }
             
         except Exception as e:

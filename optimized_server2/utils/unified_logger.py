@@ -78,16 +78,42 @@ class UnifiedLogger:
             
         return logger
         
-    def log_tcp_packet(self, packet_type: str, data: bytes, station_id: str = None):
+    def log_tcp_packet(self, packet_type: str = None, data: bytes = None, station_id: str = None, 
+                      direction: str = None, packet_size: int = None, command: str = None, 
+                      packet_data: str = None, additional_info: str = None):
         """Логирует TCP пакет в единый лог"""
         logger = self.get_logger('tcp_packets')
         from utils.time_utils import format_moscow_time_with_microseconds
         timestamp = format_moscow_time_with_microseconds()
         
-        if station_id:
-            logger.info(f"[TCP] [{timestamp}] Station {station_id} - {packet_type}: {data.hex().upper()}")
+        # Формируем сообщение в зависимости от переданных параметров
+        if data is not None:
+            # Новый формат с bytes
+            hex_data = data.hex().upper()
+            if station_id:
+                logger.info(f"[TCP] [{timestamp}] Station {station_id} - {packet_type}: {hex_data}")
+            else:
+                logger.info(f"[TCP] [{timestamp}] {packet_type}: {hex_data}")
         else:
-            logger.info(f"[TCP] [{timestamp}] {packet_type}: {data.hex().upper()}")
+            # Старый формат с отдельными параметрами
+            parts = []
+            if direction:
+                parts.append(f"Direction: {direction}")
+            if packet_type:
+                parts.append(f"Type: {packet_type}")
+            if station_id:
+                parts.append(f"Station: {station_id}")
+            if packet_size:
+                parts.append(f"Size: {packet_size}")
+            if command:
+                parts.append(f"Command: {command}")
+            if packet_data:
+                parts.append(f"Data: {packet_data}")
+            if additional_info:
+                parts.append(f"Info: {additional_info}")
+                
+            message = " | ".join(parts)
+            logger.info(f"[TCP] [{timestamp}] {message}")
             
     def log_server_event(self, event_type: str, message: str, **kwargs):
         """Логирует событие сервера"""
@@ -163,9 +189,15 @@ def get_logger(name: str) -> logging.Logger:
     """Получает логгер через единую систему"""
     return get_unified_logger().get_logger(name)
 
-def log_tcp_packet(packet_type: str, data: bytes, station_id: str = None):
+def log_tcp_packet(packet_type: str = None, data: bytes = None, station_id: str = None, 
+                  direction: str = None, packet_size: int = None, command: str = None, 
+                  packet_data: str = None, additional_info: str = None):
     """Логирует TCP пакет"""
-    get_unified_logger().log_tcp_packet(packet_type, data, station_id)
+    get_unified_logger().log_tcp_packet(
+        packet_type=packet_type, data=data, station_id=station_id,
+        direction=direction, packet_size=packet_size, command=command,
+        packet_data=packet_data, additional_info=additional_info
+    )
 
 def log_server_event(event_type: str, message: str, **kwargs):
     """Логирует событие сервера"""

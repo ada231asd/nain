@@ -348,6 +348,8 @@ class CRUDEndpoints:
                     # Добавляем поддержку обновления лимита повербанков
                     if 'individual_limit' in data or 'powerbank_limit' in data:
                         limit_value = data.get('individual_limit', data.get('powerbank_limit'))
+                        print(f"DEBUG: Получен лимит: {limit_value}, тип: {type(limit_value)}")
+                        
                         if limit_value is not None and limit_value != '':
                             try:
                                 limit_value = int(limit_value)
@@ -364,6 +366,7 @@ class CRUDEndpoints:
                         else:
                             limit_value = None
                         
+                        print(f"DEBUG: Устанавливаем лимит: {limit_value}")
                         update_fields.append("powerbank_limit = %s")
                         params.append(limit_value)
                     

@@ -657,12 +657,18 @@ const handleUserUpdated = async (user) => {
       phone_e164: user.phone_e164,
       email: user.email,
       role: user.role,
-      parent_org_unit_id: user.parent_org_unit_id
+      parent_org_unit_id: user.parent_org_unit_id,
+      status: user.status
     }
+    
+    // ВАЖНО: всегда передаем powerbank_limit, даже если null (для возможности сброса лимита)
+    // Явно добавляем поле, чтобы гарантировать обновление лимита
+    updates.powerbank_limit = user.powerbank_limit !== undefined ? user.powerbank_limit : null
     
     // Сервер ожидает поле "status" с английскими значениями (pending/active/blocked)
     // Статус уже в правильном формате, никаких преобразований не требуется
     
+    console.log('Обновление пользователя:', { id, updates })
     await adminStore.updateUser(id, updates)
     await refreshAfterAction()
   } catch (error) {

@@ -10,6 +10,14 @@
         <p v-if="orgUnit.parent_name" class="org-unit-parent">
           Родительская группа: <strong>{{ orgUnit.parent_name }}</strong>
         </p>
+        <div v-if="orgUnit.default_powerbank_limit" class="org-unit-limit">
+          <span class="limit-icon">🔋</span>
+          <span>Лимит: {{ orgUnit.default_powerbank_limit }}</span>
+        </div>
+        <div v-if="orgUnit.reminder_hours" class="org-unit-reminder">
+          <span class="reminder-icon">⏰</span>
+          <span>Напоминание: {{ orgUnit.reminder_hours }}ч</span>
+        </div>
       </div>
       
       <div class="org-unit-stats">
@@ -213,6 +221,21 @@ const viewStations = () => {
 
 .org-unit-parent strong {
   color: #333;
+}
+
+.org-unit-limit,
+.org-unit-reminder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  margin: 4px 0;
+  font-size: 0.85rem;
+}
+
+.limit-icon,
+.reminder-icon {
+  font-size: 1rem;
 }
 
 .org-unit-stats {

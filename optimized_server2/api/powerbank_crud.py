@@ -53,7 +53,7 @@ class PowerbankCRUD:
                     if await cur.fetchone():
                         return web.json_response({
                             "success": False,
-                            "error": "Powerbank с таким серийным номером уже существует"
+                            "error": "Аккумулятор с таким серийным номером уже существует"
                         }, status=400)
                     
                     # Создаем powerbank со статусом 'unknown' по умолчанию
@@ -73,7 +73,7 @@ class PowerbankCRUD:
                     return web.json_response({
                         "success": True,
                         "data": {"id": powerbank_id},
-                        "message": "Powerbank создан"
+                        "message": "Аккумулятор создан"
                     })
                     
         except Exception as e:
@@ -147,7 +147,7 @@ class PowerbankCRUD:
             }, status=500)
     
     async def get_powerbank(self, request: Request) -> Response:
-        """GET /api/powerbanks/{powerbank_id} - Получить powerbank по ID"""
+        """GET /api/powerbanks/{powerbank_id} - Получить аккумулятор по ID"""
         try:
             powerbank_id = int(request.match_info['powerbank_id'])
             
@@ -168,7 +168,7 @@ class PowerbankCRUD:
                     if not powerbank:
                         return web.json_response({
                             "success": False,
-                            "error": "Powerbank не найден"
+                            "error": "Аккумулятор не найден"
                         }, status=404)
                     
                     return web.json_response(serialize_for_json({
@@ -179,7 +179,7 @@ class PowerbankCRUD:
         except ValueError:
             return web.json_response({
                 "success": False,
-                "error": "Неверный ID powerbank"
+                "error": "Неверный ID аккумулятора"
             }, status=400)
         except Exception as e:
             return web.json_response({
@@ -188,7 +188,7 @@ class PowerbankCRUD:
             }, status=500)
     
     async def update_powerbank(self, request: Request) -> Response:
-        """PUT /api/powerbanks/{powerbank_id} - Обновить powerbank"""
+        """PUT /api/powerbanks/{powerbank_id} - Обновить аккумулятор"""
         try:
             powerbank_id = int(request.match_info['powerbank_id'])
             data = await request.json()
@@ -234,7 +234,7 @@ class PowerbankCRUD:
                     if not await cur.fetchone():
                         return web.json_response({
                             "success": False,
-                            "error": "Powerbank не найден"
+                            "error": "Аккумулятор не найден"
                         }, status=404)
                     
                     # Обновляем
@@ -243,18 +243,26 @@ class PowerbankCRUD:
                     
                     return web.json_response({
                         "success": True,
-                        "message": "Powerbank обновлен"
+                        "message": "Аккумулятор обновлен"
                     })
                     
         except ValueError:
             return web.json_response({
                 "success": False,
-                "error": "Неверный ID powerbank"
+                "error": "Неверный ID аккумулятора"
             }, status=400)
         except Exception as e:
+            # Логируем детали ошибки
+            try:
+                from utils.centralized_logger import get_logger
+                logger = get_logger('powerbank_crud')
+                logger.error(f"Ошибка обновления powerbank {powerbank_id}: {str(e)}", exc_info=True)
+            except:
+                pass
+            
             return web.json_response({
                 "success": False,
-                "error": str(e)
+                "error": f"Ошибка обновления powerbank: {str(e)}"
             }, status=500)
     
     async def delete_powerbank(self, request: Request) -> Response:
@@ -277,13 +285,13 @@ class PowerbankCRUD:
                     
                     return web.json_response({
                         "success": True,
-                        "message": "Powerbank удален"
+                        "message": "Аккумулятор удален"
                     })
                     
         except ValueError:
             return web.json_response({
                 "success": False,
-                "error": "Неверный ID powerbank"
+                "error": "Неверный ID аккумулятора"
             }, status=400)
         except Exception as e:
             return web.json_response({
@@ -292,7 +300,7 @@ class PowerbankCRUD:
             }, status=500)
     
     async def approve_powerbank(self, request: Request) -> Response:
-        """PUT /api/powerbanks/{powerbank_id}/approve - Одобрить powerbank"""
+        """PUT /api/powerbanks/{powerbank_id}/approve - Одобрить аккумулятор"""
         try:
             powerbank_id = int(request.match_info['powerbank_id'])
             data = await request.json()
@@ -311,14 +319,14 @@ class PowerbankCRUD:
                     if not powerbank:
                         return web.json_response({
                             "success": False,
-                            "error": "Powerbank не найден"
+                            "error": "Аккумулятор не найден"
                         }, status=404)
                     
                     # Проверяем, что powerbank имеет статус 'unknown'
                     if powerbank['status'] != 'unknown':
                         return web.json_response({
                             "success": False,
-                            "error": "Можно одобрить только powerbank со статусом 'unknown'"
+                            "error": "Можно одобрить только аккумулятор со статусом 'unknown'"
                         }, status=400)
                     
                     # Проверяем существование группы
@@ -348,7 +356,7 @@ class PowerbankCRUD:
                         if not compatible:
                             return web.json_response({
                                 "success": False,
-                                "error": f"Powerbank нельзя одобрить в группу {data['org_unit_id']}, так как он находится в станции {station_info['box_id']} группы {station_info['station_org_unit_id']} и группы несовместимы. Сначала извлеките powerbank из станции."
+                                "error": f"Аккумулятор нельзя одобрить в группу {data['org_unit_id']}, так как он находится в станции {station_info['box_id']} группы {station_info['station_org_unit_id']} и группы несовместимы. Сначала извлеките аккумулятор из станции."
                             }, status=400)
                     
                     # Обновляем статус на 'active' и назначаем группу
@@ -366,14 +374,14 @@ class PowerbankCRUD:
                             WHERE powerbank_id = %s AND station_id = %s
                         """, (get_moscow_time(), powerbank_id, station_info['station_id']))
                         
-                        # Логируем одобрение powerbank'а в станции
+                        # Логируем одобрение аккумулятора в станции
                         from utils.centralized_logger import get_logger
                         logger = get_logger('powerbank_crud')
-                        logger.info(f"Powerbank {powerbank['serial_number']} одобрен и активирован в группе {data['org_unit_id']}, находится в станции {station_info['box_id']}, слот {station_info['slot_number']}")
+                        logger.info(f"Аккумулятор {powerbank['serial_number']} одобрен и активирован в группе {data['org_unit_id']}, находится в станции {station_info['box_id']}, слот {station_info['slot_number']}")
                     
                     return web.json_response({
                         "success": True,
-                        "message": "Powerbank успешно одобрен и активирован",
+                        "message": "Аккумулятор успешно одобрен и активирован",
                         "powerbank_id": powerbank_id,
                         "serial_number": powerbank['serial_number'],
                         "new_org_unit_id": data['org_unit_id'],
@@ -388,7 +396,7 @@ class PowerbankCRUD:
         except ValueError:
             return web.json_response({
                 "success": False,
-                "error": "Неверный ID powerbank"
+                "error": "Неверный ID аккумулятора"
             }, status=400)
         except Exception as e:
             return web.json_response({

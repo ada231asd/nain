@@ -69,6 +69,7 @@
             <th class="col-email">Email</th>
             <th class="col-role">Роль</th>
             <th class="col-group">Группа</th>
+            <th class="col-limit">Лимит</th>
             <th class="col-status">Статус</th>
             <th class="col-created">Создан</th>
             <th class="col-last-login">Последний вход</th>
@@ -119,6 +120,13 @@
             <td class="col-group" @click="openUserModal(user)">
               <span class="group-badge">
                 {{ getUserGroupName(user.parent_org_unit_id || user.org_unit_id) }}
+              </span>
+            </td>
+
+            <!-- Лимит -->
+            <td class="col-limit" @click="openUserModal(user)">
+              <span class="limit-badge" :class="getLimitClass(user)">
+                {{ getLimitText(user) }}
               </span>
             </td>
 
@@ -247,6 +255,30 @@
                     </option>
                   </select>
                 </div>
+                <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                  <span class="detail-label">Лимит аккумуляторов:</span>
+                  <span v-if="!isEditing" class="detail-value">
+                    {{ getLimitText(selectedUser) }}
+                  </span>
+                  <div v-else class="limit-edit-container">
+                    <input 
+                      v-model.number="editForm.powerbank_limit" 
+                      type="number" 
+                      min="0"
+                      class="edit-input" 
+                      placeholder="Лимит группы"
+                    />
+                    <button 
+                      v-if="editForm.powerbank_limit !== null && editForm.powerbank_limit !== ''" 
+                      type="button"
+                      @click="clearEditLimit"
+                      class="btn-clear-limit-small"
+                      title="Удалить индивидуальный лимит"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -368,7 +400,8 @@ const editForm = ref({
   email: '',
   role: 'user',
   parent_org_unit_id: '',
-  status: 'pending'
+  status: 'pending',
+  powerbank_limit: null
 })
 
 // Вычисляемые свойства
@@ -561,7 +594,8 @@ const closeUserModal = () => {
     email: '',
     role: 'user',
     parent_org_unit_id: '',
-    status: 'pending'
+    status: 'pending',
+    powerbank_limit: null
   }
 }
 
@@ -591,7 +625,8 @@ const initEditForm = (user) => {
     email: user.email || '',
     role: user.role || 'user',
     parent_org_unit_id: user.parent_org_unit_id || user.org_unit_id || '',
-    status: user.status || 'pending'
+    status: user.status || 'pending',
+    powerbank_limit: user.powerbank_limit || user.individual_limit || null
   }
 }
 
@@ -601,6 +636,10 @@ const toggleEditMode = () => {
     initEditForm(selectedUser.value)
   }
   isEditing.value = !isEditing.value
+}
+
+const clearEditLimit = () => {
+  editForm.value.powerbank_limit = null
 }
 
 const cancelEdit = () => {
@@ -621,6 +660,14 @@ const saveChanges = async () => {
       delete formData.parent_org_unit_id
     } else {
       formData.parent_org_unit_id = parseInt(formData.parent_org_unit_id)
+    }
+    
+    // Преобразуем powerbank_limit в число или null
+    // ВАЖНО: всегда передаем powerbank_limit, даже если null (для возможности сброса лимита)
+    if (formData.powerbank_limit === '' || formData.powerbank_limit === null || formData.powerbank_limit === undefined) {
+      formData.powerbank_limit = null
+    } else {
+      formData.powerbank_limit = parseInt(formData.powerbank_limit)
     }
     
     // Преобразуем статус в английский формат
@@ -646,13 +693,19 @@ const saveChanges = async () => {
       role: formData.role,
       parent_org_unit_id: formData.parent_org_unit_id,
       статус: formData.status,
-      status: formData.status
+      status: formData.status,
+      powerbank_limit: formData.powerbank_limit
     })
     
     isEditing.value = false
     
     // Эмитим событие для обновления данных на сервере
-    emit('user-updated', selectedUser.value)
+    // Передаем formData с ID пользователя, чтобы гарантировать отправку всех полей включая powerbank_limit
+    const updatedData = {
+      ...formData,
+      user_id: userId
+    }
+    emit('user-updated', updatedData)
     
   } catch (error) {
     console.error('Ошибка сохранения изменений:', error)
@@ -716,6 +769,29 @@ const getUserGroupName = (orgUnitId) => {
   if (!orgUnitId) return 'Без группы'
   const group = props.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
   return group ? group.name : 'Неизвестная группа'
+}
+
+const getLimitText = (user) => {
+  const individualLimit = user.powerbank_limit || user.individual_limit
+  if (individualLimit !== null && individualLimit !== undefined) {
+    return `${individualLimit}`
+  }
+  const groupId = user.parent_org_unit_id || user.org_unit_id
+  if (groupId) {
+    const group = props.orgUnits.find(ou => ou.org_unit_id === groupId)
+    if (group && group.default_powerbank_limit) {
+      return `${group.default_powerbank_limit} (группа)`
+    }
+  }
+  return '—'
+}
+
+const getLimitClass = (user) => {
+  const individualLimit = user.powerbank_limit || user.individual_limit
+  if (individualLimit !== null && individualLimit !== undefined) {
+    return 'limit-individual'
+  }
+  return 'limit-group'
 }
 
 const formatTime = (timestamp) => {
@@ -1050,6 +1126,12 @@ watch(currentPage, () => {
   width: 20%;
 }
 
+.col-limit {
+  min-width: 100px;
+  max-width: 150px;
+  width: 10%;
+}
+
 .col-status {
   min-width: 80px;
   max-width: 120px;
@@ -1182,6 +1264,25 @@ watch(currentPage, () => {
   font-size: 0.85rem;
   font-weight: 500;
   color: #333;
+}
+
+/* Limit badge */
+.limit-badge {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.limit-badge.limit-individual {
+  background: #e7f3ff;
+  color: #0066cc;
+}
+
+.limit-badge.limit-group {
+  background: #f0f0f0;
+  color: #666;
 }
 
 /* Пагинация */
@@ -1444,6 +1545,36 @@ watch(currentPage, () => {
   color: #6c757d;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.limit-edit-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.btn-clear-limit-small {
+  position: absolute;
+  right: 8px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-clear-limit-small:hover {
+  opacity: 1;
 }
 
 .status-badge-large {

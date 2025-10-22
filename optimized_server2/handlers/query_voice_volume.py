@@ -64,7 +64,9 @@ class QueryVoiceVolumeHandler:
             
             return {
                 "success": True,
-                "message": f"Запрос уровня громкости отправлен на станцию {station.box_id}"
+                "message": f"Запрос уровня громкости отправлен на станцию {station.box_id}",
+                "station_box_id": station.box_id,
+                "packet_hex": voice_volume_packet.hex().upper()
             }
             
         except Exception as e:

@@ -41,17 +41,20 @@ class OrgUnitCRUD:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Создаем организационную единицу
                     await cur.execute("""
-                        INSERT INTO org_unit (parent_org_unit_id, unit_type, name, adress, logo_url)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO org_unit (parent_org_unit_id, unit_type, name, adress, logo_url, default_powerbank_limit, reminder_hours)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (
                         data.get('parent_org_unit_id'),
                         data['unit_type'],
                         data['name'],
                         data.get('adress'),
-                        data.get('logo_url')
+                        data.get('logo_url'),
+                        data.get('default_powerbank_limit', 1),
+                        data.get('reminder_hours', 24)
                     ))
                     
                     org_unit_id = cur.lastrowid
+                    await conn.commit()
                     
                     return web.json_response({
                         "success": True,
@@ -100,6 +103,7 @@ class OrgUnitCRUD:
                     query = f"""
                         SELECT ou.org_unit_id, ou.parent_org_unit_id, ou.unit_type, 
                                ou.name, ou.adress, ou.logo_url, ou.created_at,
+                               ou.default_powerbank_limit, ou.reminder_hours,
                                parent.name as parent_name
                         FROM org_unit ou
                         LEFT JOIN org_unit parent ON ou.parent_org_unit_id = parent.org_unit_id
@@ -137,6 +141,7 @@ class OrgUnitCRUD:
                     await cur.execute("""
                         SELECT ou.org_unit_id, ou.parent_org_unit_id, ou.unit_type, 
                                ou.name, ou.adress, ou.logo_url, ou.created_at,
+                               ou.default_powerbank_limit, ou.reminder_hours,
                                parent.name as parent_name
                         FROM org_unit ou
                         LEFT JOIN org_unit parent ON ou.parent_org_unit_id = parent.org_unit_id
@@ -184,7 +189,7 @@ class OrgUnitCRUD:
                     "error": f"Недопустимый тип организационной единицы. Допустимые значения: {', '.join(valid_unit_types)}"
                 }, status=400)
             
-            allowed_fields = ['parent_org_unit_id', 'unit_type', 'name', 'adress', 'logo_url']
+            allowed_fields = ['parent_org_unit_id', 'unit_type', 'name', 'adress', 'logo_url', 'default_powerbank_limit', 'reminder_hours']
             for field in allowed_fields:
                 if field in data:
                     update_fields.append(f"{field} = %s")
@@ -211,6 +216,7 @@ class OrgUnitCRUD:
                     # Обновляем
                     query = f"UPDATE org_unit SET {', '.join(update_fields)} WHERE org_unit_id = %s"
                     await cur.execute(query, params)
+                    await conn.commit()
                     
                     return web.json_response({
                         "success": True,
@@ -245,6 +251,7 @@ class OrgUnitCRUD:
                     
                     # Удаляем
                     await cur.execute("DELETE FROM org_unit WHERE org_unit_id = %s", (org_unit_id,))
+                    await conn.commit()
                     
                     return web.json_response({
                         "success": True,
