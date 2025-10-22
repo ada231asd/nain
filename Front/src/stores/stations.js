@@ -437,5 +437,92 @@ export const useStationsStore = defineStore('stations', {
         console.log('Станция перемещена в начало списка:', stationId);
       }
     },
+
+    // Поиск станций по различным критериям
+    async searchStations(searchQuery) {
+      if (!searchQuery || searchQuery.trim().length === 0) {
+        return [];
+      }
+
+      try {
+        // Сначала ищем среди избранных станций (там есть адреса)
+        const favoriteResults = this.favoriteStations.filter(station => {
+          const normalizedQuery = searchQuery.trim().toLowerCase();
+          
+          // Поиск по адресу в избранных станциях
+          const address = station.address || '';
+          if (address && address.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          // Поиск по box_id
+          const boxId = station.box_id || '';
+          if (boxId.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        if (favoriteResults.length > 0) {
+          return favoriteResults;
+        }
+        
+        // Если в избранном не найдено, ищем среди всех станций
+        const allStations = await pythonAPI.getStations();
+        const stationsArray = Array.isArray(allStations) ? allStations : 
+                            (allStations?.data || allStations?.stations || []);
+        
+        // Нормализуем поисковый запрос
+        const normalizedQuery = searchQuery.trim().toLowerCase();
+        
+        // Фильтруем станции по различным критериям
+        const searchResults = stationsArray.filter(station => {
+          // Поиск по box_id
+          const boxId = station.box_id || station.station_box_id || '';
+          if (boxId.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          // Поиск по адресу станции (основной приоритет для поиска)
+          const address = station.address || station.station_address || '';
+          if (address && address.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          // Поиск по названию станции
+          const name = station.name || station.station_name || '';
+          if (name.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          // Поиск по ID станции
+          const stationId = station.station_id || station.id;
+          if (stationId && String(stationId).includes(normalizedQuery)) {
+            return true;
+          }
+          
+          // Поиск по org_unit_name (название организации)
+          const orgUnitName = station.org_unit_name || '';
+          if (orgUnitName.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          // Поиск по ICCID (если есть)
+          const iccid = station.iccid || '';
+          if (iccid.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        return searchResults;
+        
+      } catch (error) {
+        console.error('❌ Ошибка при поиске станций:', error);
+        return [];
+      }
+    },
   },
 });

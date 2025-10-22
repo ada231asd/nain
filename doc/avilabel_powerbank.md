@@ -68,7 +68,7 @@ GET /api/user/powerbanks/available
   "data": {
     "stations": [
       {
-        "std": ation_13,
+        "std": ation_13,+
         "box_id": "DCHEY02504000019",
         "slots_declared": 8,
         "remain_num": 3,

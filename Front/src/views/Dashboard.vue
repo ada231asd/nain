@@ -37,10 +37,63 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Поиск станций..."
+              placeholder="Поиск по адресу станции, box_id, названию..."
               class="search-input"
               @input="handleSearch"
+              @focus="showSearchDropdown = true"
+              @blur="hideSearchDropdown"
+              autocomplete="off"
             />
+            <div v-if="isSearching" class="search-loading">
+              <div class="loading-spinner"></div>
+            </div>
+            <button 
+              v-if="searchQuery && !isSearching" 
+              @click="clearSearch"
+              class="search-clear-btn"
+              title="Очистить поиск"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <!-- Выпадающий список результатов поиска -->
+          <div v-if="showSearchDropdown && searchResults.length > 0" class="search-dropdown">
+            <div class="search-dropdown-header">
+              <span>Найдено: {{ searchResults.length }}</span>
+            </div>
+            <div class="search-dropdown-list">
+              <div
+                v-for="station in searchResults"
+                :key="station.station_id || station.id"
+                class="search-dropdown-item"
+                @mousedown="selectSearchResult(station)"
+              >
+                <div class="search-item-main">
+                  <div class="search-item-title">
+                    {{ station.box_id || station.station_box_id || 'Без ID' }}
+                  </div>
+                  <div class="search-item-subtitle" :class="{ 'highlighted-address': isAddressMatch(station) }">
+                    {{ station.address || station.station_address || 'Адрес не указан' }}
+                  </div>
+                </div>
+                <div class="search-item-meta">
+                  <span class="search-item-status" :class="getStatusClass(station.status)">
+                    {{ getStatusText(station.status) }}
+                  </span>
+                  <span class="search-item-ports">
+                    {{ station.freePorts || station.remain_num || 0 }}/{{ station.totalPorts || station.slots_declared || 0 }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Сообщение "ничего не найдено" -->
+          <div v-if="showSearchDropdown && searchResults.length === 0 && searchQuery && !isSearching" class="search-dropdown">
+            <div class="search-no-results">
+              <p>По запросу "{{ searchQuery }}" ничего не найдено</p>
+            </div>
           </div>
         </div>
         
@@ -68,6 +121,7 @@
           />
         </div>
       </section>
+
 
       <!-- Результат сканирования: показ карточки станции -->
       <section v-if="scannedStation" class="scanned-station-section">
@@ -161,6 +215,11 @@ const showQRScanner = ref(false)
 const searchTimeout = ref(null)
 const scannedStation = ref(null)
 const isScanning = ref(false)
+
+// Состояние для поиска
+const searchResults = ref([])
+const isSearching = ref(false)
+const showSearchDropdown = ref(false)
 
 // Состояние для развернутых карточек станций
 const expandedStations = ref(new Set())
@@ -818,7 +877,7 @@ const forceEjectPowerbank = async (powerbank) => {
   }
 }
 
-const handleSearch = () => {
+const handleSearch = async () => {
   // Очищаем предыдущий таймаут
   if (searchTimeout.value) {
     clearTimeout(searchTimeout.value)
@@ -826,14 +885,122 @@ const handleSearch = () => {
   
   // Устанавливаем новый таймаут для поиска
   searchTimeout.value = setTimeout(async () => {
-    if (searchQuery.value.trim()) {
+    const query = searchQuery.value.trim()
+    
+    if (query) {
+      isSearching.value = true
+      showSearchDropdown.value = true
+      
       try {
-        await stationsStore.searchStations(searchQuery.value.trim())
+        const results = await stationsStore.searchStations(query)
+        searchResults.value = results
       } catch (err) {
-        // Error handled silently
+        console.error('Ошибка поиска:', err)
+        searchResults.value = []
+      } finally {
+        isSearching.value = false
       }
+    } else {
+      // Если поисковый запрос пустой, скрываем результаты
+      showSearchDropdown.value = false
+      searchResults.value = []
     }
-  }, 500)
+  }, 300) // Уменьшили задержку для более быстрого отклика
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  showSearchDropdown.value = false
+  searchResults.value = []
+  isSearching.value = false
+  
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+    searchTimeout.value = null
+  }
+}
+
+// Функции для работы с выпадающим списком
+const hideSearchDropdown = () => {
+  // Небольшая задержка, чтобы клик по элементу успел сработать
+  setTimeout(() => {
+    showSearchDropdown.value = false
+  }, 150)
+}
+
+const selectSearchResult = async (station) => {
+  console.log('Выбрана станция из поиска:', station)
+  
+  // Очищаем поиск
+  clearSearch()
+  
+  // Если станция уже в избранном, перемещаем её наверх и подсвечиваем
+  if (isStationFavorite(station)) {
+    const stationId = station.station_id || station.id
+    highlightedFavoriteId.value = stationId
+    
+    // Разворачиваем карточку
+    expandedStations.value.add(stationId)
+    
+    // Перемещаем станцию в начало списка избранных
+    stationsStore.moveStationToTop(stationId)
+    
+    // Убираем подсветку через 5 секунд
+    setTimeout(() => {
+      highlightedFavoriteId.value = null
+    }, 5000)
+    
+    // Прокручиваем к секции избранных станций
+    setTimeout(() => {
+      const favoritesSection = document.querySelector('.favorites-section')
+      if (favoritesSection) {
+        favoritesSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        })
+      }
+    }, 100)
+  } else {
+    // Если станция не в избранном, добавляем её
+    try {
+      const stationId = station.station_id || station.id
+      const userId = user.value?.user_id
+      
+      if (stationId && userId) {
+        await stationsStore.addFavorite(userId, stationId)
+        
+        // Разворачиваем карточку при добавлении в избранное
+        expandedStations.value.add(stationId)
+        
+        // Перемещаем станцию в начало списка избранных
+        stationsStore.moveStationToTop(stationId)
+        
+        // Подсвечиваем добавленную станцию
+        highlightedFavoriteId.value = stationId
+        
+        // Убираем подсветку через 5 секунд
+        setTimeout(() => {
+          highlightedFavoriteId.value = null
+        }, 5000)
+        
+        // Прокручиваем к секции избранных станций
+        setTimeout(() => {
+          const favoritesSection = document.querySelector('.favorites-section')
+          if (favoritesSection) {
+            favoritesSection.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        }, 100)
+        
+        // Обновляем данные
+        await refreshAfterAction()
+      }
+    } catch (error) {
+      console.error('Ошибка при добавлении станции в избранное:', error)
+    }
+  }
 }
 
 const closeQRScanner = () => {
@@ -1067,6 +1234,16 @@ const getStatusText = (status) => {
   }
 }
 
+// Проверяем, является ли совпадение по адресу
+const isAddressMatch = (station) => {
+  if (!searchQuery.value) return false
+  
+  const query = searchQuery.value.trim().toLowerCase()
+  const address = station.address || station.station_address || ''
+  
+  return address.toLowerCase().includes(query)
+}
+
 const getAvailablePorts = (station) => {
   return station.freePorts || 0
 }
@@ -1142,11 +1319,14 @@ onUnmounted(() => {
 
 .search-section {
   margin-bottom: 20px;
+  position: relative;
 }
 
 .search-input-wrapper {
   display: flex;
   gap: 10px;
+  align-items: center;
+  position: relative;
 }
 
 .search-input {
@@ -1590,4 +1770,149 @@ onUnmounted(() => {
     font-size: 0.9rem;
   }
 }
+
+/* Стили для поиска */
+.search-loading {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #999;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-clear-btn:hover {
+  background: #f8f9fa;
+  color: #666;
+}
+
+/* Стили для выпадающего списка поиска */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 400px;
+  overflow: hidden;
+}
+
+.search-dropdown-header {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.search-dropdown-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.search-dropdown-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f4;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-dropdown-item:hover {
+  background: #f8f9fa;
+}
+
+.search-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.search-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-item-title {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+
+.search-item-subtitle {
+  color: #666;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-item-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.search-item-status {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.search-item-ports {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.search-no-results {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.search-no-results p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Подсветка адреса в результатах поиска */
+.search-item-subtitle.highlighted-address {
+  color: #667eea;
+  font-weight: 600;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
 </style>
