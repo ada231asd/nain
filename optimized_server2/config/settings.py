@@ -12,14 +12,15 @@ TCP_PORTS_ENV = os.getenv("TCP_PORTS", "9066,10001")
 TCP_PORTS = [int(port.strip()) for port in TCP_PORTS_ENV.split(",") if port.strip()]
 
 HTTP_PORT = 8000
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://redmine.primetech.ru:8443")
 
 # Настройки базы данных
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "root",
-    "password": "root",
-    "db": "zaryd",
+    "user": "appuser",
+    "password": "MyPassw0rd!",
+    "db": "zaryd2",
     "autocommit": True
 }
 
