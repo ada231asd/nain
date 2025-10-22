@@ -92,6 +92,13 @@ class PowerbankCRUD:
             
             offset = (page - 1) * limit
             
+            # Получаем доступные org_unit для текущего администратора
+            user = request.get('user')
+            accessible_org_units = None
+            if user:
+                from utils.org_unit_utils import get_admin_accessible_org_units
+                accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+            
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Строим запрос
@@ -102,7 +109,27 @@ class PowerbankCRUD:
                         where_conditions.append("p.status = %s")
                         params.append(status)
                     
-                    if org_unit_id:
+                    # Применяем фильтрацию по org_unit на основе прав доступа
+                    if accessible_org_units is not None:  # None = service_admin (без фильтра)
+                        if len(accessible_org_units) == 0:
+                            # Нет доступных org_units - возвращаем пустой результат
+                            return web.json_response(serialize_for_json({
+                                "success": True,
+                                "data": [],
+                                "pagination": {
+                                    "page": page,
+                                    "limit": limit,
+                                    "total": 0,
+                                    "pages": 0
+                                }
+                            }))
+                        else:
+                            # Фильтруем по доступным org_units
+                            placeholders = ','.join(['%s'] * len(accessible_org_units))
+                            where_conditions.append(f"p.org_unit_id IN ({placeholders})")
+                            params.extend(accessible_org_units)
+                    elif org_unit_id:
+                        # Если service_admin указал конкретный org_unit_id
                         where_conditions.append("p.org_unit_id = %s")
                         params.append(int(org_unit_id))
                     

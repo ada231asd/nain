@@ -127,18 +127,52 @@ class CRUDEndpoints:
             
             offset = (page - 1) * limit
             
+            # Получаем доступные org_unit для текущего администратора
+            user = request.get('user')
+            accessible_org_units = None
+            if user:
+                from utils.org_unit_utils import get_admin_accessible_org_units
+                accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+            
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Строим запрос
-                    where_clause = ""
+                    where_conditions = []
                     params = []
                     
                     if status:
-                        where_clause = "WHERE status = %s"
+                        where_conditions.append("au.status = %s")
                         params.append(status)
                     
+                    # Применяем фильтрацию по org_unit на основе прав доступа
+                    if accessible_org_units is not None:  # None = service_admin (без фильтра)
+                        if len(accessible_org_units) == 0:
+                            # Нет доступных org_units - возвращаем пустой результат
+                            return web.json_response(serialize_for_json({
+                                "success": True,
+                                "data": [],
+                                "pagination": {
+                                    "page": page,
+                                    "limit": limit,
+                                    "total": 0,
+                                    "pages": 0
+                                }
+                            }))
+                        else:
+                            # Фильтруем по доступным org_units
+                            placeholders = ','.join(['%s'] * len(accessible_org_units))
+                            where_conditions.append(f"ur.org_unit_id IN ({placeholders})")
+                            params.extend(accessible_org_units)
+                    
+                    where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+                    
                     # Получаем общее количество
-                    count_query = f"SELECT COUNT(*) as total FROM app_user {where_clause}"
+                    count_query = f"""
+                        SELECT COUNT(DISTINCT au.user_id) as total 
+                        FROM app_user au
+                        LEFT JOIN user_role ur ON au.user_id = ur.user_id
+                        {where_clause}
+                    """
                     await cur.execute(count_query, params)
                     total = (await cur.fetchone())['total']
                     
@@ -160,7 +194,7 @@ class CRUDEndpoints:
                         FROM app_user au
                         LEFT JOIN user_role ur ON au.user_id = ur.user_id
                         LEFT JOIN org_unit ou ON ur.org_unit_id = ou.org_unit_id
-                        {where_clause.replace('status', 'au.status') if where_clause else ''}
+                        {where_clause}
                         ORDER BY au.created_at DESC
                         LIMIT %s OFFSET %s
                     """
@@ -546,6 +580,13 @@ class CRUDEndpoints:
             
             offset = (page - 1) * limit
             
+            # Получаем доступные org_unit для текущего администратора
+            user = request.get('user')
+            accessible_org_units = None
+            if user:
+                from utils.org_unit_utils import get_admin_accessible_org_units
+                accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+            
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Строим запрос
@@ -556,7 +597,27 @@ class CRUDEndpoints:
                         where_conditions.append("s.status = %s")
                         params.append(status)
                     
-                    if org_unit_id:
+                    # Применяем фильтрацию по org_unit на основе прав доступа
+                    if accessible_org_units is not None:  # None = service_admin (без фильтра)
+                        if len(accessible_org_units) == 0:
+                            # Нет доступных org_units - возвращаем пустой результат
+                            return web.json_response(serialize_for_json({
+                                "success": True,
+                                "data": [],
+                                "pagination": {
+                                    "page": page,
+                                    "limit": limit,
+                                    "total": 0,
+                                    "pages": 0
+                                }
+                            }))
+                        else:
+                            # Фильтруем по доступным org_units
+                            placeholders = ','.join(['%s'] * len(accessible_org_units))
+                            where_conditions.append(f"s.org_unit_id IN ({placeholders})")
+                            params.extend(accessible_org_units)
+                    elif org_unit_id:
+                        # Если service_admin указал конкретный org_unit_id
                         where_conditions.append("s.org_unit_id = %s")
                         params.append(int(org_unit_id))
                     

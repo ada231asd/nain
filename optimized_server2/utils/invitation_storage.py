@@ -5,9 +5,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 import json
 import os
-from utils.centralized_logger import get_logger
-
-logger = get_logger('invitation_storage')
 
 
 class InvitationStorage:
@@ -33,9 +30,7 @@ class InvitationStorage:
                         token: inv for token, inv in data.items()
                         if datetime.fromisoformat(inv['created_at']) + timedelta(days=self.expiration_days) > current_time
                     }
-                    logger.info(f"Загружено {len(self.invitations)} активных приглашений из файла")
-        except Exception as e:
-            logger.error(f"Ошибка загрузки приглашений из файла: {e}")
+        except Exception:
             self.invitations = {}
     
     def _save_to_file(self):
@@ -43,8 +38,8 @@ class InvitationStorage:
         try:
             with open(self.storage_file, 'w', encoding='utf-8') as f:
                 json.dump(self.invitations, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.error(f"Ошибка сохранения приглашений в файл: {e}")
+        except Exception:
+            pass
     
     def save_invitation(self, token: str, org_unit_id: int, role: str, creator_id: int) -> bool:
         """Сохраняет приглашение"""
@@ -58,10 +53,8 @@ class InvitationStorage:
                 'used': False
             }
             self._save_to_file()
-            logger.info(f"Сохранено приглашение: {token}")
             return True
-        except Exception as e:
-            logger.error(f"Ошибка сохранения приглашения: {e}")
+        except Exception:
             return False
     
     def get_invitation(self, token: str) -> Optional[Dict[str, Any]]:
@@ -103,7 +96,6 @@ class InvitationStorage:
             del self.invitations[token]
         
         if expired_tokens:
-            logger.info(f"Удалено {len(expired_tokens)} устаревших приглашений")
             self._save_to_file()
     
     def get_all_invitations(self) -> list:

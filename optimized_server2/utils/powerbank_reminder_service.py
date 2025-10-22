@@ -48,9 +48,6 @@ class PowerbankReminderService:
                     
                     overdue = await cur.fetchall()
                     
-                    if overdue:
-                        self.logger.info(f"Найдено {len(overdue)} невозвращенных аккумуляторов, требующих напоминания")
-                    
                     return overdue
                     
         except Exception as e:
@@ -73,11 +70,6 @@ class PowerbankReminderService:
             org_unit_name = order_data['org_unit_name']
             hours_borrowed = order_data['hours_borrowed']
             
-            self.logger.info(
-                f"Отправка напоминания пользователю {user_name} ({user_email}) "
-                f"о возврате аккумулятора {powerbank_serial}, взятого {hours_borrowed} часов назад"
-            )
-            
             # Отправляем email
             success = await notification_service.send_powerbank_reminder_email(
                 user_email=user_email,
@@ -90,12 +82,9 @@ class PowerbankReminderService:
             if success:
                 # Добавляем order_id в множество отправленных напоминаний
                 self.sent_reminders.add(order_id)
-                self.logger.info(f"Напоминание успешно отправлено для заказа {order_id}")
                 
                 # Логируем отправку напоминания в БД (опционально)
                 await self._log_reminder_sent(order_data)
-            else:
-                self.logger.warning(f"Не удалось отправить напоминание для заказа {order_id}")
             
             return success
             
@@ -123,13 +112,10 @@ class PowerbankReminderService:
     async def check_and_send_reminders(self) -> int:
         """Проверяет невозвращенные аккумуляторы и отправляет напоминания"""
         try:
-            self.logger.info("Начало проверки невозвращенных аккумуляторов...")
-            
             # Получаем список невозвращенных аккумуляторов
             overdue_powerbanks = await self.get_overdue_powerbanks()
             
             if not overdue_powerbanks:
-                self.logger.info("Невозвращенных аккумуляторов не найдено")
                 return 0
             
             sent_count = 0
@@ -143,8 +129,6 @@ class PowerbankReminderService:
                 # Небольшая задержка между отправками, чтобы не перегружать SMTP сервер
                 await asyncio.sleep(1)
             
-            self.logger.info(f"Проверка завершена. Отправлено {sent_count} напоминаний из {len(overdue_powerbanks)}")
-            
             return sent_count
             
         except Exception as e:
@@ -153,8 +137,6 @@ class PowerbankReminderService:
     
     async def run_periodic_check(self, interval_hours: int = 1) -> None:
         """Запускает периодическую проверку невозвращенных аккумуляторов"""
-        self.logger.info(f"Запуск периодической проверки невозвращенных аккумуляторов (интервал: {interval_hours} ч.)")
-        
         while True:
             try:
                 await self.check_and_send_reminders()
@@ -162,7 +144,6 @@ class PowerbankReminderService:
                 # Очищаем множество отправленных напоминаний раз в 24 часа
                 # чтобы можно было отправлять повторные напоминания
                 if len(self.sent_reminders) > 1000:  # Ограничение размера множества
-                    self.logger.info("Очистка множества отправленных напоминаний")
                     self.sent_reminders.clear()
                 
             except Exception as e:
@@ -174,5 +155,4 @@ class PowerbankReminderService:
     def clear_sent_reminders(self) -> None:
         """Очищает множество отправленных напоминаний"""
         self.sent_reminders.clear()
-        self.logger.info("Множество отправленных напоминаний очищено")
 

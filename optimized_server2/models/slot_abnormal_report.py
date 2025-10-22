@@ -37,6 +37,20 @@ class SlotAbnormalReport:
         }
     
     @classmethod
+    def from_dict(cls, data: dict) -> 'SlotAbnormalReport':
+        """Создает экземпляр из словаря"""
+        return cls(
+            report_id=data.get('report_id'),
+            station_id=data.get('station_id'),
+            slot_number=data.get('slot_number'),
+            terminal_id=data.get('terminal_id'),
+            event_type=data.get('event_type'),
+            reported_at=data.get('reported_at'),
+            created_at=data.get('created_at'),
+            box_id=data.get('box_id')
+        )
+    
+    @classmethod
     async def create(
         cls,
         db_pool,

@@ -213,3 +213,80 @@ async def log_access_denied_event(db_pool, user_id: int, resource_type: str,
                             f"REASON:{reason}")
     except Exception as e:
         print(f"Ошибка логирования отказа в доступе: {e}")
+
+
+async def get_admin_accessible_org_units(db_pool, user_id: int) -> Optional[list[int]]:
+    """
+    Получает список ID организационных единиц, доступных администратору.
+    
+    Returns:
+        - None: если service_admin (доступ ко всем)
+        - list[int]: список доступных org_unit_id для group_admin/subgroup_admin
+        - []: если нет прав администратора
+    """
+    try:
+        import aiomysql
+        from models.user_role import UserRole
+        
+        # Получаем основную роль пользователя
+        user_role = await UserRole.get_primary_role(db_pool, user_id)
+        if not user_role:
+            return []
+        
+        # service_admin видит всё
+        if user_role.role == 'service_admin':
+            return None
+        
+        # group_admin и subgroup_admin видят только свою единицу и дочерние
+        if user_role.role in ['group_admin', 'subgroup_admin']:
+            if user_role.org_unit_id is None:
+                return []
+            
+            # Получаем текущую org_unit и все дочерние (без WITH RECURSIVE для MySQL 5.7)
+            accessible_units = [user_role.org_unit_id]
+            
+            async with db_pool.acquire() as conn:
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Получаем все org_units
+                    await cur.execute("""
+                        SELECT org_unit_id, parent_org_unit_id
+                        FROM org_unit
+                    """)
+                    
+                    all_units = await cur.fetchall()
+                    
+                    # Строим дерево в памяти и находим все дочерние единицы
+                    def find_children(parent_id, all_units, visited=None):
+                        if visited is None:
+                            visited = set()
+                        
+                        if parent_id in visited:
+                            return []
+                        
+                        visited.add(parent_id)
+                        children = []
+                        
+                        for unit in all_units:
+                            # Пропускаем самоссылающиеся единицы
+                            if unit['parent_org_unit_id'] == parent_id and unit['org_unit_id'] != parent_id:
+                                children.append(unit['org_unit_id'])
+                                # Рекурсивно ищем детей
+                                children.extend(find_children(unit['org_unit_id'], all_units, visited))
+                        
+                        return children
+                    
+                    # Находим все дочерние единицы
+                    children = find_children(user_role.org_unit_id, all_units)
+                    accessible_units.extend(children)
+                    
+                    # Убираем дубликаты
+                    accessible_units = list(set(accessible_units))
+            
+            return accessible_units
+        
+        # Для остальных ролей доступа нет
+        return []
+        
+    except Exception as e:
+        print(f"Ошибка получения доступных org_units для администратора {user_id}: {e}")
+        return []

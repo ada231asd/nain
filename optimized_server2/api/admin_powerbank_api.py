@@ -338,13 +338,32 @@ class AdminPowerbankAPI:
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
     
-    async def get_powerbank_statistics(self) -> Dict[str, Any]:
+    async def get_powerbank_statistics(self, accessible_org_units=None) -> Dict[str, Any]:
         """Получает статистику по повербанкам"""
         try:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
+                    # Формируем WHERE условие для фильтрации
+                    where_clause = ""
+                    params = []
+                    
+                    if accessible_org_units is not None:
+                        if len(accessible_org_units) == 0:
+                            return {
+                                "total": 0,
+                                "active": 0,
+                                "unknown": 0,
+                                "broken": 0,
+                                "system_error": 0,
+                                "written_off": 0,
+                                "group_statistics": []
+                            }
+                        placeholders = ','.join(['%s'] * len(accessible_org_units))
+                        where_clause = f"WHERE org_unit_id IN ({placeholders})"
+                        params = accessible_org_units
+                    
                     # Общая статистика
-                    await cur.execute("""
+                    await cur.execute(f"""
                         SELECT 
                             COUNT(*) as total,
                             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
@@ -353,29 +372,34 @@ class AdminPowerbankAPI:
                             SUM(CASE WHEN status = 'system_error' THEN 1 ELSE 0 END) as system_error,
                             SUM(CASE WHEN status = 'written_off' THEN 1 ELSE 0 END) as written_off
                         FROM powerbank
-                    """)
+                        {where_clause}
+                    """, params)
                     
                     stats = await cur.fetchone()
                     
                     # Статистика по группам
-                    await cur.execute("""
+                    group_where = "WHERE p.status = 'unknown'"
+                    if accessible_org_units is not None:
+                        group_where = f"WHERE p.status = 'unknown' AND p.org_unit_id IN ({placeholders})"
+                    
+                    await cur.execute(f"""
                         SELECT ou.name as org_unit_name, COUNT(*) as count
                         FROM powerbank p
                         JOIN org_unit ou ON p.org_unit_id = ou.org_unit_id
-                        WHERE p.status = 'unknown'
+                        {group_where}
                         GROUP BY ou.org_unit_id, ou.name
                         ORDER BY count DESC
-                    """)
+                    """, params if accessible_org_units is not None else [])
                     
                     group_stats = await cur.fetchall()
                     
                     return {
-                        "total": stats[0],
-                        "active": stats[1],
-                        "unknown": stats[2],
-                        "broken": stats[3],
-                        "system_error": stats[4],
-                        "written_off": stats[5],
+                        "total": stats[0] or 0,
+                        "active": stats[1] or 0,
+                        "unknown": stats[2] or 0,
+                        "broken": stats[3] or 0,
+                        "system_error": stats[4] or 0,
+                        "written_off": stats[5] or 0,
                         "group_statistics": [{"org_unit_name": row[0], "count": row[1]} for row in group_stats]
                     }
                     

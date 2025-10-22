@@ -164,7 +164,14 @@ class AdminEndpoints:
     async def get_powerbank_statistics(self, request: Request) -> Response:
         """GET /api/admin/powerbank-statistics - статистика по повербанкам"""
         try:
-            stats = await self.admin_api.get_powerbank_statistics()
+            # Получаем доступные org_unit для текущего администратора
+            user = request.get('user')
+            accessible_org_units = None
+            if user:
+                from utils.org_unit_utils import get_admin_accessible_org_units
+                accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+            
+            stats = await self.admin_api.get_powerbank_statistics(accessible_org_units)
             
             if "error" in stats:
                 return web.json_response(stats, status=500)

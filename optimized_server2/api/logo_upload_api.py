@@ -8,7 +8,6 @@ import aiohttp
 from aiohttp import web
 from aiohttp.web import Request, Response
 from urllib.parse import urlparse
-from utils.centralized_logger import get_logger
 from utils.auth_middleware import require_auth
 
 
@@ -17,7 +16,6 @@ class LogoUploadAPI:
     
     def __init__(self, db_pool):
         self.db_pool = db_pool
-        self.logger = get_logger('logo_upload_api')
         
         # Настройки загрузки
         self.upload_dir = "uploads/logos"
@@ -105,11 +103,6 @@ class LogoUploadAPI:
                 }, status=401)
             
             org_unit_id = int(request.match_info['org_unit_id'])
-            # Логируем попытку загрузки
-            try:
-                self.logger.info(f"Запрос загрузки логотипа: org_unit_id={org_unit_id}, user_id={auth_result.get('user', {}).get('user_id')}")
-            except Exception:
-                pass
             
             # Проверяем существование организационной единицы
             async with self.db_pool.acquire() as conn:
@@ -176,15 +169,14 @@ class LogoUploadAPI:
                     try:
                         file_content = await request.read()
                         filename = f"{org_unit_id}_{uuid.uuid4().hex}.bin"
-                    except Exception as read_error:
-                        self.logger.error(f"Не удалось прочитать тело запроса: {read_error}")
+                    except Exception:
+                        pass
             
             # Обрабатываем URL логотипа
             if logo_url:
                 try:
                     file_content, file_ext = await self._validate_and_download_url(logo_url)
                     filename = f"{org_unit_id}_{uuid.uuid4().hex}{file_ext}"
-                    self.logger.info(f"Загружен логотип по URL: {logo_url}")
                 except ValueError as e:
                     return web.json_response({
                         "success": False,
@@ -239,9 +231,7 @@ class LogoUploadAPI:
             try:
                 async with aiofiles.open(file_path, 'wb') as f:
                     await f.write(file_content)
-                self.logger.info(f"Файл сохранен: {file_path}")
-            except Exception as e:
-                self.logger.error(f"Ошибка сохранения файла {file_path}: {e}")
+            except Exception:
                 return web.json_response({
                     "success": False,
                     "error": "Ошибка сохранения файла"
@@ -267,17 +257,14 @@ class LogoUploadAPI:
                                 "success": False,
                                 "error": "Организационная единица не найдена"
                             }, status=404)
-            except Exception as e:
+            except Exception:
                 # Удаляем загруженный файл при ошибке БД
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                self.logger.error(f"Ошибка обновления БД для org_unit_id={org_unit_id}: {e}")
                 return web.json_response({
                     "success": False,
                     "error": "Ошибка сохранения данных"
                 }, status=500)
-            
-            self.logger.info(f"Логотип загружен для org_unit_id={org_unit_id}, файл: {unique_filename}")
             
             return web.json_response({
                 "success": True,
@@ -294,7 +281,6 @@ class LogoUploadAPI:
                 "error": "Некорректный ID организационной единицы"
             }, status=400)
         except Exception as e:
-            self.logger.error(f"Ошибка загрузки логотипа: {e}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -354,7 +340,6 @@ class LogoUploadAPI:
             try:
                 file_content, file_ext = await self._validate_and_download_url(logo_url)
                 filename = f"{org_unit_id}_{uuid.uuid4().hex}{file_ext}"
-                self.logger.info(f"Загружен логотип по URL: {logo_url}")
             except ValueError as e:
                 return web.json_response({
                     "success": False,
@@ -369,9 +354,7 @@ class LogoUploadAPI:
             try:
                 async with aiofiles.open(file_path, 'wb') as f:
                     await f.write(file_content)
-                self.logger.info(f"Файл сохранен: {file_path}")
-            except Exception as e:
-                self.logger.error(f"Ошибка сохранения файла {file_path}: {e}")
+            except Exception:
                 return web.json_response({
                     "success": False,
                     "error": "Ошибка сохранения файла"
@@ -397,17 +380,14 @@ class LogoUploadAPI:
                                 "success": False,
                                 "error": "Организационная единица не найдена"
                             }, status=404)
-            except Exception as e:
+            except Exception:
                 # Удаляем загруженный файл при ошибке БД
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                self.logger.error(f"Ошибка обновления БД для org_unit_id={org_unit_id}: {e}")
                 return web.json_response({
                     "success": False,
                     "error": "Ошибка сохранения данных"
                 }, status=500)
-            
-            self.logger.info(f"Логотип загружен по URL для org_unit_id={org_unit_id}, файл: {unique_filename}")
             
             return web.json_response({
                 "success": True,
@@ -425,7 +405,6 @@ class LogoUploadAPI:
                 "error": "Некорректный ID организационной единицы"
             }, status=400)
         except Exception as e:
-            self.logger.error(f"Ошибка загрузки логотипа по URL: {e}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -482,7 +461,6 @@ class LogoUploadAPI:
                 file_path = os.path.join(self.upload_dir, filename)
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                    self.logger.info(f"Файл логотипа удален: {filename}")
             
             return web.json_response({
                 "success": True,
@@ -495,7 +473,6 @@ class LogoUploadAPI:
                 "error": "Некорректный ID организационной единицы"
             }, status=400)
         except Exception as e:
-            self.logger.error(f"Ошибка удаления логотипа: {e}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -508,13 +485,11 @@ class LogoUploadAPI:
             
             # Проверяем безопасность имени файла
             if '..' in filename or '/' in filename or '\\' in filename:
-                self.logger.warning(f"Попытка доступа к небезопасному файлу: {filename}")
                 return web.Response(status=400)
             
             file_path = os.path.join(self.upload_dir, filename)
             
             if not os.path.exists(file_path):
-                self.logger.warning(f"Файл не найден: {file_path}")
                 return web.Response(status=404)
             
             # Определяем MIME-тип по расширению
@@ -534,8 +509,6 @@ class LogoUploadAPI:
                 async with aiofiles.open(file_path, 'rb') as f:
                     content = await f.read()
                 
-                self.logger.info(f"Файл отправлен: {filename}")
-                
                 return web.Response(
                     body=content,
                     content_type=content_type,
@@ -544,12 +517,10 @@ class LogoUploadAPI:
                         'Content-Length': str(len(content))
                     }
                 )
-            except Exception as e:
-                self.logger.error(f"Ошибка чтения файла {file_path}: {e}")
+            except Exception:
                 return web.Response(status=500)
             
-        except Exception as e:
-            self.logger.error(f"Ошибка раздачи файла логотипа: {e}")
+        except Exception:
             return web.Response(status=500)
     
     async def _check_org_unit_access(self, user, org_unit_id):
@@ -591,6 +562,5 @@ class LogoUploadAPI:
                     result = await cur.fetchone()
                     return result[0] > 0
                     
-        except Exception as e:
-            self.logger.error(f"Ошибка проверки прав доступа: {e}")
+        except Exception:
             return False

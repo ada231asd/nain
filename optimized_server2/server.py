@@ -488,20 +488,12 @@ class OptimizedServer:
                 self.reminder_service = PowerbankReminderService(self.db_pool)
                 check_interval = POWERBANK_REMINDER_CONFIG.get('check_interval_hours', 1)
                 asyncio.create_task(self.reminder_service.run_periodic_check(interval_hours=check_interval))
-                print(f"Сервис напоминаний о возврате аккумуляторов запущен (интервал проверки: {check_interval} ч.)")
-            else:
-                print("Сервис напоминаний о возврате аккумуляторов отключен")
             
             # Ждем завершения серверов
-            try:
-             
-                await asyncio.gather(*(srv.serve_forever() for srv in self.tcp_servers))
+            await asyncio.gather(*(srv.serve_forever() for srv in self.tcp_servers))
                         
-            except asyncio.CancelledError:
-                print("TCP серверы остановлены")
-            except Exception as e:
-                self.logger.error(f"Ошибка: {e}")
-        
+        except asyncio.CancelledError:
+            print("TCP серверы остановлены")
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
         finally:

@@ -112,10 +112,7 @@ class NotificationService:
         for attempt in range(max_retries + 1):
             try:
                 if attempt > 0:
-                    self.logger.info(f"Повторная попытка отправки email #{attempt} на {to_email}")
                     await asyncio.sleep(2)  
-                else:
-                    self.logger.info(f"Отправка email на {to_email} через {self.smtp_config.get('host')}:{self.smtp_config.get('port')}")
                 
                 # Создаем сообщение
                 msg = MIMEMultipart('alternative')
@@ -140,18 +137,13 @@ class NotificationService:
                     server.set_debuglevel(0)  
                     
                     if self.smtp_config.get('use_tls', True):
-                        if attempt == 0:  
-                            self.logger.info("Включаем TLS...")
                         server.starttls()
                     
                     if self.smtp_config.get('username') and self.smtp_config.get('password'):
-                        if attempt == 0:  
-                            self.logger.info(f"Авторизация как {self.smtp_config['username']}")
                         server.login(self.smtp_config['username'], self.smtp_config['password'])
                     
                     server.send_message(msg)
                 
-                self.logger.info(f"Email успешно отправлен на {to_email}")
                 return True
                 
             except smtplib.SMTPAuthenticationError as e:

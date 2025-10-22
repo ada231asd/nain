@@ -58,7 +58,14 @@ class SlotAbnormalReportEndpoints:
                     "error": "limit должен быть от 1 до 500"
                 }, status=400)
             
-            result = await self.abnormal_report_api.get_all_abnormal_reports(limit)
+            # Получаем доступные org_unit для текущего администратора
+            user = request.get('user')
+            accessible_org_units = None
+            if user:
+                from utils.org_unit_utils import get_admin_accessible_org_units
+                accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+            
+            result = await self.abnormal_report_api.get_all_abnormal_reports(limit, accessible_org_units)
             
             if result["success"]:
                 return web.json_response(result)
@@ -79,7 +86,14 @@ class SlotAbnormalReportEndpoints:
     async def get_abnormal_reports_statistics(self, request: Request) -> Response:
         """GET /api/slot-abnormal-reports/statistics - Получить статистику отчетов об аномалиях слотов"""
         try:
-            result = await self.abnormal_report_api.get_abnormal_reports_statistics()
+            # Получаем доступные org_unit для текущего администратора
+            user = request.get('user')
+            accessible_org_units = None
+            if user:
+                from utils.org_unit_utils import get_admin_accessible_org_units
+                accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+            
+            result = await self.abnormal_report_api.get_abnormal_reports_statistics(accessible_org_units)
             
             if result["success"]:
                 return web.json_response(result)

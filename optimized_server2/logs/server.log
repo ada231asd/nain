@@ -861,3 +861,415 @@ ConnectionResetError: [WinError 10054] Удаленный хост принуд�
 2025-10-22 18:18:51 - logo_upload_api - INFO - Файл отправлен: 4_940f95b95e084f10a5f97a19298d2f2e.jpg
 2025-10-22 18:18:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:18:51 +0300] "GET /api/logos/4_940f95b95e084f10a5f97a19298d2f2e.jpg HTTP/1.1" 200 875619 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
 2025-10-22 18:18:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:18:51 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:38 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:38 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:38 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:38 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3304 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:38 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:38 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1116 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:39 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:39 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 887 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:39 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:39 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:39 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:39 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:39 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:39 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:40 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:40 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 820 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:40 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:40 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 623 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:40 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:40 +0300] "GET /api/stations/13 HTTP/1.1" 200 730 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:40 - access_control - WARNING - ОТКАЗ В ДОСТУПЕ: пользователь 33, station 13, причина: Станция недоступна вашему подразделению: Несовместимые организационные единицы: повербанк 'Тралалейло тралала' (group), станция 'Updated Test Organization' (group)
+2025-10-22 18:20:40 - access_denied - WARNING - ACCESS_DENIED|2025-10-22T18:20:40.873550+03:00|USER:33|RESOURCE:STATION:13|REASON:Станция недоступна вашему подразделению: Несовместимые организационные единицы: повербанк 'Тралалейло тралала' (group), станция 'Updated Test Organization' (group)
+2025-10-22 18:20:40 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:40 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 1102 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:41 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:20:41 +0300] "GET /api/org-units/4 HTTP/1.1" 200 829 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:20:49 - server - INFO - Остановка серверов...
+2025-10-22 18:20:49 - server - INFO - Деактивация всех станций...
+2025-10-22 18:20:49 - server - INFO - Активных станций не найдено
+2025-10-22 18:20:49 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 18:20:49 - server - INFO - Активных станций в БД не найдено
+2025-10-22 18:20:49 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 18:20:49 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 18:20:49 - server - INFO - Логгеры закрыты
+2025-10-22 18:20:49 - server - INFO - Остановка серверов...
+2025-10-22 18:20:49 - server - INFO - Деактивация всех станций...
+2025-10-22 18:20:49 - server - INFO - Активных станций не найдено
+2025-10-22 18:20:49 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 18:20:49 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 18:20:49 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 18:20:49 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 18:20:49 - server - INFO - Логгеры закрыты
+2025-10-22 18:20:54 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 18:20:55 - powerbank_reminder - INFO - Запуск периодической проверки невозвращенных аккумуляторов (интервал: 1 ч.)
+2025-10-22 18:20:55 - powerbank_reminder - INFO - Начало проверки невозвращенных аккумуляторов...
+2025-10-22 18:20:55 - powerbank_reminder - INFO - Найдено 1 невозвращенных аккумуляторов, требующих напоминания
+2025-10-22 18:20:55 - powerbank_reminder - INFO - Отправка напоминания пользователю Вадим Вадимвич Базаров (v.bazarov85@mail.ru) о возврате аккумулятора DCHA54000016, взятого 99 часов назад
+2025-10-22 18:20:55 - notification_service - INFO - Отправка email на v.bazarov85@mail.ru через smtp.mail.ru:587
+2025-10-22 18:20:56 - notification_service - INFO - Включаем TLS...
+2025-10-22 18:20:56 - notification_service - INFO - Авторизация как v.bazarov142@mail.ru
+2025-10-22 18:20:57 - notification_service - INFO - Email успешно отправлен на v.bazarov85@mail.ru
+2025-10-22 18:20:57 - powerbank_reminder - INFO - Напоминание успешно отправлено для заказа 102
+2025-10-22 18:20:58 - powerbank_reminder - INFO - Проверка завершена. Отправлено 1 напоминаний из 1
+2025-10-22 18:21:33 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:21:33 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3304 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:21:33 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:21:33 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1116 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:21:33 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:21:33 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 887 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:21:33 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:21:33 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:21:34 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:21:34 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:21:34 - invitation_storage - INFO - Сохранено приглашение: qqqR6zxDb20gWx9mEO1pkYI_raOzWyjfFtYj8dBIRls
+2025-10-22 18:21:34 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:21:34 +0300] "POST /api/invitations/generate HTTP/1.1" 200 631 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:22:48 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:22:48 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 1459 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:22:48 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:22:48 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:22:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:22:51 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 1459 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:22:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:22:51 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:22:53 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:22:53 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 200 3642 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:22:53 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:22:53 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 200 469 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:28:51 - server - INFO - Остановка серверов...
+2025-10-22 18:28:51 - server - INFO - Деактивация всех станций...
+2025-10-22 18:28:51 - server - INFO - Активных станций не найдено
+2025-10-22 18:28:51 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 18:28:51 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 18:28:51 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 18:28:51 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 18:28:51 - server - INFO - Активных станций в БД не найдено
+2025-10-22 18:28:51 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 18:28:51 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 18:28:51 - server - INFO - Логгеры закрыты
+2025-10-22 18:28:51 - server - INFO - Остановка серверов...
+2025-10-22 18:28:51 - server - INFO - Деактивация всех станций...
+2025-10-22 18:28:51 - server - INFO - Активных станций не найдено
+2025-10-22 18:28:51 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 18:28:51 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 18:28:51 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 18:28:51 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 18:28:51 - server - INFO - Логгеры закрыты
+2025-10-22 18:28:57 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 18:28:58 - powerbank_reminder - INFO - Запуск периодической проверки невозвращенных аккумуляторов (интервал: 1 ч.)
+2025-10-22 18:28:58 - powerbank_reminder - INFO - Начало проверки невозвращенных аккумуляторов...
+2025-10-22 18:28:58 - powerbank_reminder - INFO - Найдено 1 невозвращенных аккумуляторов, требующих напоминания
+2025-10-22 18:28:58 - powerbank_reminder - INFO - Отправка напоминания пользователю Вадим Вадимвич Базаров (v.bazarov85@mail.ru) о возврате аккумулятора DCHA54000016, взятого 99 часов назад
+2025-10-22 18:28:58 - notification_service - INFO - Отправка email на v.bazarov85@mail.ru через smtp.mail.ru:587
+2025-10-22 18:28:58 - notification_service - INFO - Включаем TLS...
+2025-10-22 18:28:59 - notification_service - INFO - Авторизация как v.bazarov142@mail.ru
+2025-10-22 18:28:59 - notification_service - INFO - Email успешно отправлен на v.bazarov85@mail.ru
+2025-10-22 18:28:59 - powerbank_reminder - INFO - Напоминание успешно отправлено для заказа 102
+2025-10-22 18:29:00 - powerbank_reminder - INFO - Проверка завершена. Отправлено 1 напоминаний из 1
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:29:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:29:59 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:00 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:00 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:00 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:00 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:05 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:05 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:05 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:05 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:13 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:13 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 200 3642 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:13 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:13 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 200 469 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:17 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:17 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 200 3642 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:30:17 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:30:17 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 200 469 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 18:47:42 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 18:47:42 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:42 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:42 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:43 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:43 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 18:47:43 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:18:47:43 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:00:57 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 19:00:57 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 19:00:57 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:00:57 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:00:57 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:00:57 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2108 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:03 - server - INFO - Остановка серверов...
+2025-10-22 19:01:03 - server - INFO - Деактивация всех станций...
+2025-10-22 19:01:03 - server - INFO - Активных станций не найдено
+2025-10-22 19:01:03 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:01:03 - server - INFO - Активных станций в БД не найдено
+2025-10-22 19:01:03 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:01:03 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:01:03 - server - INFO - Логгеры закрыты
+2025-10-22 19:01:03 - server - INFO - Остановка серверов...
+2025-10-22 19:01:03 - server - INFO - Деактивация всех станций...
+2025-10-22 19:01:03 - server - INFO - Активных станций не найдено
+2025-10-22 19:01:03 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:01:03 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 19:01:03 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:01:03 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:01:03 - server - INFO - Логгеры закрыты
+2025-10-22 19:01:08 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 19:01:09 - powerbank_reminder - INFO - Запуск периодической проверки невозвращенных аккумуляторов (интервал: 1 ч.)
+2025-10-22 19:01:09 - powerbank_reminder - INFO - Начало проверки невозвращенных аккумуляторов...
+2025-10-22 19:01:09 - powerbank_reminder - INFO - Найдено 1 невозвращенных аккумуляторов, требующих напоминания
+2025-10-22 19:01:09 - powerbank_reminder - INFO - Отправка напоминания пользователю Вадим Вадимвич Базаров (v.bazarov85@mail.ru) о возврате аккумулятора DCHA54000016, взятого 100 часов назад
+2025-10-22 19:01:09 - notification_service - INFO - Отправка email на v.bazarov85@mail.ru через smtp.mail.ru:587
+2025-10-22 19:01:09 - notification_service - INFO - Включаем TLS...
+2025-10-22 19:01:09 - notification_service - INFO - Авторизация как v.bazarov142@mail.ru
+2025-10-22 19:01:10 - notification_service - INFO - Email успешно отправлен на v.bazarov85@mail.ru
+2025-10-22 19:01:10 - powerbank_reminder - INFO - Напоминание успешно отправлено для заказа 102
+2025-10-22 19:01:11 - powerbank_reminder - INFO - Проверка завершена. Отправлено 1 напоминаний из 1
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:36 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:36 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:37 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:37 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:38 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:38 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:38 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:51 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 200 439 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:51 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 200 479 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:57 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:57 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:01:57 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:01:57 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:06:58 - server - INFO - Остановка серверов...
+2025-10-22 19:06:58 - server - INFO - Деактивация всех станций...
+2025-10-22 19:06:58 - server - INFO - Активных станций не найдено
+2025-10-22 19:06:58 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:06:58 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 19:06:58 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 19:06:58 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-22 19:06:58 - server - INFO - Активных станций в БД не найдено
+2025-10-22 19:06:58 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:06:58 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:06:58 - server - INFO - Логгеры закрыты
+2025-10-22 19:06:58 - server - INFO - Остановка серверов...
+2025-10-22 19:06:58 - server - INFO - Деактивация всех станций...
+2025-10-22 19:06:58 - server - INFO - Активных станций не найдено
+2025-10-22 19:06:58 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:06:58 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 19:06:58 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:06:58 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:06:58 - server - INFO - Логгеры закрыты
+2025-10-22 19:07:04 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 19:07:05 - powerbank_reminder - INFO - Запуск периодической проверки невозвращенных аккумуляторов (интервал: 1 ч.)
+2025-10-22 19:07:05 - powerbank_reminder - INFO - Начало проверки невозвращенных аккумуляторов...
+2025-10-22 19:07:05 - powerbank_reminder - INFO - Найдено 1 невозвращенных аккумуляторов, требующих напоминания
+2025-10-22 19:07:05 - powerbank_reminder - INFO - Отправка напоминания пользователю Вадим Вадимвич Базаров (v.bazarov85@mail.ru) о возврате аккумулятора DCHA54000016, взятого 100 часов назад
+2025-10-22 19:07:05 - notification_service - INFO - Отправка email на v.bazarov85@mail.ru через smtp.mail.ru:587
+2025-10-22 19:07:05 - notification_service - INFO - Включаем TLS...
+2025-10-22 19:07:05 - notification_service - INFO - Авторизация как v.bazarov142@mail.ru
+2025-10-22 19:07:06 - notification_service - INFO - Email успешно отправлен на v.bazarov85@mail.ru
+2025-10-22 19:07:06 - powerbank_reminder - INFO - Напоминание успешно отправлено для заказа 102
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - powerbank_reminder - INFO - Проверка завершена. Отправлено 1 напоминаний из 1
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:07 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:07 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:08 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:08 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:11 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:11 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:07:11 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:07:11 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:14 - server - INFO - Остановка серверов...
+2025-10-22 19:09:14 - server - INFO - Деактивация всех станций...
+2025-10-22 19:09:14 - server - INFO - Активных станций не найдено
+2025-10-22 19:09:14 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:09:14 - server - INFO - Активных станций в БД не найдено
+2025-10-22 19:09:14 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:09:14 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:09:14 - server - INFO - Логгеры закрыты
+2025-10-22 19:09:14 - server - INFO - Остановка серверов...
+2025-10-22 19:09:14 - server - INFO - Деактивация всех станций...
+2025-10-22 19:09:14 - server - INFO - Активных станций не найдено
+2025-10-22 19:09:14 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:09:14 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 19:09:14 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:09:14 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:09:14 - server - INFO - Логгеры закрыты
+2025-10-22 19:09:20 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 19:09:21 - powerbank_reminder - INFO - Запуск периодической проверки невозвращенных аккумуляторов (интервал: 1 ч.)
+2025-10-22 19:09:21 - powerbank_reminder - INFO - Начало проверки невозвращенных аккумуляторов...
+2025-10-22 19:09:21 - powerbank_reminder - INFO - Найдено 1 невозвращенных аккумуляторов, требующих напоминания
+2025-10-22 19:09:21 - powerbank_reminder - INFO - Отправка напоминания пользователю Вадим Вадимвич Базаров (v.bazarov85@mail.ru) о возврате аккумулятора DCHA54000016, взятого 100 часов назад
+2025-10-22 19:09:21 - notification_service - INFO - Отправка email на v.bazarov85@mail.ru через smtp.mail.ru:587
+2025-10-22 19:09:21 - notification_service - INFO - Включаем TLS...
+2025-10-22 19:09:21 - notification_service - INFO - Авторизация как v.bazarov142@mail.ru
+2025-10-22 19:09:22 - notification_service - INFO - Email успешно отправлен на v.bazarov85@mail.ru
+2025-10-22 19:09:22 - powerbank_reminder - INFO - Напоминание успешно отправлено для заказа 102
+2025-10-22 19:09:23 - powerbank_reminder - INFO - Проверка завершена. Отправлено 1 напоминаний из 1
+2025-10-22 19:09:27 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:27 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:27 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:27 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:28 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1270 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:28 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:28 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 1009 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:28 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 503 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:29 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:29 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1270 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:29 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:29 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1270 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:29 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:29 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1270 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:44 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:44 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1270 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:09:44 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:09:44 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 483 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:14 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:14 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:14 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:14 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:14 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1116 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:15 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:14 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 2537 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:15 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:15 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 887 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:15 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:15 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:15 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:15 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:16 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:16 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:28 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:28 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:28 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 1459 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:31 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:31 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 400 719 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:10:32 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:10:32 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 400 755 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:12:55 - server - INFO - Остановка серверов...
+2025-10-22 19:12:55 - server - INFO - Деактивация всех станций...
+2025-10-22 19:12:55 - server - INFO - Активных станций не найдено
+2025-10-22 19:12:55 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:12:55 - server - INFO - Активных станций в БД не найдено
+2025-10-22 19:12:55 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:12:55 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:12:55 - server - INFO - Логгеры закрыты
+2025-10-22 19:12:55 - server - INFO - Остановка серверов...
+2025-10-22 19:12:55 - server - INFO - Деактивация всех станций...
+2025-10-22 19:12:55 - server - INFO - Активных станций не найдено
+2025-10-22 19:12:55 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:12:55 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 19:12:55 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:12:55 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:12:55 - server - INFO - Логгеры закрыты
+2025-10-22 19:12:58 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 19:13:00 - powerbank_reminder - INFO - Запуск периодической проверки невозвращенных аккумуляторов (интервал: 1 ч.)
+2025-10-22 19:13:00 - powerbank_reminder - INFO - Начало проверки невозвращенных аккумуляторов...
+2025-10-22 19:13:00 - powerbank_reminder - INFO - Найдено 1 невозвращенных аккумуляторов, требующих напоминания
+2025-10-22 19:13:00 - powerbank_reminder - INFO - Отправка напоминания пользователю Вадим Вадимвич Базаров (v.bazarov85@mail.ru) о возврате аккумулятора DCHA54000016, взятого 100 часов назад
+2025-10-22 19:13:00 - notification_service - INFO - Отправка email на v.bazarov85@mail.ru через smtp.mail.ru:587
+2025-10-22 19:13:00 - notification_service - INFO - Включаем TLS...
+2025-10-22 19:13:00 - notification_service - INFO - Авторизация как v.bazarov142@mail.ru
+2025-10-22 19:13:01 - notification_service - INFO - Email успешно отправлен на v.bazarov85@mail.ru
+2025-10-22 19:13:01 - powerbank_reminder - INFO - Напоминание успешно отправлено для заказа 102
+2025-10-22 19:13:02 - powerbank_reminder - INFO - Проверка завершена. Отправлено 1 напоминаний из 1
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 2537 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1116 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 887 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:04 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:04 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:06 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:06 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 200 3432 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:06 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:06 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 200 557 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:11 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:11 +0300] "GET /api/slot-abnormal-reports?limit=100 HTTP/1.1" 200 3432 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:11 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:11 +0300] "GET /api/slot-abnormal-reports/statistics HTTP/1.1" 200 557 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:14 +0300] "GET /api/powerbanks?limit=10000 HTTP/1.1" 200 1459 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:14 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:14 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:20 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:20 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:13:20 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:13:20 +0300] "POST /api/invitations/generate HTTP/1.1" 200 631 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:15:33 - server - INFO - Остановка серверов...
+2025-10-22 19:15:33 - server - INFO - Деактивация всех станций...
+2025-10-22 19:15:33 - server - INFO - Активных станций не найдено
+2025-10-22 19:15:33 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:15:33 - server - INFO - Активных станций в БД не найдено
+2025-10-22 19:15:33 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:15:33 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:15:33 - server - INFO - Логгеры закрыты
+2025-10-22 19:15:33 - server - INFO - Остановка серверов...
+2025-10-22 19:15:33 - server - INFO - Деактивация всех станций...
+2025-10-22 19:15:33 - server - INFO - Активных станций не найдено
+2025-10-22 19:15:33 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-22 19:15:33 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-22 19:15:33 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-22 19:15:33 - http_server - INFO - Остановка HTTP сервера...
+2025-10-22 19:15:33 - server - INFO - Логгеры закрыты
+2025-10-22 19:16:42 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-22 19:16:50 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:50 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:50 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:50 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:50 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:50 +0300] "GET /api/auth/profile HTTP/1.1" 200 768 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:50 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:50 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:50 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:50 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 2537 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:50 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:50 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1116 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:51 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 887 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:51 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:51 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:51 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:51 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 1319 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:59 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 820 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:59 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 623 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:16:59 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:16:59 +0300] "GET /api/stations/13 HTTP/1.1" 200 730 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:17:00 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:17:00 +0300] "GET /api/borrow/stations/13/powerbanks HTTP/1.1" 200 746 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
+2025-10-22 19:17:00 - aiohttp.access - INFO - 127.0.0.1 [22/Oct/2025:19:17:00 +0300] "GET /api/org-units/1 HTTP/1.1" 200 734 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
