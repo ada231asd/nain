@@ -1,11 +1,5 @@
 <template>
   <div class="profile-container">
-    <div class="profile-header">
-      <button @click="goToDashboard" class="btn-back">
-        На главную
-      </button>
-      <h1>Профиль пользователя</h1>
-    </div>
 
     <div class="profile-content">
       <!-- Обработка ошибок -->
@@ -25,9 +19,14 @@
       <div v-else class="user-info-card">
         <div class="card-header">
           <h2>Личная информация</h2>
-          <button @click="toggleEditMode" class="btn-edit" :disabled="isLoading">
-            {{ isEditing ? 'Сохранить' : 'Редактировать' }}
-          </button>
+          <div class="header-actions">
+            <BaseButton @click="goToDashboard" variant="outline" size="small" class="btn-home" title="На главную">
+              🏠
+            </BaseButton>
+            <BaseButton @click="toggleEditMode" variant="primary" size="small" :disabled="isLoading">
+              {{ isEditing ? 'Сохранить' : 'Редактировать' }}
+            </BaseButton>
+          </div>
         </div>
         <div class="info-grid">
           <div class="info-item">
@@ -89,7 +88,7 @@
           
           <div v-else class="history-items">
             <div 
-              v-for="item in filteredHistory" 
+              v-for="item in paginatedHistory" 
               :key="item.id || item.order_id"
               class="history-item"
               :class="`history-${item.status}`"
@@ -108,25 +107,14 @@
                 <p v-if="item.completed_at"><strong>Завершен:</strong> {{ formatDate(item.completed_at) }}</p>
               </div>
               
-              <div class="history-actions">
-                <button 
-                  v-if="item.status === 'borrow'"
-                  @click="returnPowerbank(item)"
-                  class="btn-action btn-return"
-                  :disabled="isLoading"
-                >
-                  Вернуть
-                </button>
-                <button 
-                  v-if="item.status === 'borrow'"
-                  @click="reportError(item)"
-                  class="btn-action btn-error"
-                  :disabled="isLoading"
-                >
-                  Сообщить об ошибке
-                </button>
-              </div>
             </div>
+          </div>
+          
+          <!-- Кнопка "Показать ещё" -->
+          <div v-if="hasMoreItems" class="load-more-section">
+            <BaseButton @click="loadMoreItems" variant="primary" size="medium" :disabled="isLoading">
+              Показать ещё
+            </BaseButton>
           </div>
         </div>
       </div>
@@ -154,57 +142,26 @@
         </div>
       </div>
 
-      <!-- Быстрые действия -->
-      <div class="quick-actions">
-        <h2>Быстрые действия</h2>
-        <div class="action-buttons">
-          <button @click="goToDashboard" class="btn-action btn-primary">
-            На главную
-          </button>
-          <button @click="goToQRScanner" class="btn-action btn-secondary">
-            Сканировать QR
-          </button>
-          <button @click="logout" class="btn-action btn-logout">
-            Выйти
-          </button>
-        </div>
+      <!-- Кнопка выхода -->
+      <div class="logout-section">
+        <BaseButton @click="logout" variant="danger" size="medium">
+          Выйти
+        </BaseButton>
       </div>
     </div>
 
-    <!-- Модальное окно для сообщения об ошибке -->
-    <ErrorReportModal 
-      :isVisible="showErrorModal"
-      :order="selectedOrder"
-      @close="closeErrorModal"
-      @submit="handleErrorReport"
-    />
 
-    <!-- Таймер возврата -->
-    <div v-if="returnTimer > 0" class="return-timer-overlay">
-      <div class="return-timer">
-        <div class="timer-content">
-          <h3 v-if="returnType === 'normal'">Возврат через {{ returnTimer }}с</h3>
-          <h3 v-else>Возврат с ошибкой через {{ returnTimer }}с</h3>
-          <p v-if="returnType === 'normal'">Подготовьте повербанк к возврату</p>
-          <p v-else>Подготовьте повербанк к возврату с отчетом об ошибке</p>
-          <div class="timer-progress">
-            <div class="timer-bar" :style="{ width: `${(returnTimer / 10) * 100}%` }"></div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useStationsStore } from '../stores/stations'
 import { useAdminStore } from '../stores/admin'
 import { pythonAPI } from '../api/pythonApi'
-import { refreshAllDataAfterReturn } from '../utils/dataSync'
-import ErrorReportModal from '../components/ErrorReportModal.vue'
+import BaseButton from '../components/BaseButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -217,14 +174,7 @@ const statusFilter = ref('borrow')
 const error = ref(null)
 const isEditing = ref(false)
 
-// Модальное окно ошибки
-const showErrorModal = ref(false)
-const selectedOrder = ref(null)
 
-// Таймер возврата
-const returnTimer = ref(0)
-const returnTimerInterval = ref(null)
-const returnType = ref('normal') // 'normal' или 'error'
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
@@ -245,11 +195,24 @@ const user = ref({
 
 // История заказов (повербанков)
 const orderHistory = ref([])
+const itemsPerPage = ref(5)
+const currentPage = ref(1)
 
 // Вычисляемые свойства
 const filteredHistory = computed(() => {
   if (statusFilter.value === 'all') return orderHistory.value
   return orderHistory.value.filter(item => item.status === statusFilter.value)
+})
+
+const paginatedHistory = computed(() => {
+  const filtered = filteredHistory.value
+  const startIndex = 0
+  const endIndex = currentPage.value * itemsPerPage.value
+  return filtered.slice(startIndex, endIndex)
+})
+
+const hasMoreItems = computed(() => {
+  return paginatedHistory.value.length < filteredHistory.value.length
 })
 
 const totalOrders = computed(() => orderHistory.value.length)
@@ -352,8 +315,18 @@ const loadUserOrders = async () => {
 }
 
 const refreshHistory = async () => {
+  currentPage.value = 1
   await loadUserOrders()
 }
+
+const loadMoreItems = () => {
+  currentPage.value += 1
+}
+
+// Сброс пагинации при изменении фильтра
+watch(statusFilter, () => {
+  currentPage.value = 1
+})
 
 // Функции автоматического обновления данных
 const startAutoRefresh = () => {
@@ -395,128 +368,6 @@ const refreshAfterAction = async () => {
   }
 }
 
-const returnPowerbank = async (order) => {
-  if (confirm(`Вернуть повербанк из заказа #${order.order_id}?`)) {
-    startReturnTimer(order)
-  }
-}
-
-const reportError = (order) => {
-  selectedOrder.value = order
-  showErrorModal.value = true
-}
-
-const closeErrorModal = () => {
-  showErrorModal.value = false
-  selectedOrder.value = null
-}
-
-const handleErrorReport = async (errorReport) => {
-  try {
-    // Закрываем модальное окно
-    closeErrorModal()
-    
-    // Запускаем таймер для возврата с ошибкой
-    startReturnTimerWithError(errorReport)
-    
-  } catch (err) {
-    alert('❌ Ошибка при обработке отчета об ошибке')
-  }
-}
-
-// Таймер возврата
-const startReturnTimer = (order) => {
-  returnTimer.value = 0
-  returnType.value = 'normal'
-  
-  // Сразу выполняем возврат без задержки
-  executeReturn(order)
-}
-
-// Таймер возврата с ошибкой
-const startReturnTimerWithError = (errorReport) => {
-  returnTimer.value = 0
-  returnType.value = 'error'
-  
-  // Сразу выполняем возврат с ошибкой без задержки
-  executeReturnWithError(errorReport)
-}
-
-const executeReturn = async (order) => {
-  try {
-    isLoading.value = true
-    
-    // Логируем данные для отладки
-    console.log('🔄 Данные заказа для возврата:', order)
-    console.log('👤 Данные пользователя:', user.value)
-    
-    const returnData = {
-      station_id: order.station_id,
-      user_id: user.value.user_id,
-      powerbank_id: order.powerbank_id
-    }
-    
-    console.log('📤 Отправляемые данные:', returnData)
-    
-    // Проверяем наличие всех обязательных полей
-    if (!returnData.station_id) {
-      throw new Error('Отсутствует station_id')
-    }
-    if (!returnData.user_id) {
-      throw new Error('Отсутствует user_id')
-    }
-    if (!returnData.powerbank_id) {
-      throw new Error('Отсутствует powerbank_id')
-    }
-    
-    // Возвращаем павербанк через API
-    await pythonAPI.returnPowerbank(returnData)
-    
-    // Централизованное обновление всех данных после возврата
-    await refreshAllDataAfterReturnLocal(order)
-    
-    alert('✅ Повербанк возвращен!')
-    
-  } catch (err) {
-    console.error('❌ Ошибка при возврате повербанка:', err)
-    alert('❌ Ошибка при возврате повербанка: ' + (err.message || 'Неизвестная ошибка'))
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const executeReturnWithError = async (errorReport) => {
-  try {
-    isLoading.value = true
-    
-    // Используем правильный API для возврата с ошибкой (Long Polling)
-    const response = await pythonAPI.returnError({
-      station_id: errorReport.station_id,
-      user_id: errorReport.user_id,
-      error_type_id: errorReport.error_type,
-      timeout_seconds: 30
-    })
-    
-    if (response.success) {
-      // Централизованное обновление всех данных после возврата с ошибкой
-      await refreshAllDataAfterReturnLocal({
-        station_id: errorReport.station_id,
-        user_id: errorReport.user_id,
-        powerbank_id: response.powerbank_id
-      })
-      
-      alert('✅ Повербанк возвращен с отчетом об ошибке!')
-    } else {
-      alert('❌ Ошибка: ' + (response.error || 'Неизвестная ошибка'))
-    }
-    
-  } catch (err) {
-    console.error('❌ Ошибка при возврате повербанка с отчетом об ошибке:', err)
-    alert('❌ Ошибка при возврате повербанка с отчетом об ошибке: ' + (err.message || 'Неизвестная ошибка'))
-  } finally {
-    isLoading.value = false
-  }
-}
 
 const getRoleText = (role) => {
   const roleMap = {
@@ -561,12 +412,6 @@ onMounted(async () => {
 onUnmounted(() => {
   // Останавливаем автоматическое обновление
   stopAutoRefresh()
-  
-  // Очищаем таймер возврата
-  if (returnTimerInterval.value) {
-    clearInterval(returnTimerInterval.value)
-    returnTimerInterval.value = null
-  }
 })
 </script>
 
@@ -577,64 +422,6 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 30px;
-  padding: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
-  color: white;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.profile-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%);
-  pointer-events: none;
-}
-
-.btn-back {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-  z-index: 1;
-}
-
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.profile-header h1 {
-  flex: 1;
-  margin: 0;
-  font-size: 2.5rem;
-  color: white;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
-}
 
 .profile-content {
   display: flex;
@@ -657,35 +444,29 @@ onUnmounted(() => {
   margin-bottom: 25px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-home {
+  min-width: 44px !important;
+  width: 44px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+}
+
 .card-header h2 {
   color: #333;
   margin: 0;
   font-size: 1.8rem;
 }
 
-.btn-edit {
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 12px 24px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.btn-edit:hover:not(:disabled) {
-  background: #5a6fd8;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.btn-edit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
 
 .info-grid {
   display: grid;
@@ -929,54 +710,6 @@ onUnmounted(() => {
   gap: 10px;
 }
 
-.btn-action {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.btn-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-return {
-  background: #17a2b8;
-  color: white;
-}
-
-.btn-return:hover:not(:disabled) {
-  background: #138496;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.btn-faulty {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-faulty:hover:not(:disabled) {
-  background: #c82333;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.btn-error {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-error:hover:not(:disabled) {
-  background: #c82333;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
 
 /* Статистика */
 .stats-card {
@@ -1019,69 +752,20 @@ onUnmounted(() => {
   font-size: 0.9rem;
 }
 
-/* Быстрые действия */
-.quick-actions {
+/* Секция выхода */
+.logout-section {
   background: white;
   padding: 30px;
   border-radius: 15px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-}
-
-.quick-actions h2 {
-  color: #333;
-  margin-bottom: 25px;
   text-align: center;
-  font-size: 1.8rem;
 }
 
-.action-buttons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 15px;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #5a6fd8;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.btn-info {
-  background: #17a2b8;
-  color: white;
-}
-
-.btn-info:hover {
-  background: #138496;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.btn-logout {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-logout:hover {
-  background: #c82333;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+/* Кнопка "Показать ещё" */
+.load-more-section {
+  text-align: center;
+  margin-top: 30px;
+  padding: 20px;
 }
 
 /* Индикатор загрузки */
@@ -1159,15 +843,6 @@ onUnmounted(() => {
     padding: 15px;
   }
   
-  .profile-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 15px;
-  }
-  
-  .profile-header h1 {
-    font-size: 2rem;
-  }
   
   .info-grid {
     grid-template-columns: 1fr;
@@ -1192,89 +867,16 @@ onUnmounted(() => {
     flex-direction: column;
   }
   
+  .header-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
   .stats-grid {
     grid-template-columns: 1fr;
   }
   
-  .action-buttons {
-    grid-template-columns: 1fr;
-  }
 }
 
-/* Таймер возврата */
-.return-timer-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.return-timer {
-  background: white;
-  border-radius: 20px;
-  padding: 40px;
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease-out;
-  max-width: 400px;
-  width: 90%;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.timer-content h3 {
-  color: #333;
-  margin: 0 0 15px 0;
-  font-size: 2rem;
-  font-weight: 600;
-}
-
-.timer-content p {
-  color: #666;
-  margin: 0 0 25px 0;
-  font-size: 1.1rem;
-}
-
-.timer-progress {
-  width: 100%;
-  height: 8px;
-  background: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.timer-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
-  border-radius: 4px;
-  transition: width 1s linear;
-  animation: pulse 1s infinite alternate;
-}
-
-@keyframes pulse {
-  from { opacity: 0.8; }
-  to { opacity: 1; }
-}
 </style>
 
