@@ -1,6 +1,13 @@
 <template>
   <div class="register-container">
     <h2>Регистрация</h2>
+    <div v-if="invitationInfo" class="invitation-info">
+      <div class="invitation-badge">
+        <span class="invitation-icon">🎫</span>
+        <span>Приглашение от: {{ invitationInfo.org_unit_name }}</span>
+      </div>
+      <p class="invitation-description">Вы регистрируетесь в организации "{{ invitationInfo.org_unit_name }}" с ролью "{{ invitationInfo.role }}"</p>
+    </div>
     <div v-if="route.query.station || route.query.stationName" class="station-info">
       <div class="station-badge">
         <span class="station-icon">📍</span>
@@ -68,6 +75,7 @@ import { useAuthStore } from '../stores/auth';
 import { useRouter, useRoute } from 'vue-router';
 import BaseInput from '../components/BaseInput.vue';
 import BaseButton from '../components/BaseButton.vue';
+import { pythonAPI } from '../api/pythonApi';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -84,6 +92,8 @@ const fioError = ref('');
 const formattedPhone = ref('');
 const successMessage = ref('');
 const serverErrorMessage = ref('');
+const invitationInfo = ref(null);
+const invitationToken = ref(null);
 
 // Функция форматирования телефона в маску +7 (999) 999-99-99
 function formatPhone(value) {
@@ -305,6 +315,11 @@ async function handleSubmit() {
       fio: form.value.fio?.trim() || null
     };
     
+    // Если есть токен приглашения, добавляем его к данным регистрации
+    if (invitationToken.value) {
+      registrationData.invitation_token = invitationToken.value;
+    }
+    
     // Логируем данные перед отправкой
     console.log('📝 Registration data:', registrationData);
     console.log('📝 Formatted phone:', formattedPhone.value);
@@ -371,6 +386,24 @@ async function handleSubmit() {
     isLoading.value = false;
   }
 }
+
+// Загрузка информации о приглашении при монтировании компонента
+onMounted(async () => {
+  const invitationTokenParam = route.query.invitation;
+  if (invitationTokenParam) {
+    invitationToken.value = invitationTokenParam;
+    try {
+      // Пытаемся получить из нового хранилища
+      const response = await pythonAPI.getInvitationFromStorage(invitationTokenParam);
+      if (response.success && response.invitation) {
+        invitationInfo.value = response.invitation;
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки информации о приглашении:', error);
+      serverErrorMessage.value = 'Ошибка загрузки приглашения. Попробуйте использовать другую ссылку.';
+    }
+  }
+});
 </script>
 
 <style scoped>
@@ -464,6 +497,33 @@ form {
 .error-text {
   font-weight: 500;
   line-height: 1.4;
+}
+
+.invitation-info {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 4px solid #10b981;
+}
+
+.invitation-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.invitation-icon {
+  font-size: 1.2rem;
+}
+
+.invitation-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 @keyframes slideIn {

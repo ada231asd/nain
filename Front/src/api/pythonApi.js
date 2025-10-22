@@ -629,6 +629,40 @@ export const pythonAPI = {
     )
   },
 
+  // ПРИГЛАШЕНИЯ (старое API через БД)
+  generateInvitation: (data) => {
+    validateData(data, 'invitation data')
+    return handleResponse(apiClient.post('/invitations/generate', data), 'generate invitation')
+  },
+  getInvitationInfo: (token) => {
+    if (!token) {
+      throw new Error('Invitation token is required')
+    }
+    return handleResponse(apiClient.get(`/invitations/${token}`), 'get invitation info')
+  },
+  registerWithInvitation: (data) => {
+    validateData(data, 'invitation registration data')
+    return handleResponse(apiClient.post('/invitations/register', data), 'register with invitation')
+  },
+  listInvitations: () => {
+    return handleResponse(apiClient.get('/invitations'), 'list invitations')
+  },
+
+  // ПРИГЛАШЕНИЯ (новое API через хранилище)
+  storeInvitation: (data) => {
+    validateData(data, 'invitation storage data')
+    return handleResponse(apiClient.post('/invitations/storage/store', data), 'store invitation')
+  },
+  getInvitationFromStorage: (token) => {
+    if (!token) {
+      throw new Error('Invitation token is required')
+    }
+    return handleResponse(apiClient.get(`/invitations/storage/${token}`), 'get invitation from storage')
+  },
+  getInvitationStatistics: () => {
+    return handleResponse(apiClient.get('/invitations/storage/statistics'), 'get invitation statistics')
+  },
+
   // ДРУГОЕ
   getConnections: () => handleResponse(apiClient.get('/connections'), 'get connections')
 }

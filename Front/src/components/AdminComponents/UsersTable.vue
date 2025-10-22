@@ -21,6 +21,9 @@
         <button @click="$emit('bulk-import')" class="btn-bulk-import">
           Импорт из Excel
         </button>
+        <button @click="showInvitationModal = true" class="btn-invitation">
+          🎫 Создать приглашение
+        </button>
         <FilterButton 
           filter-type="users"
           :org-units="orgUnits"
@@ -344,12 +347,54 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно создания приглашения -->
+    <div v-if="showInvitationModal" class="modal-overlay" @click.self="closeInvitationModal">
+      <div class="modal-content-invitation">
+        <h3>Приглашение для регистрации</h3>
+        
+        <div v-if="isGenerating" class="generating-state">
+          <div class="loading-spinner"></div>
+          <p>Генерация приглашения...</p>
+        </div>
+
+        <!-- Результат генерации -->
+        <div v-else-if="invitationResult" class="invitation-result-content">
+          <div class="invitation-info">
+            <p><strong>Организация:</strong> {{ getCurrentOrgUnitName() }}</p>
+            <p><strong>Роль:</strong> {{ getRoleText(invitationResult.role) }}</p>
+          </div>
+          
+          <div class="invitation-link-section">
+            <label>Ссылка для регистрации:</label>
+            <div class="link-container">
+              <input type="text" :value="invitationResult.invitation_link" readonly class="link-input" />
+              <button @click="copyInvitationLink" class="btn-copy">📋 Копировать</button>
+            </div>
+          </div>
+          
+          <div class="qr-code-section">
+            <label>QR-код:</label>
+            <div ref="qrCodeRef" class="qr-code-display"></div>
+          </div>
+          
+          <div class="modal-actions">
+            <button @click="resetInvitationAndGenerate" class="btn-secondary">Создать новое</button>
+            <button @click="closeInvitationModal" class="btn-primary">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import FilterButton from './FilterButton.vue'
+import { pythonAPI } from '../../api/pythonApi'
+import { useAuthStore } from '../../stores/auth'
+import { useAdminStore } from '../../stores/admin'
+import QRCode from 'qrcode'
 
 const props = defineProps({
   users: {
@@ -365,6 +410,9 @@ const props = defineProps({
     default: 10
   }
 })
+
+const authStore = useAuthStore()
+const adminStore = useAdminStore()
 
 const emit = defineEmits([
   'add-user',
@@ -402,6 +450,59 @@ const editForm = ref({
   parent_org_unit_id: '',
   status: 'pending',
   powerbank_limit: null
+})
+
+// Состояние приглашений
+const showInvitationModal = ref(false)
+const isGenerating = ref(false)
+const invitationResult = ref(null)
+const qrCodeRef = ref(null)
+
+// Получаем организационную единицу текущего пользователя
+const getCurrentOrgUnitId = computed(() => {
+  const user = authStore.user
+  if (!user) return null
+  
+  // Прямые поля из пользователя
+  const directId = user.org_unit_id || user.parent_org_unit_id || user.group_id || user.organization_id
+  if (directId) return directId
+  
+  // Поиск в списке организационных единиц
+  let group = null
+  
+  // Используем orgUnits из adminStore, если доступны
+  const orgUnitsToSearch = adminStore.orgUnits && adminStore.orgUnits.length > 0 ? adminStore.orgUnits : props.orgUnits
+  
+  // Ищем группу, где user_id совпадает с текущим пользователем
+  group = orgUnitsToSearch.find(ou => ou.user_id === user.user_id)
+  
+  // Если не нашли, ищем в списке пользователей
+  if (!group) {
+    const userInList = props.users.find(u => u.user_id === user.user_id)
+    if (userInList) {
+      const userOrgUnitId = userInList.parent_org_unit_id || userInList.org_unit_id
+      if (userOrgUnitId) {
+        group = orgUnitsToSearch.find(ou => ou.org_unit_id === userOrgUnitId)
+      }
+    }
+  }
+  
+  // Поиск по роли (для администраторов)
+  if (!group) {
+    if (user.role === 'subgroup_admin') {
+      group = orgUnitsToSearch.find(ou => 
+        ou.unit_type === 'subgroup' && 
+        (ou.admin_user_id === user.user_id || ou.user_id === user.user_id)
+      )
+    } else if (user.role === 'group_admin') {
+      group = orgUnitsToSearch.find(ou => 
+        ou.unit_type === 'group' && 
+        (ou.admin_user_id === user.user_id || ou.user_id === user.user_id)
+      )
+    }
+  }
+  
+  return group ? group.org_unit_id : null
 })
 
 // Вычисляемые свойства
@@ -615,6 +716,160 @@ const handleModalAction = (action) => {
   }
   
   closeUserModal()
+}
+
+// Генерация случайного токена на клиенте
+const generateRandomToken = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+  let token = ''
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return token
+}
+
+// Методы для работы с приглашениями
+const generateInvitation = async () => {
+  isGenerating.value = true
+  
+  try {
+    // Сначала получаем обновленный профиль пользователя
+    await authStore.fetchProfile()
+    
+    const orgUnitId = getCurrentOrgUnitId.value
+    
+    if (!orgUnitId) {
+      alert('Не удалось определить организационную единицу. Убедитесь, что вы привязаны к организации.')
+      closeInvitationModal()
+      return
+    }
+    
+    // Генерируем токен на клиенте
+    const token = generateRandomToken()
+    
+    // Формируем ссылку с параметрами
+    const baseUrl = window.location.origin
+    const invitationLink = `${baseUrl}/register?invitation=${token}&org_unit_id=${orgUnitId}&role=user`
+    
+    console.log('Сгенерированная ссылка:', invitationLink)
+    console.log('Org Unit ID:', orgUnitId)
+    
+    // Сохраняем приглашение на сервере
+    await pythonAPI.storeInvitation({
+      token: token,
+      org_unit_id: orgUnitId,
+      role: 'user'
+    })
+    
+    invitationResult.value = {
+      invitation_token: token,
+      invitation_link: invitationLink,
+      org_unit_id: orgUnitId,
+      role: 'user'
+    }
+    
+    // QR код будет сгенерирован автоматически через watcher на invitationResult
+  } catch (error) {
+    console.error('Ошибка создания приглашения:', error)
+    alert('Не удалось создать приглашение: ' + (error.message || 'Неизвестная ошибка'))
+    closeInvitationModal()
+  } finally {
+    isGenerating.value = false
+  }
+}
+
+const copyInvitationLink = () => {
+  if (invitationResult.value) {
+    navigator.clipboard.writeText(invitationResult.value.invitation_link)
+    alert('Ссылка скопирована в буфер обмена')
+  }
+}
+
+const resetInvitationAndGenerate = async () => {
+  invitationResult.value = null
+  // Очищаем QR-код
+  if (qrCodeRef.value) {
+    qrCodeRef.value.innerHTML = ''
+  }
+  await generateInvitation()
+}
+
+const closeInvitationModal = () => {
+  showInvitationModal.value = false
+  invitationResult.value = null
+  // Очищаем QR-код
+  if (qrCodeRef.value) {
+    qrCodeRef.value.innerHTML = ''
+  }
+}
+
+// При открытии модального окна сразу генерируем приглашение
+watch(showInvitationModal, async (newVal) => {
+  if (newVal && !invitationResult.value) {
+    await generateInvitation()
+  }
+})
+
+// Генерируем QR код после того, как invitationResult установлен и элемент отрендерен
+watch(invitationResult, async (newVal) => {
+  if (newVal && newVal.invitation_link) {
+    await nextTick()
+    // Ожидаем появления элемента в DOM
+    let attempts = 0
+    while (!qrCodeRef.value && attempts < 20) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      attempts++
+    }
+    
+    if (qrCodeRef.value) {
+      try {
+        // Очищаем предыдущий QR-код
+        qrCodeRef.value.innerHTML = ''
+        
+        // Генерируем QR-код как Data URL
+        const qrDataURL = await QRCode.toDataURL(newVal.invitation_link, {
+          width: 200,
+          margin: 2
+        })
+        
+        // Создаем img элемент и добавляем в контейнер
+        const img = document.createElement('img')
+        img.src = qrDataURL
+        img.alt = 'QR код приглашения'
+        img.style.display = 'block'
+        img.style.margin = '0 auto'
+        
+        qrCodeRef.value.appendChild(img)
+        
+        console.log('QR код успешно отображен через watcher')
+      } catch (qrError) {
+        console.error('Ошибка генерации QR кода:', qrError)
+        if (qrCodeRef.value) {
+          qrCodeRef.value.innerHTML = `<p style="color: red;">Ошибка генерации QR кода: ${qrError.message}</p>`
+        }
+      }
+    }
+  }
+})
+
+// Получаем название организационной единицы
+const getCurrentOrgUnitName = () => {
+  const orgUnitId = getCurrentOrgUnitId.value
+  if (!orgUnitId) return 'Неизвестная организация'
+  
+  const orgUnit = props.orgUnits.find(ou => ou.org_unit_id === orgUnitId)
+  return orgUnit ? orgUnit.name : 'Неизвестная организация'
+}
+
+// Получаем текст роли
+const getRoleText = (role) => {
+  const roleMap = {
+    'user': 'Пользователь',
+    'subgroup_admin': 'Администратор подгруппы',
+    'group_admin': 'Администратор группы',
+    'service_admin': 'Сервис-администратор'
+  }
+  return roleMap[role] || role
 }
 
 // Методы для редактирования
@@ -1876,6 +2131,214 @@ watch(currentPage, () => {
   .btn-bulk-action {
     width: 100%;
   }
+}
+
+/* Стили для модального окна приглашений */
+.modal-content-invitation {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.modal-content-invitation h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.invitation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #333;
+}
+
+.invitation-info {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.invitation-info p {
+  margin: 8px 0;
+  color: #333;
+}
+
+.generating-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.generating-state p {
+  color: #666;
+  font-size: 14px;
+}
+
+.form-control {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.btn-secondary:hover {
+  background: #e9ecef;
+}
+
+.invitation-result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.invitation-result-content h4 {
+  margin: 0;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.invitation-link-section,
+.qr-code-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.invitation-link-section label,
+.qr-code-section label {
+  font-weight: 500;
+  color: #333;
+}
+
+.link-container {
+  display: flex;
+  gap: 8px;
+}
+
+.link-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #f8f9fa;
+}
+
+.btn-copy {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  background: #667eea;
+  color: white;
+}
+
+.btn-copy:hover {
+  background: #5568d3;
+}
+
+.qr-code-display {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  min-height: 250px;
+}
+
+.qr-code-display canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.btn-invitation {
+  padding: 10px 20px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-invitation:hover {
+  background: #059669;
 }
 </style>
 

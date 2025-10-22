@@ -31,6 +31,7 @@ from api.bulk_user_import_api import BulkUserImportAPI
 from api.logo_upload_api import LogoUploadAPI
 from api.return_endpoints import ReturnEndpoints
 from api.invitation_api import InvitationAPI
+from api.invitation_storage_api import InvitationStorageAPI
 from middleware.auth_middleware import AuthMiddleware
 
 
@@ -61,6 +62,7 @@ class HTTPServer:
         self.bulk_user_import_api: BulkUserImportAPI = None
         self.return_endpoints: ReturnEndpoints = None
         self.invitation_api: InvitationAPI = None
+        self.invitation_storage_api: InvitationStorageAPI = None
         self.auth_middleware: AuthMiddleware = None
         
     
@@ -186,6 +188,7 @@ class HTTPServer:
         self.logo_upload_api = LogoUploadAPI(self.db_pool)
         self.return_endpoints = ReturnEndpoints(self.db_pool, connection_manager)
         self.invitation_api = InvitationAPI(self.db_pool)
+        self.invitation_storage_api = InvitationStorageAPI(self.db_pool)
         self.auth_middleware = AuthMiddleware(self.db_pool)
         
         # Регистрируем маршруты
@@ -208,11 +211,16 @@ class HTTPServer:
         app.router.add_post('/api/admin/reject-user', self.auth_handler.reject_user)
         app.router.add_post('/api/admin/reset-email', self.auth_handler.reset_email_service)
         
-        # API для приглашений
+        # API для приглашений (старое, через БД)
         app.router.add_post('/api/invitations/generate', self.invitation_api.generate_invitation_link)
         app.router.add_get('/api/invitations/{token}', self.invitation_api.get_invitation_info)
         app.router.add_post('/api/invitations/register', self.invitation_api.register_with_invitation)
         app.router.add_get('/api/invitations', self.invitation_api.list_invitations)
+        
+        # API для хранилища приглашений (новое, без БД)
+        app.router.add_post('/api/invitations/storage/store', self.invitation_storage_api.store_invitation)
+        app.router.add_get('/api/invitations/storage/{token}', self.invitation_storage_api.get_invitation)
+        app.router.add_get('/api/invitations/storage/statistics', self.invitation_storage_api.get_statistics)
         
         # Административные функции для повербанков
         self.admin_endpoints.setup_routes(app)

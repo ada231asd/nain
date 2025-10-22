@@ -24,3 +24,5 @@ optimized_server2/config/settings.py/
 /parsed_packets.json
 /121
 /zaryd2.sql
+/invitations_storage.json
+/optimized_server2/invitations_storage.json

@@ -21,7 +21,7 @@ class User:
                  status: str = 'active', role: str = 'user', 
                  created_at: Optional[datetime] = None,
                  last_login_at: Optional[datetime] = None,
-                 powerbank_limit: int = 1):
+                 powerbank_limit: Optional[int] = None):
         self.user_id = user_id
         self.phone_e164 = phone_e164
         self.email = email
@@ -121,7 +121,7 @@ class User:
                 await cur.execute("""
                     INSERT INTO app_user (phone_e164, email, password_hash, fio, status, powerbank_limit)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (phone_e164, email, password_hash, fio, 'pending', 1))
+                """, (phone_e164, email, password_hash, fio, 'pending', None))
                 
                 user_id = cur.lastrowid
                 
@@ -169,7 +169,7 @@ class User:
                     role=role,
                     created_at=user_data['created_at'],
                     last_login_at=user_data['last_login_at'],
-                    powerbank_limit=user_data.get('powerbank_limit', 1)
+                    powerbank_limit=user_data.get('powerbank_limit')
                 )
     
     @classmethod
@@ -204,7 +204,7 @@ class User:
                     role=role,
                     created_at=user_data['created_at'],
                     last_login_at=user_data['last_login_at'],
-                    powerbank_limit=user_data.get('powerbank_limit', 1)
+                    powerbank_limit=user_data.get('powerbank_limit')
                 )
     
     @classmethod

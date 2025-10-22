@@ -58,7 +58,6 @@ class AuthMiddleware:
             public_paths = [
                 '/api/auth/register',
                 '/api/auth/login',
-                '/api/invitations/',
                 '/api/invitations/register',
                 '/api/logos/'  # Логотипы должны быть доступны без авторизации
             ]
@@ -66,10 +65,15 @@ class AuthMiddleware:
             # Проверяем, является ли путь публичным
             is_public = any(request.path.startswith(path) for path in public_paths)
             
-            # Для публичных путей, которые требуют токен приглашения, проверяем его
-            if request.path.startswith('/api/invitations/') and not request.path.endswith('/register'):
+            # Специальная обработка для GET запросов к invitations (только для просмотра приглашений)
+            if request.path.startswith('/api/invitations/') and request.method == 'GET':
                 # Для получения информации о приглашении токен не нужен
-                if request.path.startswith('/api/invitations/') and request.method == 'GET':
+                if request.path.startswith('/api/invitations/storage/') and not request.path.endswith('/statistics'):
+                    return await handler(request)
+                # Для получения списка приглашений (старое API через БД) требуется авторизация
+                if request.path == '/api/invitations':
+                    pass  # Будет проверена авторизация ниже
+                else:
                     return await handler(request)
             
             # Для остальных endpoints проверяем авторизацию
