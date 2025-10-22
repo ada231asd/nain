@@ -80,6 +80,10 @@ export const pythonAPI = {
     validateData(data, 'powerbank data')
     return handleResponse(apiClient.put(`/powerbanks/${id}`, data), 'update powerbank')
   },
+  resetPowerbankError: (id) => {
+    validateId(id, 'powerbank ID')
+    return handleResponse(apiClient.post(`/powerbanks/${id}/reset-error`), 'reset powerbank error')
+  },
   deletePowerbank: (id) => {
     validateId(id, 'powerbank ID')
     return handleResponse(apiClient.delete(`/powerbanks/${id}`), 'delete powerbank')

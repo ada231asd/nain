@@ -404,6 +404,60 @@ class PowerbankCRUD:
                 "error": str(e)
             }, status=500)
     
+    async def reset_powerbank_error(self, request: Request) -> Response:
+        """POST /api/powerbanks/{powerbank_id}/reset-error - Сбросить ошибку повербанка"""
+        try:
+            powerbank_id = int(request.match_info['powerbank_id'])
+            
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем существование powerbank
+                    await cur.execute("SELECT id, serial_number, status, power_er FROM powerbank WHERE id = %s", (powerbank_id,))
+                    powerbank = await cur.fetchone()
+                    if not powerbank:
+                        return web.json_response({
+                            "success": False,
+                            "error": "Аккумулятор не найден"
+                        }, status=404)
+                    
+                    # Сбрасываем ошибку и меняем статус на active
+                    await cur.execute("""
+                        UPDATE powerbank 
+                        SET power_er = NULL, status = 'active'
+                        WHERE id = %s
+                    """, (powerbank_id,))
+                    
+                    # Логируем сброс ошибки
+                    from utils.centralized_logger import get_logger
+                    logger = get_logger('powerbank_crud')
+                    logger.info(f"Ошибка аккумулятора {powerbank['serial_number']} (ID: {powerbank_id}) сброшена, статус изменен на 'active'")
+                    
+                    return web.json_response({
+                        "success": True,
+                        "message": "Ошибка повербанка успешно сброшена",
+                        "powerbank_id": powerbank_id,
+                        "serial_number": powerbank['serial_number']
+                    })
+                    
+        except ValueError:
+            return web.json_response({
+                "success": False,
+                "error": "Неверный ID аккумулятора"
+            }, status=400)
+        except Exception as e:
+            # Логируем детали ошибки
+            try:
+                from utils.centralized_logger import get_logger
+                logger = get_logger('powerbank_crud')
+                logger.error(f"Ошибка сброса ошибки powerbank {powerbank_id}: {str(e)}", exc_info=True)
+            except:
+                pass
+            
+            return web.json_response({
+                "success": False,
+                "error": f"Ошибка сброса ошибки powerbank: {str(e)}"
+            }, status=500)
+    
     def setup_routes(self, app):
         """Настраивает маршруты для powerbank CRUD"""
         app.router.add_post('/api/powerbanks', self.create_powerbank)
@@ -411,4 +465,5 @@ class PowerbankCRUD:
         app.router.add_get('/api/powerbanks/{powerbank_id}', self.get_powerbank)
         app.router.add_put('/api/powerbanks/{powerbank_id}', self.update_powerbank)
         app.router.add_put('/api/powerbanks/{powerbank_id}/approve', self.approve_powerbank)
+        app.router.add_post('/api/powerbanks/{powerbank_id}/reset-error', self.reset_powerbank_error)
         app.router.add_delete('/api/powerbanks/{powerbank_id}', self.delete_powerbank)

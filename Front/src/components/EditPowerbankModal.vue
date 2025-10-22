@@ -90,6 +90,14 @@
             <label>Ошибка системы:</label>
             <div class="error-display">
               <span class="error-text">{{ powerbank.error_type }}</span>
+              <button 
+                type="button" 
+                @click="resetError" 
+                class="btn btn-reset-error"
+                :disabled="isResettingError"
+              >
+                {{ isResettingError ? 'Сброс...' : 'Сбросить ошибку' }}
+              </button>
             </div>
           </div>
           
@@ -127,6 +135,7 @@ const emit = defineEmits(['close', 'saved'])
 const adminStore = useAdminStore()
 
 const isLoading = ref(false)
+const isResettingError = ref(false)
 
 const formData = ref({
   serial_number: '',
@@ -200,6 +209,21 @@ const savePowerbank = async () => {
     // Ошибка обновления павербанка
   } finally {
     isLoading.value = false
+  }
+}
+
+const resetError = async () => {
+  if (!props.powerbank?.id) return
+  
+  isResettingError.value = true
+  try {
+    await adminStore.resetPowerbankError(props.powerbank.id)
+    emit('saved')
+    closeModal()
+  } catch (error) {
+    alert('Ошибка при сбросе ошибки повербанка: ' + (error.message || 'Неизвестная ошибка'))
+  } finally {
+    isResettingError.value = false
   }
 }
 </script>
@@ -346,11 +370,33 @@ const savePowerbank = async () => {
   border: 1px solid #f5c6cb;
   border-radius: 4px;
   margin-top: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
 
 .error-text {
   color: #721c24;
   font-weight: 500;
+  flex: 1;
+}
+
+.btn-reset-error {
+  background-color: #28a745;
+  color: white;
+  padding: 6px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.btn-reset-error:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.btn-reset-error:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
 }
 
 </style>

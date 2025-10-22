@@ -526,6 +526,14 @@ export const useAdminStore = defineStore('admin', {
         throw err;
       }
     },
+    async resetPowerbankError(id) {
+      try {
+        await pythonAPI.resetPowerbankError(id);
+        await this.fetchPowerbanks();
+      } catch (err) {
+        throw err;
+      }
+    },
     async deletePowerbank(id) {
       try {
         await pythonAPI.deletePowerbank(id);

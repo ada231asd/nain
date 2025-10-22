@@ -22,27 +22,18 @@ class InvitationAPI:
     async def generate_invitation_link(self, request: Request) -> Response:
         """POST /api/invitations/generate - Генерация ссылки-приглашения"""
         try:
-            from utils.centralized_logger import get_logger
-            logger = get_logger('invitation_api')
-            
-            logger.info("🎫 Generating invitation link...")
-            
             data = await request.json()
-            logger.info(f"📝 Received data: {data}")
             
             # Проверяем авторизацию администратора
             user = request.get('user')
-            logger.info(f"👤 User from request: {user}")
             
             if not user:
-                logger.warning("❌ No user in request")
                 return web.json_response({
                     'error': 'Требуется авторизация'
                 }, status=401)
             
             # Проверяем права администратора
             if not await self._check_admin_permissions(user['user_id']):
-                logger.warning(f"❌ User {user['user_id']} doesn't have admin permissions")
                 return web.json_response({
                     'error': 'Недостаточно прав для создания приглашений'
                 }, status=403)
@@ -51,46 +42,38 @@ class InvitationAPI:
             required_fields = ['org_unit_id', 'role']
             for field in required_fields:
                 if field not in data:
-                    logger.warning(f"❌ Missing field: {field}")
                     return web.json_response({
                         'error': f'Поле {field} обязательно'
                     }, status=400)
             
             org_unit_id = data['org_unit_id']
             role = data['role']
-            logger.info(f"✅ Org unit ID: {org_unit_id}, Role: {role}")
             
             # Проверяем существование организационной единицы
             if not await self._check_org_unit_exists(org_unit_id):
-                logger.warning(f"❌ Org unit {org_unit_id} not found")
                 return web.json_response({
                     'error': 'Организационная единица не найдена'
                 }, status=404)
             
             # Генерируем уникальный токен приглашения
             invitation_token = self._generate_invitation_token()
-            logger.info(f"🔑 Generated token: {invitation_token}")
             
             # Сохраняем приглашение в хранилище (в памяти)
             success = invitation_storage.save_invitation(invitation_token, org_unit_id, role, user['user_id'])
             if not success:
-                logger.error("❌ Failed to save invitation to storage")
                 return web.json_response({
                     'error': 'Ошибка сохранения приглашения'
                 }, status=500)
-            logger.info("💾 Invitation saved to storage")
             
             # Формируем ссылку-приглашение
             # Используем настроенный URL фронтенда
             from config.settings import FRONTEND_URL
             base_url = FRONTEND_URL
-            logger.info(f"🌐 Base URL: {base_url}")
             
             # URL-кодируем токен для безопасной передачи в URL
             from urllib.parse import quote
             encoded_token = quote(invitation_token, safe='')
             invitation_link = f"{base_url}/register?invitation={encoded_token}"
-            logger.info(f"🔗 Generated link: {invitation_link}")
             
             return web.json_response({
                 'success': True,
@@ -101,9 +84,6 @@ class InvitationAPI:
             })
             
         except Exception as e:
-            from utils.centralized_logger import get_logger
-            logger = get_logger('invitation_api')
-            logger.error(f"❌ Error generating invitation: {str(e)}", exc_info=True)
             return web.json_response({
                 'error': f'Ошибка создания приглашения: {str(e)}'
             }, status=500)
@@ -260,20 +240,12 @@ class InvitationAPI:
     
     async def _get_invitation_info(self, token: str) -> Optional[Dict[str, Any]]:
         """Получает информацию о приглашении"""
-        # Импортируем логгер
-        from utils.centralized_logger import get_logger
-        logger = get_logger('invitation_api')
-        
-        logger.info(f"🔍 Searching for invitation with token: {token}")
-        
         # Получаем приглашение из хранилища
         invitation = invitation_storage.get_invitation(token)
         
         if not invitation:
-            logger.warning(f"❌ No invitation found in storage for token: {token}")
             return None
         
-        logger.info(f"✅ Found invitation in storage for token: {token}")
         return invitation
     
     async def _get_org_unit_info(self, org_unit_id: int) -> Dict[str, Any]:

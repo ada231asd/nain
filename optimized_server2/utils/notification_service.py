@@ -398,6 +398,68 @@ class NotificationService:
 </html>"""
         
         return await self.send_email(user_email, subject, body, html_body, max_retries)
+    
+    async def send_powerbank_reminder_email(self, user_email: str, full_name: Optional[str] = None,
+                                           powerbank_serial: Optional[str] = None,
+                                           hours_overdue: int = 0,
+                                           org_unit_name: Optional[str] = None) -> bool:
+        """Отправляет напоминание о необходимости вернуть аккумулятор"""
+        subject = f"Напоминание о возврате аккумулятора - {self.smtp_config.get('app_name', 'ЗАРЯД')}"
+        max_retries = self.smtp_config.get('max_retries', 2)
+        
+        greeting = f"Здравствуйте, {full_name}!" if full_name else "Здравствуйте!"
+        
+        body = f"""{greeting}
+
+Вы взяли аккумулятор более {hours_overdue} часов назад.
+
+Не забудьте вернуть его как можно скорее.
+
+Если аккумулятор уже возвращен, просим игнорировать это сообщение.
+
+Спасибо за использование системы ЗАРЯД!
+
+С уважением,
+Команда ЗАРЯД"""
+        
+        html_body = f"""
+<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <h2 style="color: #ff9800;">⚡ Напоминание о возврате аккумулятора</h2>
+    
+    <p>{greeting}</p>
+    
+    <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; border-radius: 5px;">
+        <p style="margin: 0; color: #856404;">
+            <strong>Вы взяли аккумулятор более {hours_overdue} часов назад.</strong>
+        </p>
+    </div>
+    
+    <p style="font-size: 16px;">
+        <strong>Не забудьте вернуть его как можно скорее.</strong>
+    </p>
+    
+    <p style="color: #6c757d; font-style: italic;">
+        Если аккумулятор уже возвращен, просим игнорировать это сообщение.
+    </p>
+    
+    <p style="color: #28a745; font-weight: 600; margin-top: 30px;">
+        Спасибо за использование системы ЗАРЯД!
+    </p>
+    
+    <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+        Это автоматическое сообщение. Пожалуйста, не отвечайте на него.
+    </p>
+    
+    <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+    <p style="color: #6c757d; font-size: 14px;">
+        С уважением,<br>
+        <strong>Команда ЗАРЯД</strong>
+    </p>
+</body>
+</html>"""
+        
+        return await self.send_email(user_email, subject, body, html_body, max_retries)
 
 
 notification_service = NotificationService()

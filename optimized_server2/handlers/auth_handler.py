@@ -12,7 +12,6 @@ from models.user import User
 from models.action_log import ActionLog
 from utils.notification_service import notification_service
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, PASSWORD_MAX_LENGTH
-from utils.centralized_logger import get_logger
 from utils.time_utils import get_moscow_time
 
 
@@ -21,8 +20,6 @@ class AuthHandler:
     
     def __init__(self, db_pool):
         self.db_pool = db_pool
- 
-        self.logger = get_logger('auth_handler')
     
     def create_jwt_token(self, user_id: int, phone_e164: str) -> str:
         """Создает JWT токен"""
@@ -112,14 +109,10 @@ class AuthHandler:
             from api.invitation_api import InvitationAPI
             invitation_api = InvitationAPI(self.db_pool)
             
-            # Логируем полученный токен для отладки
-            self.logger.info(f"🎫 Registration with invitation token: {invitation_token}")
-            
             # Получаем информацию о приглашении
             invitation_info = await invitation_api._get_invitation_info(invitation_token)
             
             if not invitation_info:
-                self.logger.warning(f"❌ Invitation not found for token: {invitation_token}")
                 return web.json_response({
                     'error': 'Приглашение не найдено'
                 }, status=404)
@@ -172,7 +165,6 @@ class AuthHandler:
             
             # Защита от атак по стороннему каналу - проверяем длину пароля
             if len(password) > PASSWORD_MAX_LENGTH:
-                self.logger.warning(f"ПОДОЗРИТЕЛЬНАЯ ПОПЫТКА: Пароль длиной {len(password)} символов для телефона {phone_e164}")
                 return web.json_response({
                     'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
                 }, status=401)
@@ -180,7 +172,6 @@ class AuthHandler:
             # Валидация пароля
             is_valid, error = User.validate_password(password)
             if not is_valid:
-                self.logger.warning(f"НЕКОРРЕКТНЫЙ ПАРОЛЬ: {error} для телефона {phone_e164}")
                 return web.json_response({
                     'error': 'Неверный номер телефона, пароль или пользователь не подтвержден администратором'
                 }, status=401)

@@ -110,6 +110,15 @@
             <label for="logo" class="logo-upload-btn">
               {{ logoFile ? 'Изменить логотип' : 'Выбрать логотип' }}
             </label>
+            <div class="url-divider">или</div>
+            <input 
+              id="logo_url" 
+              v-model="logoUrl" 
+              type="url"
+              class="form-input"
+              placeholder="Введите URL изображения"
+              @input="handleLogoUrlChange"
+            />
           </div>
         </div>
 
@@ -149,6 +158,7 @@ const isSubmitting = ref(false)
 const logoFile = ref(null)
 const logoPreview = ref(null)
 const logoInput = ref(null)
+const logoUrl = ref('')
 
 const formData = ref({
   unit_type: '',
@@ -185,6 +195,7 @@ const resetForm = () => {
   }
   logoFile.value = null
   logoPreview.value = null
+  logoUrl.value = ''
   if (logoInput.value) {
     logoInput.value.value = ''
   }
@@ -239,8 +250,8 @@ const handleSubmit = async () => {
       emit('org-unit-added', { id: orgUnitId, data })
     }
     
-    // Загружаем логотип если он был выбран
-    if (logoFile.value) {
+    // Загружаем логотип если он был выбран (файл или URL)
+    if (logoFile.value || logoUrl.value) {
       await uploadLogo(orgUnitId)
     }
     
@@ -269,6 +280,7 @@ const handleLogoChange = (event) => {
     }
     
     logoFile.value = file
+    logoUrl.value = '' // Очищаем URL при выборе файла
     
     // Создаем предварительный просмотр
     const reader = new FileReader()
@@ -279,10 +291,23 @@ const handleLogoChange = (event) => {
   }
 }
 
+// Обработка ввода URL логотипа
+const handleLogoUrlChange = () => {
+  if (logoUrl.value) {
+    logoFile.value = null // Очищаем файл при вводе URL
+    if (logoInput.value) {
+      logoInput.value.value = ''
+    }
+    // Устанавливаем предварительный просмотр URL
+    logoPreview.value = logoUrl.value
+  }
+}
+
 // Удаление логотипа
 const removeLogo = () => {
   logoFile.value = null
   logoPreview.value = null
+  logoUrl.value = ''
   if (logoInput.value) {
     logoInput.value.value = ''
   }
@@ -290,27 +315,49 @@ const removeLogo = () => {
 
 // Загрузка логотипа на сервер
 const uploadLogo = async (orgUnitId) => {
-  if (!logoFile.value) return
-  
-  const formData = new FormData()
-  formData.append('logo', logoFile.value)
-  
   try {
-    const response = await fetch(`/api/org-units/${orgUnitId}/logo`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
-      body: formData
-    })
-    
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Ошибка загрузки логотипа')
+    // Загрузка по URL
+    if (logoUrl.value && !logoFile.value) {
+      const response = await fetch(`/api/org-units/${orgUnitId}/logo-url`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ logo_url: logoUrl.value })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Ошибка загрузки логотипа по URL')
+      }
+      
+      const result = await response.json()
+      console.log('Логотип загружен по URL:', result)
+      return
     }
     
-    const result = await response.json()
-    console.log('Логотип загружен:', result)
+    // Загрузка файла
+    if (logoFile.value) {
+      const formData = new FormData()
+      formData.append('logo', logoFile.value)
+      
+      const response = await fetch(`/api/org-units/${orgUnitId}/logo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: formData
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Ошибка загрузки логотипа')
+      }
+      
+      const result = await response.json()
+      console.log('Логотип загружен:', result)
+    }
   } catch (error) {
     console.error('Ошибка загрузки логотипа:', error)
     throw error
@@ -588,6 +635,33 @@ watch(() => props.isVisible, (isVisible) => {
 
 .logo-upload-btn:hover {
   background: #0056b3;
+}
+
+.url-divider {
+  text-align: center;
+  color: #999;
+  margin: 12px 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  position: relative;
+}
+
+.url-divider::before,
+.url-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.url-divider::before {
+  left: 0;
+}
+
+.url-divider::after {
+  right: 0;
 }
 
 /* Мобильные стили */

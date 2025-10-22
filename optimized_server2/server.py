@@ -58,6 +58,7 @@ class OptimizedServer:
         self.tcp_servers: list[asyncio.Server] = []
         self.http_server: Optional[HTTPServer] = None
         self.running = False
+        self.reminder_service = None  # Сервис напоминаний о возврате аккумуляторов
         
     
     async def initialize_database(self):
@@ -479,6 +480,17 @@ class OptimizedServer:
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
+            
+            # Запускаем сервис напоминаний о возврате аккумуляторов
+            from config.settings import POWERBANK_REMINDER_CONFIG
+            if POWERBANK_REMINDER_CONFIG.get('enabled', True):
+                from utils.powerbank_reminder_service import PowerbankReminderService
+                self.reminder_service = PowerbankReminderService(self.db_pool)
+                check_interval = POWERBANK_REMINDER_CONFIG.get('check_interval_hours', 1)
+                asyncio.create_task(self.reminder_service.run_periodic_check(interval_hours=check_interval))
+                print(f"Сервис напоминаний о возврате аккумуляторов запущен (интервал проверки: {check_interval} ч.)")
+            else:
+                print("Сервис напоминаний о возврате аккумуляторов отключен")
             
             # Ждем завершения серверов
             try:
