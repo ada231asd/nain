@@ -573,8 +573,12 @@ class CRUDEndpoints:
     async def get_stations(self, request: Request) -> Response:
         """GET /api/stations - Получить список станций"""
         try:
+            # Если запрашивается конкретный box_id, увеличиваем лимит до 1000 (точный поиск)
+            box_id = request.query.get('box_id')
+            default_limit = 1000 if box_id else 10
+            
             page = int(request.query.get('page', 1))
-            limit = int(request.query.get('limit', 10))
+            limit = int(request.query.get('limit', default_limit))
             status = request.query.get('status')
             org_unit_id = request.query.get('org_unit_id')
             
@@ -583,9 +587,12 @@ class CRUDEndpoints:
             # Получаем доступные org_unit для текущего администратора
             user = request.get('user')
             accessible_org_units = None
+            user_role = None
             if user:
                 from utils.org_unit_utils import get_admin_accessible_org_units
+                from models.user_role import UserRole
                 accessible_org_units = await get_admin_accessible_org_units(self.db_pool, user['user_id'])
+                user_role = await UserRole.get_primary_role(self.db_pool, user['user_id'])
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -597,22 +604,20 @@ class CRUDEndpoints:
                         where_conditions.append("s.status = %s")
                         params.append(status)
                     
+                    if box_id:
+                        where_conditions.append("s.box_id = %s")
+                        params.append(box_id)
+                    
                     # Применяем фильтрацию по org_unit на основе прав доступа
                     if accessible_org_units is not None:  # None = service_admin (без фильтра)
                         if len(accessible_org_units) == 0:
-                            # Нет доступных org_units - возвращаем пустой результат
-                            return web.json_response(serialize_for_json({
-                                "success": True,
-                                "data": [],
-                                "pagination": {
-                                    "page": page,
-                                    "limit": limit,
-                                    "total": 0,
-                                    "pages": 0
-                                }
-                            }))
+                            # Пустой список означает:
+                            # 1. Обычного пользователя (role='user') - показываем все станции
+                            # 2. Администратора без org_unit - показываем все станции
+                            # Не применяем фильтрацию, пользователь может видеть все станции
+                            pass
                         else:
-                            # Фильтруем по доступным org_units
+                            # Фильтруем по доступным org_units (для group_admin/subgroup_admin с org_unit)
                             placeholders = ','.join(['%s'] * len(accessible_org_units))
                             where_conditions.append(f"s.org_unit_id IN ({placeholders})")
                             params.extend(accessible_org_units)
