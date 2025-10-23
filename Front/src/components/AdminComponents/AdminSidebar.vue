@@ -80,7 +80,7 @@ const availableTabs = computed(() => {
   const tabs = [
     { id: 'users', name: 'Пользователи' },
     { id: 'stations', name: 'Станции' },
-    { id: 'powerbanks', name: 'Павербанки' },
+    { id: 'powerbanks', name: 'Аккумуляторы' },
     { id: 'org-units', name: 'Группы' },
     { id: 'orders', name: 'Все заказы' },
     { id: 'slot-abnormal-reports', name: 'Аномалии слотов' },

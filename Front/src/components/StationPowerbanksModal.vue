@@ -4,7 +4,7 @@
       <div class="modal-header">
         <div class="header-info">
           <h3>Станция {{ station?.box_id || station?.station_id || '' }}</h3>
-          <p class="station-subtitle">Управление павербанками</p>
+          <p class="station-subtitle">Управление аккумуляторами</p>
         </div>
         <button class="btn-close" @click="$emit('close')">&times;</button>
       </div>
@@ -67,7 +67,7 @@
                 </td>
               </tr>
               <tr v-if="!powerbanks || powerbanks.length === 0">
-                <td colspan="6" class="empty">Нет данных о павербанках</td>
+                <td colspan="6" class="empty">Нет данных об аккумуляторах</td>
               </tr>
             </tbody>
           </table>

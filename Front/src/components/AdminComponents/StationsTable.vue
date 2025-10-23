@@ -217,7 +217,7 @@
 
             <!-- Информация о слотах -->
             <div class="detail-section">
-              <h4>Слоты и павербанки</h4>
+              <h4>Слоты и аккумуляторы</h4>
               <div class="detail-rows">
                 <div class="detail-row">
                   <span class="detail-label">Всего слотов:</span>
@@ -354,7 +354,7 @@
           </div>
           <div v-else class="view-actions">
             <button @click="$emit('view-powerbanks', selectedStation)" class="btn-action">
-              🔋 Павербанки
+              🔋 Аккумуляторы
             </button>
             <button @click="refreshInventory" class="btn-action">
               📦 Обновить инвентарь

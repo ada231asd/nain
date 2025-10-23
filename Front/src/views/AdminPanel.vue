@@ -42,7 +42,7 @@
               />
             </div>
 
-            <!-- Управление павербанками -->
+            <!-- Управление аккумуляторами -->
             <div v-if="activeTab === 'powerbanks'" class="tab-pane">
               <PowerbankList />
             </div>

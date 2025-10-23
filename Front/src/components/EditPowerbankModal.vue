@@ -2,7 +2,7 @@
   <div v-if="isVisible" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h2>Редактировать павербанк</h2>
+        <h2>Редактировать аккумулятор</h2>
         <button @click="closeModal" class="close-btn">&times;</button>
       </div>
       
@@ -206,7 +206,7 @@ const savePowerbank = async () => {
     emit('saved')
     closeModal()
   } catch (error) {
-    // Ошибка обновления павербанка
+    // Ошибка обновления аккумулятора
   } finally {
     isLoading.value = false
   }

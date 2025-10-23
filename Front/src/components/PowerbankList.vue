@@ -1,7 +1,7 @@
 <template>
   <div class="powerbank-list">
     <div class="list-header">
-      <h2>Павербанки</h2>
+      <h2>Аккумуляторы</h2>
       <div class="header-actions">
         <div class="search-box">
           <input 
@@ -60,11 +60,11 @@
     </div>
 
     <div v-if="isLoading" class="loading">
-      Загрузка павербанков...
+      Загрузка аккумуляторов...
     </div>
 
     <div v-else-if="filteredPowerbanks.length === 0" class="empty-state">
-      <p>Павербанки не найдены</p>
+      <p>Аккумуляторы не найдены</p>
     </div>
 
     <div v-else class="powerbank-grid">
@@ -172,7 +172,7 @@ const getSubgroupsForGroup = (groupId) => {
   return result
 }
 
-// Фильтрованные павербанки
+// Фильтрованные аккумуляторы
 const filteredPowerbanks = computed(() => {
   let filtered = adminStore.powerbanks
 
@@ -213,7 +213,7 @@ onMounted(async () => {
   await loadData()
 })
 
-// Загружаем павербанки и группы
+// Загружаем аккумуляторы и группы
 const loadData = async () => {
   isLoading.value = true
   try {
@@ -278,7 +278,7 @@ const formatDate = (dateString) => {
   }
 }
 
-// Редактирование павербанка
+// Редактирование аккумулятора
 const editPowerbank = (powerbank) => {
   selectedPowerbank.value = powerbank
   showEditModal.value = true
@@ -293,16 +293,16 @@ const handlePowerbankSaved = () => {
   // Данные уже обновлены в store
 }
 
-// Удаление павербанка
+// Удаление аккумулятора
 const deletePowerbank = async (powerbank) => {
-  if (!confirm(`Вы уверены, что хотите удалить павербанк ${powerbank.serial_number}?`)) {
+  if (!confirm(`Вы уверены, что хотите удалить аккумулятор ${powerbank.serial_number}?`)) {
     return
   }
 
   try {
     await adminStore.deletePowerbank(powerbank.id)
   } catch (error) {
-    // Ошибка удаления павербанка
+    // Ошибка удаления аккумулятора
   }
 }
 </script>

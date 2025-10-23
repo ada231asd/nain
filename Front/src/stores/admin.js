@@ -486,7 +486,7 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
-    // ПАВЕРБАНКИ
+    // АККУМУЛЯТОРЫ
     async fetchPowerbanks(params = {}) {
       this.isLoading = true;
       try {

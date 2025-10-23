@@ -55,7 +55,7 @@ const handleFilterStations = () => {
 }
 
 const handleViewPowerbanks = (station) => {
-  logEvent(`Событие: Просмотр павербанков станции ${station.box_id}`)
+  logEvent(`Событие: Просмотр аккумуляторов станции ${station.box_id}`)
 }
 
 const handleEditStation = (station) => {

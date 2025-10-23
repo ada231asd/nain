@@ -352,7 +352,7 @@ const stopAutoRefresh = () => {
   }
 }
 
-// Централизованное обновление всех данных после возврата павербанка
+// Централизованное обновление всех данных после возврата аккумулятора
 const refreshAllDataAfterReturnLocal = async (orderData) => {
   await refreshAllDataAfterReturn(orderData, user.value, loadUserOrders)
 }
