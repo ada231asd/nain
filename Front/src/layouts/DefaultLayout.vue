@@ -77,7 +77,7 @@
                   class="layout-header__user-menu-item"
                   @click="goToAdmin"
                 >
-                  ⚙️ Админ панель
+                  ⚙️ Панель администратора
                 </button>
                 
                 <button

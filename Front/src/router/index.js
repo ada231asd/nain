@@ -9,7 +9,6 @@ import AddressStations from '../views/AddressStations.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import StationInfo from '../views/StationInfo.vue'
-import QRDemo from '../views/QRDemo.vue'
 import TestStationsTable from '../views/TestStationsTable.vue'
 import { useAuthStore } from '../stores/auth';
 
@@ -60,11 +59,6 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/qr-demo',
-    name: 'QRDemo',
-    component: QRDemo
-  },
-  {
     path: '/test-stations-table',
     name: 'TestStationsTable',
     component: TestStationsTable
@@ -98,7 +92,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
   
-  // Защищаем админ панель и страницу пользователей
+  // Защищаем панель администратора и страницу пользователей
   if (to.name === 'AdminPanel' || to.name === 'UserPage') {
     if (!authStore.isAuthenticated) {
       next('/login');

@@ -834,7 +834,7 @@ const borrowPowerbank = async (powerbank) => {
     const result = await pythonAPI.requestBorrowPowerbank(requestData)
 
     if (result && (result.status === 'success' || result.status === 'accepted' || result.success)) {
-      // Обновляем данные станции в админ панели
+      // Обновляем данные станции в панели администратора
       const stationId = selectedStation.value.station_id
       await adminStore.refreshStationData(stationId)
       

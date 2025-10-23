@@ -77,14 +77,6 @@
         Вернуть с ошибкой
       </BaseButton>
 
-      <BaseButton
-        v-if="showFavoriteButton"
-        :variant="isFavorite ? 'danger' : 'secondary'"
-        size="small"
-        @click="toggleFavorite"
-      >
-        {{ isFavorite ? 'Удалить из избранного' : 'Добавить в избранное' }}
-      </BaseButton>
 
       <BaseButton
         v-if="showAdminActions"
@@ -93,6 +85,15 @@
         @click="$emit('adminClick', station)"
       >
         Управление банками
+      </BaseButton>
+
+      <BaseButton
+        v-if="showFavoriteButton"
+        :variant="isFavorite ? 'danger' : 'secondary'"
+        size="small"
+        @click="toggleFavorite"
+      >
+        {{ isFavorite ? 'Удалить из избранного' : 'Добавить в избранное' }}
       </BaseButton>
     </div>
     
@@ -449,7 +450,7 @@ onUnmounted(() => {
 
 
 .station-card__content {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 
@@ -549,7 +550,7 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .station-card__distance {

@@ -134,10 +134,10 @@
         <h2>Быстрые действия</h2>
         <div class="actions-grid">
           <button @click="showQRScanner = true" class="action-btn-standard">
-            Добавить станцию
+            Найти станцию
           </button>
           <button @click="goToAdmin" v-if="isAdmin" class="action-btn-standard">
-            Админ панель
+            Панель управления
           </button>
         </div>
       </section>
@@ -1423,7 +1423,7 @@ onUnmounted(() => {
 .stations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 12px;
 }
 
 .station-card {
