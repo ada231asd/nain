@@ -40,7 +40,7 @@
         </div>
         <div class="station-card__powerbank-item">
           <span class="station-card__powerbank-label">свободно слотов:</span>
-          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ occupiedPorts }}</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ freeSlots }}</span>
         </div>
       </div>
       
@@ -146,13 +146,21 @@ const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'ret
 
 const authStore = useAuthStore()
 
-// Свободные слоты в станции (количество свободных слотов)
-const availablePorts = computed(() => {
-  return props.station.freePorts || 0
-})
+// ПРАВИЛЬНАЯ ЛОГИКА (исправлено):
+// totalPorts (slots_declared) = общее количество слотов в станции (4)
+// occupiedPorts = powerbank'ов в станции (3) - можно ВЗЯТЬ
+// freePorts = пустых слотов для возврата (1) - можно ВЕРНУТЬ
+// remain_num = то же что freePorts
 
 const totalPorts = computed(() => {
-  return props.station.totalPorts || 0
+  // Общее количество слотов
+  return props.station.totalPorts || props.station.slots_declared || 0
+})
+
+const availablePorts = computed(() => {
+  // Количество powerbank'ов в станции (слоты с powerbank'ами) - ИСПРАВЛЕНО!
+  // Используем occupiedPorts вместо freePorts
+  return props.station.occupiedPorts || 0
 })
 
 // Проверка, является ли пользователь админом
@@ -162,37 +170,65 @@ const isUserAdmin = computed(() => {
 
 // Доступно аккумуляторов для взятия (с учетом лимита пользователя)
 const availableForBorrow = computed(() => {
-  const freePorts = props.station.freePorts || 0
+  const powerbanksInStation = availablePorts.value
   
-  // Для админов лимиты не применяются - показываем все свободные порты
+  // Для админов лимиты не применяются - показываем все powerbank'и
   if (isUserAdmin.value) {
-    return freePorts
+    return powerbanksInStation
   }
   
   // Получаем лимиты из store
   const availableByLimit = authStore.availableByLimit
   
-  // Если нет данных о лимитах, показываем количество свободных портов
+  // Если нет данных о лимитах, показываем количество powerbank'ов
   if (availableByLimit === null || availableByLimit === undefined) {
-    return freePorts
+    return powerbanksInStation
   }
   
   // Для админов может быть "unlimited" (дополнительная проверка)
   if (availableByLimit === 'unlimited') {
-    return freePorts
+    return powerbanksInStation
   }
   
-  // Возвращаем минимум из свободных портов и доступного по лимиту
-  return Math.min(freePorts, availableByLimit || 0)
+  // Возвращаем минимум из powerbank'ов в станции и доступного по лимиту
+  console.log('🔢 Расчет доступных для взятия:', {
+    station: props.station.box_id,
+    powerbanksInStation,
+    availableByLimit,
+    result: Math.min(powerbanksInStation, availableByLimit || 0)
+  })
+  return Math.min(powerbanksInStation, availableByLimit || 0)
 })
 
 const returnablePorts = computed(() => {
   return props.station.occupiedPorts || 0
 })
 
-// Вычисляем занятые порты как разность между общим количеством и доступными
+// Вычисляем занятые порты (слоты с powerbank'ами) - дублирует availablePorts для совместимости
 const occupiedPorts = computed(() => {
-  return totalPorts.value - availablePorts.value
+  return availablePorts.value
+})
+
+// Вычисляем свободные слоты для возврата powerbank'ов (пустые слоты БЕЗ powerbank'ов)
+const freeSlots = computed(() => {
+  // ИСПРАВЛЕНО: Используем freePorts или remain_num напрямую
+  const result = props.station.freePorts || props.station.remain_num || 0
+  
+  console.log('🔢 Расчет свободных слотов:', {
+    station: props.station.box_id,
+    totalSlots: totalPorts.value,
+    powerbanks: availablePorts.value,
+    freeSlots: result,
+    stationData: {
+      totalPorts: props.station.totalPorts,
+      slots_declared: props.station.slots_declared,
+      freePorts: props.station.freePorts,
+      occupiedPorts: props.station.occupiedPorts,
+      remain_num: props.station.remain_num
+    }
+  })
+  
+  return result
 })
 
 const getStatusText = (status) => {
