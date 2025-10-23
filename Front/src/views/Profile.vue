@@ -93,14 +93,22 @@
               class="history-item"
               :class="`history-${item.status}`"
             >
-              <div class="history-header">
+              <div class="history-header" @click="toggleOrderCollapse(item.id || item.order_id)">
                 <h4>Заказ №{{ item.id || item.order_id }}</h4>
-                <span class="history-status" :class="`status-${item.status}`">
-                  {{ getOrderStatusText(item.status) }}
-                </span>
+                <div class="header-right">
+                  <span class="history-status" :class="`status-${item.status}`">
+                    {{ getOrderStatusText(item.status) }}
+                  </span>
+                  <button class="collapse-btn" :class="{ 'collapsed': isOrderCollapsed(item.id || item.order_id) }">
+                    <span class="collapse-icon">▼</span>
+                  </button>
+                </div>
               </div>
               
-              <div class="history-details">
+              <div 
+                class="history-details" 
+                :class="{ 'collapsed': isOrderCollapsed(item.id || item.order_id) }"
+              >
                 <p><strong>Повербанк:</strong> {{ item.powerbank_serial || item.powerbank_id || 'Не указан' }}</p>
                 <p><strong>Станция:</strong> {{ item.station_box_id || item.station_id || 'Не указана' }}</p>
                 <p><strong>Дата создания:</strong> {{ formatDate(item.timestamp) }}</p>
@@ -197,6 +205,9 @@ const user = ref({
 const orderHistory = ref([])
 const itemsPerPage = ref(5)
 const currentPage = ref(1)
+
+// Состояние сворачивания карточек заказов
+const collapsedOrders = ref(new Set())
 
 // Вычисляемые свойства
 const filteredHistory = computed(() => {
@@ -400,6 +411,19 @@ const getOrderStatusText = (status) => {
 
 const formatDate = (date) => {
   return new Date(date).toLocaleString('ru-RU')
+}
+
+// Методы для управления сворачиванием карточек заказов
+const toggleOrderCollapse = (orderId) => {
+  if (collapsedOrders.value.has(orderId)) {
+    collapsedOrders.value.delete(orderId)
+  } else {
+    collapsedOrders.value.add(orderId)
+  }
+}
+
+const isOrderCollapsed = (orderId) => {
+  return collapsedOrders.value.has(orderId)
 }
 
 onMounted(async () => {
@@ -622,6 +646,13 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 20px;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.history-item:hover {
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .history-borrow {
@@ -649,6 +680,20 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 5px;
+  border-radius: 8px;
+}
+
+.history-header:hover {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .history-header h4 {
@@ -690,9 +735,54 @@ onUnmounted(() => {
   color: #383d41;
 }
 
+.history-details {
+  transition: all 0.3s ease;
+  overflow: hidden;
+  max-height: 500px;
+  opacity: 1;
+}
+
+.history-details.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+}
+
 .history-details p {
   margin: 8px 0;
   color: #666;
+}
+
+/* Кнопка сворачивания */
+.collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.collapse-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: scale(1.1);
+}
+
+.collapse-icon {
+  font-size: 12px;
+  color: #667eea;
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+
+.collapse-btn.collapsed .collapse-icon {
+  transform: rotate(-90deg);
 }
 
 .order-number {
@@ -861,6 +951,20 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+  
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .collapse-btn {
+    min-width: 28px;
+    height: 28px;
+  }
+  
+  .collapse-icon {
+    font-size: 10px;
   }
   
   .history-actions {

@@ -39,8 +39,8 @@
           <span class="station-card__powerbank-value station-card__powerbank-value--available">{{ availableForBorrow }}</span>
         </div>
         <div class="station-card__powerbank-item">
-          <span class="station-card__powerbank-label">в станции:</span>
-          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ availablePorts }}/{{ totalPorts }}</span>
+          <span class="station-card__powerbank-label">свободно слотов:</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ occupiedPorts }}</span>
         </div>
       </div>
       
@@ -188,6 +188,11 @@ const availableForBorrow = computed(() => {
 
 const returnablePorts = computed(() => {
   return props.station.occupiedPorts || 0
+})
+
+// Вычисляем занятые порты как разность между общим количеством и доступными
+const occupiedPorts = computed(() => {
+  return totalPorts.value - availablePorts.value
 })
 
 const getStatusText = (status) => {
