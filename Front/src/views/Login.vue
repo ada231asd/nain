@@ -28,12 +28,33 @@
         :error="passwordError"
         autocomplete="current-password"
       />
+      
+      <!-- Чекбокс "Запомнить меня" -->
+      <div class="remember-me">
+        <label class="remember-checkbox">
+          <input 
+            type="checkbox" 
+            v-model="rememberMe"
+            @change="handleRememberMeChange"
+          >
+          <span class="checkmark"></span>
+          Запомнить меня
+        </label>
+      </div>
+      
       <BaseButton type="submit" :disabled="isLoading">
         {{ isLoading ? 'Вход...' : 'Войти' }}
       </BaseButton>
     </form>
     <div class="auth-switch">
       <p>Нет аккаунта? <router-link to="/register">Зарегистрироваться</router-link></p>
+      
+      <!-- Кнопка очистки сохраненных данных -->
+      <div class="clear-data" v-if="hasSavedCredentials()">
+        <button type="button" @click="clearAllSavedData" class="clear-button">
+          Очистить сохраненные данные
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -53,6 +74,7 @@ const isLoading = ref(false);
 const phoneError = ref('');
 const passwordError = ref('');
 const formattedPhone = ref('');
+const rememberMe = ref(false);
 
 // Функция форматирования телефона в маску +7 (999) 999-99-99
 function formatPhone(value) {
@@ -198,6 +220,71 @@ function validatePassword(password) {
   return '';
 }
 
+// Функции для работы с сохраненными данными
+function saveCredentials(phone, password) {
+  if (rememberMe.value) {
+    localStorage.setItem('saved_phone', phone);
+    localStorage.setItem('saved_password', password);
+    localStorage.setItem('remember_me', 'true');
+  } else {
+    clearSavedCredentials();
+  }
+}
+
+function loadCredentials() {
+  const savedPhone = localStorage.getItem('saved_phone');
+  const savedPassword = localStorage.getItem('saved_password');
+  const rememberMeFlag = localStorage.getItem('remember_me') === 'true';
+  
+  if (savedPhone && savedPassword && rememberMeFlag) {
+    // Загружаем сохраненные данные входа
+    form.value.phone_e164 = savedPhone;
+    form.value.password = savedPassword;
+    formattedPhone.value = formatPhone(savedPhone);
+    rememberMe.value = true;
+  } else {
+    // Если нет сохраненных данных входа, проверяем данные последней регистрации
+    const lastRegisteredPhone = localStorage.getItem('last_registered_phone');
+    if (lastRegisteredPhone && !form.value.phone_e164) {
+      form.value.phone_e164 = lastRegisteredPhone;
+      formattedPhone.value = formatPhone(lastRegisteredPhone);
+    }
+  }
+}
+
+function clearSavedCredentials() {
+  localStorage.removeItem('saved_phone');
+  localStorage.removeItem('saved_password');
+  localStorage.removeItem('remember_me');
+}
+
+function handleRememberMeChange() {
+  if (!rememberMe.value) {
+    clearSavedCredentials();
+  }
+}
+
+function hasSavedCredentials() {
+  const savedPhone = localStorage.getItem('saved_phone');
+  const savedPassword = localStorage.getItem('saved_password');
+  const lastRegisteredPhone = localStorage.getItem('last_registered_phone');
+  return !!(savedPhone && savedPassword) || !!lastRegisteredPhone;
+}
+
+function clearAllSavedData() {
+  // Очищаем все сохраненные данные
+  localStorage.removeItem('saved_phone');
+  localStorage.removeItem('saved_password');
+  localStorage.removeItem('remember_me');
+  localStorage.removeItem('last_registered_phone');
+  localStorage.removeItem('last_registered_email');
+  
+  // Очищаем форму
+  form.value = { phone_e164: '', password: '' };
+  formattedPhone.value = '';
+  rememberMe.value = false;
+}
+
 async function handleSubmit() {
   // Очищаем предыдущие ошибки
   phoneError.value = '';
@@ -234,6 +321,9 @@ async function handleSubmit() {
     
     await auth.login(loginData);
     
+    // Сохраняем данные, если пользователь выбрал "Запомнить меня"
+    saveCredentials(form.value.phone_e164, form.value.password);
+    
     // Проверяем, есть ли параметры станции для перенаправления
     if (route.query.station) {
       router.push(`/dashboard?station=${route.query.station}&stationName=${route.query.stationName}`);
@@ -259,6 +349,11 @@ async function handleSubmit() {
     isLoading.value = false;
   }
 }
+
+// Загружаем сохраненные данные при монтировании компонента
+onMounted(() => {
+  loadCredentials();
+});
 </script>
 
 <style scoped>
@@ -315,5 +410,78 @@ form {
   font-size: 0.875rem;
   color: var(--text-secondary);
   margin: 0;
+}
+
+/* Стили для чекбокса "Запомнить меня" */
+.remember-me {
+  margin: 0.5rem 0;
+}
+
+.remember-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.remember-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-color, #d1d5db);
+  border-radius: 3px;
+  background-color: transparent;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remember-checkbox input[type="checkbox"]:checked + .checkmark {
+  background-color: var(--primary-color, #3b82f6);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.remember-checkbox input[type="checkbox"]:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.remember-checkbox:hover .checkmark {
+  border-color: var(--primary-color, #3b82f6);
+}
+
+/* Стили для кнопки очистки данных */
+.clear-data {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.clear-button {
+  background: none;
+  border: 1px solid var(--border-color, #d1d5db);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-button:hover {
+  background-color: var(--bg-secondary, #f9fafb);
+  border-color: var(--error-color, #dc3545);
+  color: var(--error-color, #dc3545);
 }
 </style>

@@ -102,12 +102,28 @@ export const useAuthStore = defineStore('auth', {
         this.user = null;
         this.userLimits = null;
         localStorage.removeItem('auth_token');
+        
+        // Очищаем сохраненные данные входа, если пользователь не выбрал "Запомнить меня"
+        const rememberMe = localStorage.getItem('remember_me') === 'true';
+        if (!rememberMe) {
+          localStorage.removeItem('saved_phone');
+          localStorage.removeItem('saved_password');
+          localStorage.removeItem('remember_me');
+        }
       } catch (error) {
         // В любом случае очищаем состояние
         this.token = null;
         this.user = null;
         this.userLimits = null;
         localStorage.removeItem('auth_token');
+        
+        // Очищаем сохраненные данные входа, если пользователь не выбрал "Запомнить меня"
+        const rememberMe = localStorage.getItem('remember_me') === 'true';
+        if (!rememberMe) {
+          localStorage.removeItem('saved_phone');
+          localStorage.removeItem('saved_password');
+          localStorage.removeItem('remember_me');
+        }
       }
     },
     async initializeAuth() {

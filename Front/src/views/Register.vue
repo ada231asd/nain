@@ -335,6 +335,11 @@ async function handleSubmit() {
       successMessage.value = 'Регистрация прошла успешно! Проверьте email для получения пароля.';
     }
 
+    // Сохраняем данные регистрации для последующего использования
+    // (только телефон, так как пароль приходит на email)
+    localStorage.setItem('last_registered_phone', form.value.phone_e164);
+    localStorage.setItem('last_registered_email', form.value.email);
+    
     // Очищаем форму после успешной регистрации
     form.value = {
       phone_e164: '',
