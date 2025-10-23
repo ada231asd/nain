@@ -164,19 +164,12 @@ class OrdersCRUD:
                             params.append(int(station_id))
                         
                         # Применяем фильтрацию по org_unit на основе прав доступа
-                        if accessible_org_units is not None:  # None = service_admin (без фильтра)
+                        # НО если указан user_id - пользователь запрашивает свои заказы, не фильтруем
+                        if accessible_org_units is not None and not user_id:  # None = service_admin (без фильтра)
                             if len(accessible_org_units) == 0:
-                                # Нет доступных org_units - возвращаем пустой результат
-                                return web.json_response(serialize_for_json({
-                                    "success": True,
-                                    "data": [],
-                                    "pagination": {
-                                        "page": page,
-                                        "limit": limit,
-                                        "total": 0,
-                                        "pages": 0
-                                    }
-                                }))
+                                # Обычные пользователи могут видеть все заказы при отсутствии user_id
+                                # Не применяем фильтрацию
+                                pass
                             else:
                                 # Фильтруем по доступным org_units (через org_unit_id)
                                 placeholders = ','.join(['%s'] * len(accessible_org_units))
@@ -217,19 +210,12 @@ class OrdersCRUD:
                             params.append(int(station_id))
                         
                         # Применяем фильтрацию по org_unit на основе прав доступа
-                        if accessible_org_units is not None:  # None = service_admin (без фильтра)
+                        # НО если указан user_id - пользователь запрашивает свои заказы, не фильтруем
+                        if accessible_org_units is not None and not user_id:  # None = service_admin (без фильтра)
                             if len(accessible_org_units) == 0:
-                                # Нет доступных org_units - возвращаем пустой результат
-                                return web.json_response(serialize_for_json({
-                                    "success": True,
-                                    "data": [],
-                                    "pagination": {
-                                        "page": page,
-                                        "limit": limit,
-                                        "total": 0,
-                                        "pages": 0
-                                    }
-                                }))
+                                # Обычные пользователи могут видеть все заказы при отсутствии user_id
+                                # Не применяем фильтрацию
+                                pass
                             else:
                                 # Фильтруем по доступным org_units (через org_unit_id станции)
                                 placeholders = ','.join(['%s'] * len(accessible_org_units))
