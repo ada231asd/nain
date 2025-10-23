@@ -91,21 +91,28 @@
               v-for="item in paginatedHistory" 
               :key="item.id || item.order_id"
               class="history-item"
-              :class="`history-${item.status}`"
+              :class="[`history-${item.status}`, { 'expanded': isOrderExpanded(item.id || item.order_id) }]"
             >
-              <div class="history-header">
+              <div class="history-header" @click="toggleOrderDetails(item.id || item.order_id)">
                 <h4>Заказ №{{ item.id || item.order_id }}</h4>
-                <span class="history-status" :class="`status-${item.status}`">
-                  {{ getOrderStatusText(item.status) }}
-                </span>
+                <div class="header-right">
+                  <span class="history-status" :class="`status-${item.status}`">
+                    {{ getOrderStatusText(item.status) }}
+                  </span>
+                  <span class="accordion-icon" :class="{ 'rotated': isOrderExpanded(item.id || item.order_id) }">
+                    ▼
+                  </span>
+                </div>
               </div>
               
-              <div class="history-details">
-                <p><strong>Повербанк:</strong> {{ item.powerbank_serial || item.powerbank_id || 'Не указан' }}</p>
-                <p><strong>Станция:</strong> {{ item.station_box_id || item.station_id || 'Не указана' }}</p>
-                <p><strong>Дата создания:</strong> {{ formatDate(item.timestamp) }}</p>
-                <p v-if="item.completed_at"><strong>Завершен:</strong> {{ formatDate(item.completed_at) }}</p>
-              </div>
+              <transition name="accordion">
+                <div v-show="isOrderExpanded(item.id || item.order_id)" class="history-details">
+                  <p><strong>Повербанк:</strong> {{ item.powerbank_serial || item.powerbank_id || 'Не указан' }}</p>
+                  <p><strong>Станция:</strong> {{ item.station_box_id || item.station_id || 'Не указана' }}</p>
+                  <p><strong>Дата создания:</strong> {{ formatDate(item.timestamp) }}</p>
+                  <p v-if="item.completed_at"><strong>Завершен:</strong> {{ formatDate(item.completed_at) }}</p>
+                </div>
+              </transition>
               
             </div>
           </div>
@@ -173,6 +180,7 @@ const isLoading = ref(false)
 const statusFilter = ref('all')
 const error = ref(null)
 const isEditing = ref(false)
+const expandedOrders = ref(new Set())
 
 
 
@@ -357,6 +365,9 @@ const loadUserOrders = async () => {
     
     console.log('📋 Загруженные заказы (массив):', orderHistory.value)
     console.log('📋 Количество заказов:', orderHistory.value.length)
+    
+    // Автоматически раскрываем заказы со статусом "Взятый" (borrow)
+    expandBorrowedOrders()
   } catch (err) {
     console.error('❌ Ошибка загрузки заказов:', err)
     orderHistory.value = []
@@ -449,6 +460,35 @@ const getOrderStatusText = (status) => {
 
 const formatDate = (date) => {
   return new Date(date).toLocaleString('ru-RU')
+}
+
+// Функции для управления аккордеоном
+const toggleOrderDetails = (orderId) => {
+  if (expandedOrders.value.has(orderId)) {
+    expandedOrders.value.delete(orderId)
+  } else {
+    expandedOrders.value.add(orderId)
+  }
+  // Принудительное обновление реактивности
+  expandedOrders.value = new Set(expandedOrders.value)
+}
+
+const isOrderExpanded = (orderId) => {
+  return expandedOrders.value.has(orderId)
+}
+
+// Автоматически раскрывает заказы со статусом "Взятый" (borrow)
+const expandBorrowedOrders = () => {
+  if (!Array.isArray(orderHistory.value)) return
+  
+  orderHistory.value.forEach(order => {
+    if (order.status === 'borrow') {
+      expandedOrders.value.add(order.id || order.order_id)
+    }
+  })
+  
+  // Принудительное обновление реактивности
+  expandedOrders.value = new Set(expandedOrders.value)
 }
 
 onMounted(async () => {
@@ -698,6 +738,13 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s ease;
+}
+
+.history-header:hover {
+  opacity: 0.8;
 }
 
 .history-header h4 {
@@ -710,6 +757,24 @@ onUnmounted(() => {
 .history-header h4::before {
   content: "🔢 ";
   margin-right: 5px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.accordion-icon {
+  font-size: 1rem;
+  color: #667eea;
+  transition: transform 0.3s ease;
+  display: inline-block;
+  font-weight: bold;
+}
+
+.accordion-icon.rotated {
+  transform: rotate(180deg);
 }
 
 .history-status {
@@ -739,9 +804,38 @@ onUnmounted(() => {
   color: #383d41;
 }
 
+.history-details {
+  overflow: hidden;
+  padding-top: 15px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .history-details p {
   margin: 8px 0;
   color: #666;
+}
+
+/* Анимация аккордеона */
+.accordion-enter-active,
+.accordion-leave-active {
+  transition: all 0.3s ease;
+  max-height: 300px;
+}
+
+.accordion-enter-from,
+.accordion-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.history-item.expanded {
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+}
+
+.history-item.expanded .history-header {
+  margin-bottom: 0;
 }
 
 .order-number {
@@ -910,6 +1004,11 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+  
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
   }
   
   .history-actions {
