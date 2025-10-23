@@ -142,7 +142,8 @@ export const useStationsStore = defineStore('stations', {
                 freePorts: stationDetails?.freePorts || stationDetails?.remain_num || 0,
                 totalPorts: stationDetails?.totalPorts || stationDetails?.slots_declared || 0,
                 occupiedPorts: stationDetails?.occupiedPorts || ((stationDetails?.slots_declared || 0) - (stationDetails?.remain_num || 0)),
-                lastSeen: fav.created_at,
+                lastSeen: stationDetails?.last_seen || stationDetails?.last_seen_at || fav.created_at,
+                last_seen: stationDetails?.last_seen || stationDetails?.last_seen_at,
                 // Сохраняем оригинальные данные избранного
                 favorite_id: fav.id,
                 favorite_created_at: fav.created_at
@@ -164,7 +165,8 @@ export const useStationsStore = defineStore('stations', {
                 freePorts: 0,
                 totalPorts: 0,
                 occupiedPorts: 0,
-                lastSeen: fav.created_at,
+                lastSeen: fav.created_at, // fallback если нет данных станции
+                last_seen: null,
                 favorite_id: fav.id,
                 favorite_created_at: fav.created_at
               };
@@ -345,7 +347,8 @@ export const useStationsStore = defineStore('stations', {
           freePorts: 0,
           totalPorts: 0,
           occupiedPorts: 0,
-          lastSeen: fav.created_at,
+          lastSeen: fav.created_at, // fallback
+          last_seen: null,
           favorite_id: fav.id,
           favorite_created_at: fav.created_at
         }));
