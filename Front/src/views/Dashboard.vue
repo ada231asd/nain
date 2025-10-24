@@ -102,6 +102,7 @@
             @returnWithError="handleReturnWithError"
             @adminClick="handleAdminStationClick"
             @toggleExpansion="toggleStationExpansion"
+            @nicknameChanged="handleNicknameChanged"
           />
         </div>
       </section>
@@ -122,6 +123,7 @@
           @returnWithError="handleReturnWithError"
           @adminClick="handleAdminStationClick"
           @toggleExpansion="toggleStationExpansion"
+          @nicknameChanged="handleNicknameChanged"
         />
       </section>
 
@@ -634,6 +636,74 @@ const handleErrorReportSubmit = async (errorReport) => {
     console.error('Ошибка при обработке отчета об ошибке:', error)
     alert('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
     closeErrorReportModal()
+  }
+}
+
+// Обработка изменения nickname станции
+const handleNicknameChanged = async ({ station, nickname, action }) => {
+  try {
+    const userId = user.value?.user_id
+    const stationId = station.station_id || station.id
+    const favoriteId = station.favorite_id
+    
+    console.log('handleNicknameChanged вызван:', { station, nickname, action, userId, stationId, favoriteId })
+    console.log('stationsStore:', stationsStore)
+    console.log('stationsStore.setStationNickname:', stationsStore.setStationNickname)
+    
+    if (!userId || !stationId || !favoriteId) {
+      console.error('Недостаточно данных для изменения nickname:', { userId, stationId, favoriteId })
+      alert('Ошибка: недостаточно данных для изменения имени станции')
+      return
+    }
+    
+    if (action === 'set') {
+      // Установка нового nickname
+      console.log('Устанавливаем nickname:', { favoriteId, userId, stationId, nickname })
+      
+      // Проверяем, что метод существует
+      if (typeof stationsStore.setStationNickname !== 'function') {
+        console.error('stationsStore.setStationNickname не является функцией!')
+        console.error('Доступные методы:', Object.keys(stationsStore))
+        alert('Ошибка: метод setStationNickname недоступен. Перезагрузите страницу.')
+        return
+      }
+      
+      await stationsStore.setStationNickname(favoriteId, userId, stationId, nickname)
+      
+      // Обновляем локальные данные станции
+      const localStation = favoriteStations.value.find(s => s.favorite_id === favoriteId)
+      if (localStation) {
+        localStation.nickname = nickname
+        localStation.nik = nickname
+      }
+      
+      console.log('✅ Nickname успешно установлен')
+    } else if (action === 'delete') {
+      // Удаление nickname
+      console.log('Удаляем nickname для favorite_id:', favoriteId)
+      
+      // Проверяем, что метод существует
+      if (typeof stationsStore.deleteStationNickname !== 'function') {
+        console.error('stationsStore.deleteStationNickname не является функцией!')
+        console.error('Доступные методы:', Object.keys(stationsStore))
+        alert('Ошибка: метод deleteStationNickname недоступен. Перезагрузите страницу.')
+        return
+      }
+      
+      await stationsStore.deleteStationNickname(favoriteId)
+      
+      // Обновляем локальные данные станции
+      const localStation = favoriteStations.value.find(s => s.favorite_id === favoriteId)
+      if (localStation) {
+        localStation.nickname = null
+        localStation.nik = null
+      }
+      
+      console.log('✅ Nickname успешно удален')
+    }
+  } catch (error) {
+    console.error('Ошибка при изменении nickname:', error)
+    alert('Ошибка при изменении имени станции: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 

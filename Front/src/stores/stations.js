@@ -146,7 +146,10 @@ export const useStationsStore = defineStore('stations', {
                 last_seen: stationDetails?.last_seen || stationDetails?.last_seen_at,
                 // Сохраняем оригинальные данные избранного
                 favorite_id: fav.id,
-                favorite_created_at: fav.created_at
+                favorite_created_at: fav.created_at,
+                // Сохраняем nickname из API
+                nickname: fav.nik || fav.nickname || null,
+                nik: fav.nik || fav.nickname || null
               };
             } catch (error) {
               console.error('Ошибка загрузки полных данных станции:', error);
@@ -168,7 +171,10 @@ export const useStationsStore = defineStore('stations', {
                 lastSeen: fav.created_at, // fallback если нет данных станции
                 last_seen: null,
                 favorite_id: fav.id,
-                favorite_created_at: fav.created_at
+                favorite_created_at: fav.created_at,
+                // Сохраняем nickname из API
+                nickname: fav.nik || fav.nickname || null,
+                nik: fav.nik || fav.nickname || null
               };
             }
           }));
@@ -350,7 +356,10 @@ export const useStationsStore = defineStore('stations', {
           lastSeen: fav.created_at, // fallback
           last_seen: null,
           favorite_id: fav.id,
-          favorite_created_at: fav.created_at
+          favorite_created_at: fav.created_at,
+          // Сохраняем nickname из API
+          nickname: fav.nik || fav.nickname || null,
+          nik: fav.nik || fav.nickname || null
         }));
         
         this._cacheFavoritesLocally(transformedFavorites || []);
@@ -525,6 +534,56 @@ export const useStationsStore = defineStore('stations', {
       } catch (error) {
         console.error('❌ Ошибка при поиске станций:', error);
         return [];
+      }
+    },
+
+    // Установка nickname для станции в избранном
+    async setStationNickname(favoriteId, userId, stationId, nickname) {
+      try {
+        console.log('Устанавливаем nickname:', { favoriteId, userId, stationId, nickname });
+        
+        // Отправляем запрос на сервер
+        const result = await pythonAPI.setStationNickname(favoriteId, {
+          user_id: userId,
+          station_id: stationId,
+          nik: nickname
+        });
+        
+        console.log('Результат установки nickname:', result);
+        
+        // Обновляем локальные данные
+        const station = this.favoriteStations.find(s => s.favorite_id === favoriteId);
+        if (station) {
+          station.nickname = nickname;
+        }
+        
+        return result;
+      } catch (error) {
+        console.error('Ошибка при установке nickname:', error);
+        throw error;
+      }
+    },
+
+    // Удаление nickname для станции в избранном
+    async deleteStationNickname(favoriteId) {
+      try {
+        console.log('Удаляем nickname для favorite_id:', favoriteId);
+        
+        // Отправляем запрос на сервер
+        const result = await pythonAPI.deleteStationNickname(favoriteId);
+        
+        console.log('Результат удаления nickname:', result);
+        
+        // Обновляем локальные данные
+        const station = this.favoriteStations.find(s => s.favorite_id === favoriteId);
+        if (station) {
+          station.nickname = null;
+        }
+        
+        return result;
+      } catch (error) {
+        console.error('Ошибка при удалении nickname:', error);
+        throw error;
       }
     },
   },

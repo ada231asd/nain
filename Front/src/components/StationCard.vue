@@ -5,8 +5,56 @@
     'station-card--collapsed': !isExpanded
   }" @click="handleCardClick">
     <div class="station-card__header">
-      <div v-if="station.box_id" class="station-card__box-id station-card__box-id--header">
-        {{ station.box_id }}
+      <div class="station-card__name-section">
+        <!-- Отображение nickname или box_id -->
+        <div v-if="!isEditingNickname" class="station-card__name-display">
+          <div class="station-card__box-id station-card__box-id--header">
+            {{ displayName }}
+          </div>
+          <button 
+            v-if="isFavorite && isExpanded" 
+            @click.stop="startEditingNickname"
+            class="station-card__edit-nickname-btn"
+            title="Изменить имя станции"
+          >
+            ✏️
+          </button>
+        </div>
+        
+        <!-- Редактирование nickname -->
+        <div v-else class="station-card__nickname-edit">
+          <input
+            ref="nicknameInput"
+            v-model="nicknameEditValue"
+            type="text"
+            class="station-card__nickname-input"
+            placeholder="Введите имя станции"
+            @click.stop
+            @keydown.enter="saveNickname"
+            @keydown.esc="cancelEditingNickname"
+          />
+          <div class="station-card__nickname-actions">
+            <button @click.stop="saveNickname" class="station-card__nickname-save" title="Сохранить">
+              ✓
+            </button>
+            <button @click.stop="cancelEditingNickname" class="station-card__nickname-cancel" title="Отменить">
+              ✕
+            </button>
+            <button 
+              v-if="hasNickname" 
+              @click.stop="deleteNickname" 
+              class="station-card__nickname-delete" 
+              title="Удалить имя"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+        
+        <!-- Показываем box_id под nickname, если есть nickname -->
+        <div v-if="hasNickname && !isEditingNickname" class="station-card__original-id">
+          {{ station.box_id }}
+        </div>
       </div>
 
       <div class="station-card__header-right">
@@ -143,9 +191,23 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'returnWithError', 'adminClick', 'toggleExpansion'])
+const emit = defineEmits(['toggleFavorite', 'takeBattery', 'returnBattery', 'returnWithError', 'adminClick', 'toggleExpansion', 'nicknameChanged'])
 
 const authStore = useAuthStore()
+
+// Состояние для редактирования nickname
+const isEditingNickname = ref(false)
+const nicknameEditValue = ref('')
+const nicknameInput = ref(null)
+
+// Вычисляемые свойства для nickname
+const hasNickname = computed(() => {
+  return !!(props.station.nickname || props.station.nik)
+})
+
+const displayName = computed(() => {
+  return props.station.nickname || props.station.nik || props.station.box_id || 'Без ID'
+})
 
 // ПРАВИЛЬНАЯ ЛОГИКА (исправлено):
 // totalPorts (slots_declared) = общее количество слотов в станции (4)
@@ -311,6 +373,69 @@ const handleCardClick = (event) => {
   emit('toggleExpansion', props.station)
 }
 
+// Функции для работы с nickname
+const startEditingNickname = () => {
+  isEditingNickname.value = true
+  nicknameEditValue.value = props.station.nickname || props.station.nik || ''
+  // Фокусируемся на input после рендера
+  setTimeout(() => {
+    if (nicknameInput.value) {
+      nicknameInput.value.focus()
+    }
+  }, 50)
+}
+
+const cancelEditingNickname = () => {
+  isEditingNickname.value = false
+  nicknameEditValue.value = ''
+}
+
+const saveNickname = async () => {
+  const newNickname = nicknameEditValue.value.trim()
+  
+  if (!newNickname) {
+    // Если nickname пустой, отменяем редактирование
+    cancelEditingNickname()
+    return
+  }
+  
+  try {
+    // Отправляем событие родительскому компоненту
+    emit('nicknameChanged', {
+      station: props.station,
+      nickname: newNickname,
+      action: 'set'
+    })
+    
+    // Закрываем редактирование
+    isEditingNickname.value = false
+  } catch (error) {
+    console.error('Ошибка при сохранении nickname:', error)
+    alert('Ошибка при сохранении имени станции')
+  }
+}
+
+const deleteNickname = async () => {
+  if (!confirm('Удалить персональное имя станции?')) {
+    return
+  }
+  
+  try {
+    // Отправляем событие родительскому компоненту
+    emit('nicknameChanged', {
+      station: props.station,
+      nickname: null,
+      action: 'delete'
+    })
+    
+    // Закрываем редактирование
+    isEditingNickname.value = false
+  } catch (error) {
+    console.error('Ошибка при удалении nickname:', error)
+    alert('Ошибка при удалении имени станции')
+  }
+}
+
 // Обновление времени "последний раз в сети" каждые 10 секунд для динамичности
 const currentTime = ref(Date.now())
 const lastSeenValue = computed(() => props.station.lastSeen || props.station.last_seen || props.station.last_seen_at || props.station.lastSeenAt)
@@ -383,8 +508,114 @@ onUnmounted(() => {
 .station-card__header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
+  gap: 12px;
+}
+
+.station-card__name-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.station-card__name-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.station-card__original-id {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.station-card__edit-nickname-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.station-card__edit-nickname-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.station-card__nickname-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.station-card__nickname-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--background-color);
+  transition: border-color 0.2s ease;
+  width: 100%;
+}
+
+.station-card__nickname-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.station-card__nickname-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.station-card__nickname-save,
+.station-card__nickname-cancel,
+.station-card__nickname-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.station-card__nickname-save {
+  color: var(--success-color);
+}
+
+.station-card__nickname-save:hover {
+  background-color: rgba(40, 167, 69, 0.1);
+  transform: scale(1.1);
+}
+
+.station-card__nickname-cancel {
+  color: var(--text-secondary);
+}
+
+.station-card__nickname-cancel:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+.station-card__nickname-delete {
+  color: var(--danger-color);
+  margin-left: auto;
+}
+
+.station-card__nickname-delete:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+  transform: scale(1.1);
 }
 
 .station-card__header-right {

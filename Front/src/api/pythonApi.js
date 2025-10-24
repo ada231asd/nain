@@ -331,6 +331,20 @@ export const pythonAPI = {
     validateId(favoriteId, 'favorite ID')
     return handleResponse(apiClient.delete(`/user-favorites/${favoriteId}`), 'remove favorite station')
   },
+  // Установка nickname для избранной станции
+  setStationNickname: (favoriteId, data) => {
+    validateId(favoriteId, 'favorite ID')
+    validateData(data, 'nickname data')
+    if (!data.nik || typeof data.nik !== 'string') {
+      throw new Error('Nickname (nik) is required and must be a string')
+    }
+    return handleResponse(apiClient.put(`/stations/${favoriteId}/nik`, data), 'set station nickname')
+  },
+  // Удаление nickname для избранной станции
+  deleteStationNickname: (favoriteId) => {
+    validateId(favoriteId, 'favorite ID')
+    return handleResponse(apiClient.delete(`/stations/${favoriteId}/nik`), 'delete station nickname')
+  },
 
   // АДМИНИСТРАТИВНЫЕ ФУНКЦИИ
   getPendingUsers: () => handleResponse(apiClient.get('/admin/pending-users'), 'get pending users'),
