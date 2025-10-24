@@ -481,7 +481,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import FilterButton from './FilterButton.vue'
 import QRCode from 'qrcode'
-import { getCurrentConfig } from '../../api/config.js'
 import { pythonAPI } from '../../api/pythonApi.js'
 import { formatMoscowTime, getRelativeTime as getRelativeTimeUtil } from '../../utils/timeUtils.js'
 
@@ -792,17 +791,14 @@ const loadGroupAddressData = async (station) => {
       return
     }
 
-    const config = getCurrentConfig()
-    const response = await fetch(`${config.baseURL}/org-units/${orgUnitId}`)
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success && data.data) {
-        // Проверяем, является ли data.data массивом или объектом
-        if (Array.isArray(data.data) && data.data.length > 0) {
-          groupAddressData.value = data.data[0] || {}
-        } else if (data.data && typeof data.data === 'object') {
-          groupAddressData.value = data.data
-        }
+    // Используем pythonAPI вместо прямого fetch
+    const response = await pythonAPI.getOrgUnit(orgUnitId)
+    if (response.success && response.data) {
+      // Проверяем, является ли data.data массивом или объектом
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        groupAddressData.value = response.data[0] || {}
+      } else if (response.data && typeof response.data === 'object') {
+        groupAddressData.value = response.data
       }
     }
   } catch (error) {
@@ -861,39 +857,27 @@ const saveChanges = async () => {
       org_unit_id: editForm.value.org_unit_id || null
     }
     
-    // Отправляем обновление станции
-    const config = getCurrentConfig()
-    const stationResponse = await fetch(`${config.baseURL}/stations/${stationId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(stationUpdateData)
-    })
+    // Отправляем обновление станции используя pythonAPI
+    const stationResponse = await pythonAPI.updateStation(stationId, stationUpdateData)
     
-    if (!stationResponse.ok) {
-      throw new Error('Ошибка обновления станции')
+    if (!stationResponse.success) {
+      throw new Error(stationResponse.error || 'Ошибка обновления станции')
     }
     
     // Обновляем настройки сервера, если они изменились
     if (editForm.value.server_address || editForm.value.server_port || editForm.value.heartbeat_interval) {
       const serverUpdateData = {
         station_id: stationId,
-        address: editForm.value.server_address,
-        port: editForm.value.server_port ? parseInt(editForm.value.server_port) : null,
+        server_address: editForm.value.server_address,
+        server_port: editForm.value.server_port ? parseInt(editForm.value.server_port) : null,
         heartbeat_interval: editForm.value.heartbeat_interval ? parseInt(editForm.value.heartbeat_interval) : null
       }
       
-      const serverResponse = await fetch('/api/set-server-address', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(serverUpdateData)
-      })
+      // Используем pythonAPI вместо прямого fetch для автоматического добавления токена авторизации
+      const serverResponse = await pythonAPI.setServerAddress(serverUpdateData)
       
-      if (!serverResponse.ok) {
-        throw new Error('Ошибка обновления настроек сервера')
+      if (!serverResponse.success) {
+        throw new Error(serverResponse.error || 'Ошибка обновления настроек сервера')
       }
     }
     
@@ -937,39 +921,29 @@ const activateStation = async () => {
   isActivating.value = true
   
   try {
-    const response = await fetch('/api/station-secret-keys', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        station_id: stationId,
-        key_value: activationForm.value.secretKey.trim()
-      })
+    // Используем pythonAPI вместо прямого fetch для автоматического добавления токена авторизации
+    const response = await pythonAPI.createStationSecretKey({
+      station_id: stationId,
+      key_value: activationForm.value.secretKey.trim()
     })
     
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        // Обновляем статус станции на активную
-        selectedStation.value.status = 'active'
-        
-        // Закрываем модальное окно активации
-        closeActivationModal()
-        
-        alert('Станция успешно активирована!')
-        
-        // Обновляем список станций
-        emit('station-updated', selectedStation.value)
-      } else {
-        throw new Error(data.error || 'Ошибка активации станции')
-      }
+    if (response.success) {
+      // Обновляем статус станции на активную
+      selectedStation.value.status = 'active'
+      
+      // Закрываем модальное окно активации
+      closeActivationModal()
+      
+      alert('Станция успешно активирована!')
+      
+      // Обновляем список станций
+      emit('station-updated', selectedStation.value)
     } else {
-      throw new Error('Ошибка сервера при активации станции')
+      throw new Error(response.error || 'Ошибка активации станции')
     }
   } catch (error) {
     console.error('Ошибка активации станции:', error)
-    alert('Ошибка активации: ' + error.message)
+    alert('Ошибка активации: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isActivating.value = false
   }
@@ -1133,32 +1107,21 @@ const confirmDeleteStation = async () => {
   isDeleting.value = true
   
   try {
-    const config = getCurrentConfig()
-    const response = await fetch(`${config.baseURL}/stations/${stationId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
+    // Используем pythonAPI вместо прямого fetch
+    const response = await pythonAPI.deleteStation(stationId)
     
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        alert('Станция успешно удалена')
-        closeDeleteModal()
-        closeStationModal()
-        // Эмитим событие для обновления списка станций
-        emit('delete-station', stationId)
-      } else {
-        alert('Ошибка удаления станции: ' + (data.error || 'Неизвестная ошибка'))
-      }
+    if (response.success) {
+      alert('Станция успешно удалена')
+      closeDeleteModal()
+      closeStationModal()
+      // Эмитим событие для обновления списка станций
+      emit('delete-station', stationId)
     } else {
-      const errorData = await response.json().catch(() => ({}))
-      alert('Ошибка удаления станции: ' + (errorData.error || 'Неизвестная ошибка'))
+      alert('Ошибка удаления станции: ' + (response.error || 'Неизвестная ошибка'))
     }
   } catch (error) {
     console.error('Ошибка удаления станции:', error)
-    alert('Ошибка удаления станции: ' + error.message)
+    alert('Ошибка удаления станции: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isDeleting.value = false
   }
