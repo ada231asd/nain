@@ -282,7 +282,7 @@ class OtherEntitiesCRUD:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     await cur.execute("""
-                        SELECT uf.id, uf.user_id, uf.station_id, uf.created_at,
+                        SELECT uf.id, uf.user_id, uf.station_id, uf.created_at, uf.nik,
                                s.box_id AS station_box_id, s.status AS station_status,
                                u.phone_e164 AS user_phone,
                                ou.adress AS station_address

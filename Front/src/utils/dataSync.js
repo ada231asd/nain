@@ -157,20 +157,26 @@ export const refreshStationWithPowerbanks = async (stationId) => {
     }
     
     // Обновляем данные станции актуальной информацией о портах
-    if (powerbanksData && Array.isArray(powerbanksData)) {
-      stationDetails.ports = powerbanksData
-      stationDetails.freePorts = powerbanksData.filter(port => port.status === 'free').length
-      stationDetails.totalPorts = powerbanksData.length
-      stationDetails.occupiedPorts = powerbanksData.filter(port => port.status === 'occupied').length
-    } else {
-      // Если нет данных об аккумуляторах, создаем числовые свойства на основе remain_num
-      const totalSlots = stationDetails.slots_declared || 20
-      const freeSlots = stationDetails.remain_num || 0
-      const occupiedSlots = totalSlots - freeSlots
+    // ВАЖНО: Используем ТОЛЬКО данные из API powerbanks
+    if (powerbanksData && powerbanksData.success) {
+      // API возвращает: { success, available_powerbanks, count, free_slots, total_slots }
+      const availablePowerbanks = powerbanksData.available_powerbanks || [];
+      stationDetails.ports = availablePowerbanks;
       
-      stationDetails.freePorts = freeSlots
+      // Используем ТОЛЬКО актуальные данные из API powerbanks
+      stationDetails.freePorts = powerbanksData.free_slots; // Пустые слоты для возврата
+      stationDetails.totalPorts = powerbanksData.total_slots; // Всего слотов
+      stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и в станции (можно взять)
+      stationDetails.remain_num = powerbanksData.free_slots; // Обновляем remain_num актуальными данными
+    } else {
+      // Если нет данных об аккумуляторах, используем 0 (безопаснее чем неактуальный remain_num)
+      const totalSlots = stationDetails.slots_declared || 20
+      
+      stationDetails.freePorts = 0
       stationDetails.totalPorts = totalSlots
-      stationDetails.occupiedPorts = occupiedSlots
+      stationDetails.occupiedPorts = 0
+      
+      console.warn('⚠️ Не удалось получить актуальные данные о портах (dataSync). Используем заглушки.')
     }
     
     console.log('✅ Данные станции с аккумуляторами обновлены')

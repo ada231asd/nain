@@ -648,6 +648,17 @@ class CRUDEndpoints:
                     await cur.execute(query, params + [limit, offset])
                     stations = await cur.fetchall()
                     
+                    # Добавляем информацию о портах для каждой станции
+                    # ВАЖНО: Используем remain_num как источник правды
+                    for station in stations:
+                        total_slots = station['slots_declared'] or 0
+                        free_slots = station['remain_num'] or 0
+                        occupied_slots = total_slots - free_slots
+                        
+                        station['free_ports'] = free_slots      # Свободные слоты (можно вернуть)
+                        station['total_ports'] = total_slots    # Всего слотов
+                        station['occupied_ports'] = occupied_slots  # Занятые слоты (можно взять)
+                    
                     return web.json_response(serialize_for_json({
                         "success": True,
                         "data": stations,
@@ -688,6 +699,17 @@ class CRUDEndpoints:
                             "success": False,
                             "error": "Станция не найдена"
                         }, status=404)
+                    
+                    # Добавляем информацию о портах
+                    # ВАЖНО: Используем remain_num как источник правды для свободных слотов
+                    # occupied_ports = total - free (не используем COUNT из station_powerbank, т.к. данные могут быть неактуальными)
+                    total_slots = station['slots_declared'] or 0
+                    free_slots = station['remain_num'] or 0
+                    occupied_slots = total_slots - free_slots
+                    
+                    station['free_ports'] = free_slots      # Свободные слоты (можно вернуть)
+                    station['total_ports'] = total_slots    # Всего слотов
+                    station['occupied_ports'] = occupied_slots  # Занятые слоты (можно взять)
                     
                     return web.json_response(serialize_for_json({
                         "success": True,
