@@ -99,7 +99,7 @@
             <td class="col-slots">
               <div class="slots-info">
                 <div class="slots-summary">
-                  <span class="slots-used">{{ Math.max(0, (station.slots_declared || 0) - (station.remain_num || 0)) }}</span>
+                  <span class="slots-used">{{ station.remain_num || 0 }}</span>
                   <span class="slots-separator">/</span>
                   <span class="slots-total">{{ station.slots_declared || station.totalPorts || 0 }}</span>
                 </div>
@@ -224,12 +224,12 @@
                   <span class="detail-value">{{ selectedStation.slots_declared || selectedStation.totalPorts || 0 }}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">Занято слотов:</span>
-                  <span class="detail-value">{{ Math.max(0, (selectedStation.slots_declared || 0) - (selectedStation.remain_num || 0)) }}</span>
+                  <span class="detail-label">Занято слотов (повербанков):</span>
+                  <span class="detail-value">{{ selectedStation.remain_num || 0 }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Свободно слотов:</span>
-                  <span class="detail-value">{{ Math.min(selectedStation.remain_num || 0, selectedStation.slots_declared || selectedStation.totalPorts || 0) }}</span>
+                  <span class="detail-value">{{ Math.max(0, (selectedStation.slots_declared || 0) - (selectedStation.remain_num || 0)) }}</span>
                 </div>
               </div>
             </div>
@@ -1081,7 +1081,8 @@ const getRelativeTime = (timestamp) => getRelativeTimeUtil(timestamp)
 
 const getSlotsPercentage = (station) => {
   const total = station.slots_declared || station.totalPorts || 0
-  const used = Math.max(0, (station.slots_declared || 0) - (station.remain_num || 0))
+  // remain_num = количество повербанков (занятых слотов)
+  const used = station.remain_num || 0
   if (total === 0) return 0
   return Math.round((used / total) * 100)
 }
