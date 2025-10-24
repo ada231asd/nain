@@ -24,6 +24,35 @@ class ReturnPowerbankHandler:
         if not hasattr(ReturnPowerbankHandler, '_pending_error_returns'):
             ReturnPowerbankHandler._pending_error_returns = {}
         self.pending_error_returns = ReturnPowerbankHandler._pending_error_returns
+    
+    async def _send_inventory_request_silently(self, station_id: int) -> None:
+        """
+        Отправляет запрос инвентаризации без логирования в фоновом режиме
+        """
+        try:
+            from utils.packet_utils import build_query_inventory_request
+            
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection or not connection.writer or connection.writer.is_closing():
+                return
+            
+            secret_key = connection.secret_key
+            if not secret_key:
+                return
+            
+            # Строим и отправляем запрос инвентаризации
+            inventory_request_packet = build_query_inventory_request(
+                secret_key=secret_key,
+                vsn=2,
+                station_box_id=connection.box_id or f"station_{station_id}"
+            )
+            
+            connection.writer.write(inventory_request_packet)
+            await connection.writer.drain()
+            
+        except Exception:
+            # Игнорируем ошибки (без логирования)
+            pass
 
     async def start_background_cleanup(self):
         """Запускает фоновую очистку просроченных запросов. Вызывать после старта event loop."""
@@ -222,6 +251,9 @@ class ReturnPowerbankHandler:
 
             if future and not future.done():
                 future.set_result(result)
+            
+            # Отправляем запрос инвентаризации в фоне без логирования
+            asyncio.create_task(self._send_inventory_request_silently(station_id))
 
             return result
         except Exception as e:

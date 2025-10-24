@@ -3,6 +3,7 @@
 """
 from typing import Optional, Dict, Any
 from datetime import datetime
+import asyncio
 
 from models.station_powerbank import StationPowerbank
 from models.powerbank import Powerbank
@@ -19,6 +20,35 @@ class NormalReturnPowerbankHandler:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.logger = get_logger('normal_return_powerbank')
+    
+    async def _send_inventory_request_silently(self, station_id: int) -> None:
+        """
+        Отправляет запрос инвентаризации без логирования в фоновом режиме
+        """
+        try:
+            from utils.packet_utils import build_query_inventory_request
+            
+            connection = self.connection_manager.get_connection_by_station_id(station_id)
+            if not connection or not connection.writer or connection.writer.is_closing():
+                return
+            
+            secret_key = connection.secret_key
+            if not secret_key:
+                return
+            
+            # Строим и отправляем запрос инвентаризации
+            inventory_request_packet = build_query_inventory_request(
+                secret_key=secret_key,
+                vsn=2,
+                station_box_id=connection.box_id or f"station_{station_id}"
+            )
+            
+            connection.writer.write(inventory_request_packet)
+            await connection.writer.drain()
+            
+        except Exception:
+            # Игнорируем ошибки (без логирования)
+            pass
 
     async def handle_powerbank_insertion(self, station_id: int, slot_number: int, powerbank_id: int) -> Dict[str, Any]:
         """
@@ -80,6 +110,10 @@ class NormalReturnPowerbankHandler:
             }
 
             self.logger.info(f"Обычный возврат повербанка {powerbank_id} успешно обработан")
+            
+            # Отправляем запрос инвентаризации в фоне без логирования
+            asyncio.create_task(self._send_inventory_request_silently(station_id))
+            
             return result
 
         except Exception as e:
@@ -97,7 +131,7 @@ class NormalReturnPowerbankHandler:
             try:
                 from handlers.return_powerbank import ReturnPowerbankHandler
                 error_return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
-                delegated = await error_return_handler.handle_tcp_error_return(data, connection)
+                delegated = await error_return_handler.handle_tcp_error_return_request(data, connection)
                 if delegated is not None:
                     return delegated
             except Exception:
