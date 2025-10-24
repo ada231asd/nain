@@ -164,16 +164,18 @@ export const refreshStationWithPowerbanks = async (stationId) => {
       stationDetails.ports = availablePowerbanks;
       
       // Используем ТОЛЬКО актуальные данные из API powerbanks
-      stationDetails.freePorts = powerbanksData.free_slots; // Пустые слоты для возврата
+      // remain_num = количество ПОВЕРБАНКОВ (по протоколу!)
       stationDetails.totalPorts = powerbanksData.total_slots; // Всего слотов
-      stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и в станции (можно взять)
-      stationDetails.remain_num = powerbanksData.free_slots; // Обновляем remain_num актуальными данными
+      stationDetails.remain_num = powerbanksData.count; // Количество powerbank'ов
+      stationDetails.freePorts = powerbanksData.total_slots - powerbanksData.count; // Свободные слоты = total - powerbanks
+      stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и (для обратной совместимости)
     } else {
       // Если нет данных об аккумуляторах, используем 0 (безопаснее чем неактуальный remain_num)
       const totalSlots = stationDetails.slots_declared || 20
       
-      stationDetails.freePorts = 0
       stationDetails.totalPorts = totalSlots
+      stationDetails.remain_num = 0 // Количество powerbank'ов неизвестно
+      stationDetails.freePorts = totalSlots // Считаем все слоты свободными
       stationDetails.occupiedPorts = 0
       
       console.warn('⚠️ Не удалось получить актуальные данные о портах (dataSync). Используем заглушки.')

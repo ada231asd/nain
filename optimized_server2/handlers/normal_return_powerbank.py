@@ -64,8 +64,8 @@ class NormalReturnPowerbankHandler:
             from models.station import Station
             station = await Station.get_by_id(self.db_pool, station_id)
             if station:
-                # Уменьшаем remain_num при возврате (повербанк занял слот)
-                new_remain_num = max(0, int(station.remain_num) - 1)
+                # При возврате повербанков становится больше → remain_num увеличивается
+                new_remain_num = int(station.remain_num) + 1
                 await station.update_remain_num(self.db_pool, new_remain_num)
                 self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
 

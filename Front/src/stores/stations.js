@@ -116,13 +116,14 @@ export const useStationsStore = defineStore('stations', {
                   address: fav.station_address || null,
                   // Актуальные данные из API powerbanks
                   ports: availablePowerbanks,
-                  remain_num: powerbanksData.free_slots,
-                  slots_declared: powerbanksData.total_slots,
-                  freePorts: powerbanksData.free_slots,
+                  remain_num: powerbanksData.count,
+                  slots_declared: fav.station_slots_declared || powerbanksData.total_slots,
+                  freePorts: powerbanksData.total_slots - powerbanksData.count,
                   totalPorts: powerbanksData.total_slots,
                   occupiedPorts: powerbanksData.count,
-                  lastSeen: fav.created_at,
-                  last_seen: null,
+                  // Последний heartbeat из станции
+                  lastSeen: fav.station_last_seen || null,
+                  last_seen: fav.station_last_seen || null,
                   // Сохраняем оригинальные данные избранного
                   favorite_id: fav.id,
                   favorite_created_at: fav.created_at,
@@ -144,12 +145,13 @@ export const useStationsStore = defineStore('stations', {
                   address: fav.station_address || null,
                   ports: [],
                   remain_num: 0,
-                  slots_declared: 0,
-                  freePorts: 0,
-                  totalPorts: 0,
+                  slots_declared: fav.station_slots_declared || 0,
+                  freePorts: fav.station_slots_declared || 0,
+                  totalPorts: fav.station_slots_declared || 0,
                   occupiedPorts: 0,
-                  lastSeen: fav.created_at,
-                  last_seen: null,
+                  // Последний heartbeat из станции
+                  lastSeen: fav.station_last_seen || null,
+                  last_seen: fav.station_last_seen || null,
                   favorite_id: fav.id,
                   favorite_created_at: fav.created_at,
                   nickname: fav.nik || fav.nickname || null,
@@ -169,12 +171,13 @@ export const useStationsStore = defineStore('stations', {
                 address: fav.station_address || null,
                 ports: [],
                 remain_num: 0,
-                slots_declared: 0,
-                freePorts: 0,
-                totalPorts: 0,
+                slots_declared: fav.station_slots_declared || 0,
+                freePorts: fav.station_slots_declared || 0,
+                totalPorts: fav.station_slots_declared || 0,
                 occupiedPorts: 0,
-                lastSeen: fav.created_at, // fallback если нет данных станции
-                last_seen: null,
+                // Последний heartbeat из станции
+                lastSeen: fav.station_last_seen || null,
+                last_seen: fav.station_last_seen || null,
                 favorite_id: fav.id,
                 favorite_created_at: fav.created_at,
                 // Сохраняем nickname из API
@@ -231,18 +234,20 @@ export const useStationsStore = defineStore('stations', {
                 favoriteStations.push({
                   ...basicStation,
                   ports: availablePowerbanks,
-                  freePorts: powerbanksData.free_slots,
+                  remain_num: powerbanksData.count,
+                  freePorts: powerbanksData.total_slots - powerbanksData.count,
                   totalPorts: powerbanksData.total_slots,
-                  occupiedPorts: powerbanksData.count,
-                  remain_num: powerbanksData.free_slots
+                  occupiedPorts: powerbanksData.count
                 });
               } else {
                 // Fallback на базовую информацию
+                const totalSlots = basicStation.slots_declared || 0;
                 favoriteStations.push({
                   ...basicStation,
                   ports: [],
-                  freePorts: 0,
-                  totalPorts: basicStation.slots_declared || 0,
+                  remain_num: 0,
+                  freePorts: totalSlots,
+                  totalPorts: totalSlots,
                   occupiedPorts: 0
                 });
               }
@@ -416,10 +421,11 @@ export const useStationsStore = defineStore('stations', {
           stationDetails.ports = availablePowerbanks;
           
           // Используем ТОЛЬКО актуальные данные из API powerbanks
-          stationDetails.freePorts = powerbanksData.free_slots; // Пустые слоты для возврата
+          // remain_num = количество ПОВЕРБАНКОВ (по протоколу!)
           stationDetails.totalPorts = powerbanksData.total_slots; // Всего слотов
-          stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и в станции (можно взять)
-          stationDetails.remain_num = powerbanksData.free_slots; // Обновляем remain_num актуальными данными
+          stationDetails.remain_num = powerbanksData.count; // Количество powerbank'ов
+          stationDetails.freePorts = powerbanksData.total_slots - powerbanksData.count; // Свободные слоты = total - powerbanks
+          stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и (для обратной совместимости)
           
           console.log('Порты станции обновлены актуальными данными:', {
             freePorts: stationDetails.freePorts,
@@ -431,8 +437,9 @@ export const useStationsStore = defineStore('stations', {
           // Если нет данных о powerbank'ах, используем 0 (безопаснее чем неактуальный remain_num)
           const totalSlots = stationDetails.slots_declared || 20;
           
-          stationDetails.freePorts = 0;
           stationDetails.totalPorts = totalSlots;
+          stationDetails.remain_num = 0; // Количество powerbank'ов неизвестно
+          stationDetails.freePorts = totalSlots; // Считаем все слоты свободными
           stationDetails.occupiedPorts = 0;
           
           console.warn('⚠️ Не удалось получить актуальные данные о портах. Используем заглушки.');

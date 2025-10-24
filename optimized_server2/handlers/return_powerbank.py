@@ -187,6 +187,14 @@ class ReturnPowerbankHandler:
             # Добавляем повербанк в станцию
             await StationPowerbank.add_powerbank(self.db_pool, station_id, powerbank_id, slot_number)
 
+            # Обновляем remain_num станции (при возврате повербанков становится больше)
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if station:
+                new_remain_num = int(station.remain_num) + 1
+                await station.update_remain_num(self.db_pool, new_remain_num)
+                self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
+
             # Удаляем из ожидающих
             if matching_user_id in ReturnPowerbankHandler._pending_error_returns:
                 del ReturnPowerbankHandler._pending_error_returns[matching_user_id]

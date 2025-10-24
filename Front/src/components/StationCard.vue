@@ -209,11 +209,10 @@ const displayName = computed(() => {
   return props.station.nickname || props.station.nik || props.station.box_id || 'Без ID'
 })
 
-// ПРАВИЛЬНАЯ ЛОГИКА (исправлено):
-// totalPorts (slots_declared) = общее количество слотов в станции (4)
-// occupiedPorts = powerbank'ов в станции (3) - можно ВЗЯТЬ
-// freePorts = пустых слотов для возврата (1) - можно ВЕРНУТЬ
-// remain_num = то же что freePorts
+// ПРАВИЛЬНАЯ ЛОГИКА (по протоколу):
+// totalPorts (slots_declared) = общее количество слотов в станции (например, 8)
+// remain_num = количество ПОВЕРБАНКОВ в станции (например, 3) - можно ВЗЯТЬ
+// freePorts = свободных слотов для ВСТАВКИ = totalPorts - remain_num (например, 5) - можно ВЕРНУТЬ
 
 const totalPorts = computed(() => {
   // Общее количество слотов
@@ -221,9 +220,8 @@ const totalPorts = computed(() => {
 })
 
 const availablePorts = computed(() => {
-  // Количество powerbank'ов в станции (слоты с powerbank'ами) - ИСПРАВЛЕНО!
-  // Используем occupiedPorts вместо freePorts
-  return props.station.occupiedPorts || 0
+  // Количество powerbank'ов в станции = remain_num (по протоколу)
+  return props.station.remain_num || 0
 })
 
 // Проверка, является ли пользователь админом
@@ -274,13 +272,16 @@ const occupiedPorts = computed(() => {
 
 // Вычисляем свободные слоты для возврата powerbank'ов (пустые слоты БЕЗ powerbank'ов)
 const freeSlots = computed(() => {
-  // ИСПРАВЛЕНО: Используем freePorts или remain_num напрямую
-  const result = props.station.freePorts || props.station.remain_num || 0
+  // remain_num = количество ПОВЕРБАНКОВ (не свободных слотов!)
+  // Свободные слоты = total - повербанков
+  const totalSlots = totalPorts.value
+  const powerbanksCount = props.station.remain_num || 0
+  const result = Math.max(0, totalSlots - powerbanksCount)
   
   console.log('🔢 Расчет свободных слотов:', {
     station: props.station.box_id,
-    totalSlots: totalPorts.value,
-    powerbanks: availablePorts.value,
+    totalSlots: totalSlots,
+    powerbanksCount: powerbanksCount,
     freeSlots: result,
     stationData: {
       totalPorts: props.station.totalPorts,

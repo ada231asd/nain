@@ -284,6 +284,8 @@ class OtherEntitiesCRUD:
                     await cur.execute("""
                         SELECT uf.id, uf.user_id, uf.station_id, uf.created_at, uf.nik,
                                s.box_id AS station_box_id, s.status AS station_status,
+                               s.last_seen AS station_last_seen,
+                               s.slots_declared AS station_slots_declared,
                                u.phone_e164 AS user_phone,
                                ou.adress AS station_address
                         FROM user_favorites uf
@@ -651,6 +653,28 @@ class OtherEntitiesCRUD:
                             "error": "Станция не найдена"
                         }, status=400)
                     
+                    # ЗАЩИТА ОТ ДУБЛИРОВАНИЯ: Проверяем, нет ли уже ключа для этой станции
+                    await cur.execute("""
+                        SELECT id FROM station_secret_key WHERE station_id = %s
+                    """, (data['station_id'],))
+                    existing_key = await cur.fetchone()
+                    if existing_key:
+                        return web.json_response({
+                            "success": False,
+                            "error": "У этой станции уже есть секретный ключ. Удалите старый ключ перед добавлением нового."
+                        }, status=400)
+                    
+                    # ЗАЩИТА ОТ ДУБЛИРОВАНИЯ: Проверяем, не используется ли этот ключ другой станцией
+                    await cur.execute("""
+                        SELECT station_id FROM station_secret_key WHERE key_value = %s
+                    """, (data['key_value'],))
+                    duplicate_key = await cur.fetchone()
+                    if duplicate_key:
+                        return web.json_response({
+                            "success": False,
+                            "error": f"Этот ключ уже используется станцией ID {duplicate_key['station_id']}. Каждый ключ должен быть уникальным."
+                        }, status=400)
+                    
                     # Создаем секретный ключ
                     await cur.execute("""
                         INSERT INTO station_secret_key (station_id, key_value)
@@ -659,10 +683,19 @@ class OtherEntitiesCRUD:
                     
                     key_id = cur.lastrowid
                     
+                    # После вставки ключа - переводим станцию в статус 'pending' (неактивна)
+                    await cur.execute("""
+                        UPDATE station 
+                        SET status = 'pending'
+                        WHERE station_id = %s
+                    """, (data['station_id'],))
+                    
+                    await conn.commit()
+                    
                     return web.json_response({
                         "success": True,
                         "data": {"id": key_id},
-                        "message": "Секретный ключ создан"
+                        "message": "Секретный ключ создан. Станция переведена в статус 'pending' (неактивна)."
                     })
                     
         except Exception as e:

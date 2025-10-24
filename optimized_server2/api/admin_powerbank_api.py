@@ -324,9 +324,10 @@ class AdminPowerbankAPI:
                     """, (powerbank_id,))
                     
                     # Обновляем счетчики станций
+                    # remain_num = свободные слоты = total - занятые
                     await cur.execute("""
                         UPDATE station s 
-                        SET remain_num = (
+                        SET remain_num = s.slots_declared - (
                             SELECT COUNT(*) 
                             FROM station_powerbank sp
                             JOIN powerbank p ON sp.powerbank_id = p.id
@@ -467,16 +468,17 @@ class AdminPowerbankAPI:
                     """, (station_id, slot_number))
                     
                     # Обновляем счетчик станции
+                    # remain_num = количество повербанков (не свободных слотов!)
                     await cur.execute("""
-                        UPDATE station 
+                        UPDATE station s
                         SET remain_num = (
                             SELECT COUNT(*) 
                             FROM station_powerbank sp
                             JOIN powerbank p ON sp.powerbank_id = p.id
-                            WHERE sp.station_id = %s AND p.status = 'active'
+                            WHERE sp.station_id = s.station_id AND p.status = 'active'
                         )
                         WHERE station_id = %s
-                    """, (station_id, station_id))
+                    """, (station_id,))
                     
                     # Проверяем существование пользователя или создаем системного пользователя
                     await cur.execute("""

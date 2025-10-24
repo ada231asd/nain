@@ -75,8 +75,9 @@ class EjectPowerbankHandler:
                     station = await Station.get_by_id(self.db_pool, station_id)
                     if station:
                         await station.update_last_seen(self.db_pool)
-                        # Увеличиваем remain_num на количество извлеченных повербанков
-                        await station.update_remain_num(self.db_pool, int(station.remain_num) + removed_count)
+                        # При извлечении повербанков становится меньше → remain_num уменьшается
+                        new_remain_num = max(0, int(station.remain_num) - removed_count)
+                        await station.update_remain_num(self.db_pool, new_remain_num)
                     
                     # Запрашиваем инвентарь только при успешном извлечении для обновления данных
                     await self._request_inventory_after_operation(station_id)
@@ -101,8 +102,9 @@ class EjectPowerbankHandler:
                 station = await Station.get_by_id(self.db_pool, station_id)
                 if station:
                     await station.update_last_seen(self.db_pool)
-                    # Увеличиваем remain_num при извлечении
-                    await station.update_remain_num(self.db_pool, int(station.remain_num) + 1)
+                    # При извлечении повербанков становится меньше → remain_num уменьшается
+                    new_remain_num = max(0, int(station.remain_num) - 1)
+                    await station.update_remain_num(self.db_pool, new_remain_num)
                 
                 pass
             else:

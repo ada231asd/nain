@@ -118,7 +118,9 @@ class BorrowPowerbankHandler:
                 station = await Station.get_by_id(self.db_pool, station_id)
                 if station:
                     await station.update_last_seen(self.db_pool)
-                    await station.update_remain_num(self.db_pool, int(station.remain_num) - 1)
+                    # При выдаче powerbank'а их количество уменьшается → remain_num уменьшается
+                    new_remain_num = max(0, int(station.remain_num) - 1)
+                    await station.update_remain_num(self.db_pool, new_remain_num)
                 
                 
                 # Уведомляем ожидающий запрос об успехе
