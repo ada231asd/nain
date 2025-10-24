@@ -338,12 +338,12 @@ export const pythonAPI = {
     if (!data.nik || typeof data.nik !== 'string') {
       throw new Error('Nickname (nik) is required and must be a string')
     }
-    return handleResponse(apiClient.put(`/stations/${favoriteId}/nik`, data), 'set station nickname')
+    return handleResponse(apiClient.put(`/user-favorites/${favoriteId}/nik`, data), 'set station nickname')
   },
   // Удаление nickname для избранной станции
   deleteStationNickname: (favoriteId) => {
     validateId(favoriteId, 'favorite ID')
-    return handleResponse(apiClient.delete(`/stations/${favoriteId}/nik`), 'delete station nickname')
+    return handleResponse(apiClient.delete(`/user-favorites/${favoriteId}/nik`), 'delete station nickname')
   },
 
   // АДМИНИСТРАТИВНЫЕ ФУНКЦИИ
