@@ -16,9 +16,6 @@
       </div>
       <div class="group-info">
         <h3 class="group-name">{{ getCurrentGroupName() }}</h3>
-        <div class="group-stats" v-if="getGroupStats()">
-          <span class="group-users-count">{{ getGroupStats() }}</span>
-        </div>
       </div>
     </div>
 
@@ -211,28 +208,6 @@ const getCurrentGroupType = () => {
     case 'subgroup': return 'Подгруппа'
     default: return group.unit_type || ''
   }
-}
-
-
-const getGroupStats = () => {
-  const user = authStore.user
-  if (!user) return null
-  
-  const orgUnitId = user.parent_org_unit_id || user.org_unit_id
-  if (!orgUnitId) return null
-  
-  // Подсчитываем количество пользователей в группе
-  const groupUsers = adminStore.users.filter(u => 
-    (u.parent_org_unit_id || u.org_unit_id) === orgUnitId
-  )
-  
-  if (groupUsers.length === 0) return null
-  
-  const activeUsers = groupUsers.filter(u => 
-    u.status === 'active'
-  ).length
-  
-  return `${activeUsers}/${groupUsers.length} пользователей`
 }
 
 // Вычисляет текущий org_unit_id по тем же правилам, что и getCurrentGroupName
