@@ -238,13 +238,14 @@ class StationHandler:
                     soh_int = int(slot['SOH']) if slot['SOH'] is not None else 0
                     await existing_powerbank.update_soh(self.db_pool, soh_int)
             else:
-                # Создаем новый повербанк со статусом unknown в группе 1 
+                # Создаем новый повербанк со статусом unknown в группе станции
                 new_powerbank = await Powerbank.create_unknown(
                     self.db_pool, 
                     terminal_id, 
-                    1  # Группа 1 - глобальная сервисная группа
+                    station.org_unit_id  # Создаем в группе станции
                 )
-                logger = get_logger('station_handler'); logger.info(f"Создан новый повербанк {terminal_id} со статусом unknown в группе 1 (ID: {new_powerbank.powerbank_id})")
+                logger = get_logger('station_handler')
+                logger.info(f"Создан новый повербанк {terminal_id} со статусом unknown в группе {station.org_unit_id} станции {station_id} (ID: {new_powerbank.powerbank_id})")
                 
                 # Обновляем SOH если есть данные
                 if slot.get('SOH') is not None:

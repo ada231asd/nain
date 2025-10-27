@@ -15,19 +15,40 @@ async def check_duplicate_borrow_order(db_pool, user_id: int, powerbank_id: int,
     try:
         logger = get_logger('order_utils')
         
+        # Получаем телефон пользователя и серийный номер powerbank'а
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                # Получаем телефон пользователя
+                await cur.execute("""
+                    SELECT phone_e164 FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                user_result = await cur.fetchone()
+                if not user_result:
+                    return True, "Пользователь не найден"
+                user_phone = user_result[0]
+                
+                # Получаем серийный номер powerbank'а
+                await cur.execute("""
+                    SELECT serial_number FROM powerbank WHERE id = %s
+                """, (powerbank_id,))
+                powerbank_result = await cur.fetchone()
+                if not powerbank_result:
+                    return True, "Powerbank не найден"
+                powerbank_serial = powerbank_result[0]
+        
         # Проверяем активные заказы пользователя
-        active_user_orders = await Order.get_active_orders_by_user(db_pool, user_id)
+        active_user_orders = await Order.get_active_by_user_phone(db_pool, user_phone)
         if active_user_orders:
             # Проверяем, есть ли заказ на тот же powerbank
             for order in active_user_orders:
-                if order.powerbank_id == powerbank_id:
-                    logger.warning(f"Дублирующий заказ: пользователь {user_id} уже имеет активный заказ {order.order_id} на powerbank {powerbank_id}")
+                if order.powerbank_serial == powerbank_serial:
+                    logger.warning(f"Дублирующий заказ: пользователь {user_id} уже имеет активный заказ {order.order_id} на powerbank {powerbank_serial}")
                     return True, f"У вас уже есть активный заказ на этот powerbank (заказ #{order.order_id})"
         
         # Проверяем активные заказы на powerbank
-        active_powerbank_order = await Order.get_active_by_powerbank_id(db_pool, powerbank_id)
+        active_powerbank_order = await Order.get_active_by_powerbank_serial(db_pool, powerbank_serial)
         if active_powerbank_order:
-            logger.warning(f"Дублирующий заказ: powerbank {powerbank_id} уже выдан в заказе {active_powerbank_order.order_id}")
+            logger.warning(f"Дублирующий заказ: powerbank {powerbank_serial} уже выдан в заказе {active_powerbank_order.order_id}")
             return True, f"Powerbank уже выдан другому пользователю (заказ #{active_powerbank_order.order_id})"
         
         logger.info(f"Проверка дубликатов пройдена: пользователь {user_id}, powerbank {powerbank_id}, станция {station_id}")
@@ -65,10 +86,15 @@ async def check_powerbank_availability(db_pool, powerbank_id: int) -> Tuple[bool
             logger.warning(f"Powerbank {powerbank_id} не найден ни в одной станции")
             return False, "Powerbank не найден в станциях"
         
+        # Получаем серийный номер powerbank'а для поиска в orders
+        powerbank_serial = powerbank.serial_number if powerbank else None
+        if not powerbank_serial:
+            return False, "Серийный номер powerbank'а не найден"
+        
         # Проверяем активные заказы на powerbank
-        active_order = await Order.get_active_by_powerbank_id(db_pool, powerbank_id)
+        active_order = await Order.get_active_by_powerbank_serial(db_pool, powerbank_serial)
         if active_order:
-            logger.warning(f"Powerbank {powerbank_id} уже выдан в заказе {active_order.order_id}")
+            logger.warning(f"Powerbank {powerbank_serial} уже выдан в заказе {active_order.order_id}")
             return False, f"Powerbank уже выдан (заказ #{active_order.order_id})"
         
         logger.info(f"Powerbank {powerbank_id} ({powerbank.serial_number}) доступен для выдачи")
@@ -141,14 +167,23 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
                 if effective_limit == 0:
                     return False, "Пользователь не привязан к группе и не может брать повербанки"
                 
+                # Получаем телефон пользователя для поиска в orders
+                await cur.execute("""
+                    SELECT phone_e164 FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                phone_result = await cur.fetchone()
+                if not phone_result:
+                    return False, "Пользователь не найден"
+                user_phone = phone_result[0]
+                
                 # Подсчитываем количество активных повербанков у пользователя
                 await cur.execute("""
                     SELECT COUNT(*) as active_count
                     FROM orders o
-                    WHERE o.user_id = %s 
+                    WHERE o.user_phone = %s 
                     AND o.status = 'borrow' 
                     AND o.completed_at IS NULL
-                """, (user_id,))
+                """, (user_phone,))
                 
                 active_count_result = await cur.fetchone()
                 active_count = active_count_result[0] if active_count_result else 0
@@ -235,15 +270,33 @@ async def get_user_limit_info(db_pool, user_id: int) -> Dict[str, Any]:
                         "active_count": 0,
                     }
 
+                # Получаем телефон пользователя для поиска в orders
+                await cur.execute("""
+                    SELECT phone_e164 FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                phone_result = await cur.fetchone()
+                user_phone = phone_result[0] if phone_result else None
+                
+                if not user_phone:
+                    return {
+                        "user_id": user_id,
+                        "individual_limit": None,
+                        "group_default_limit": None,
+                        "group_name": None,
+                        "effective_limit": 0,
+                        "limit_type": "no_user",
+                        "active_count": 0,
+                    }
+
                 await cur.execute(
                     """
                     SELECT COUNT(*) as active_count
                     FROM orders o
-                    WHERE o.user_id = %s 
+                    WHERE o.user_phone = %s 
                       AND o.status = 'borrow' 
                       AND o.completed_at IS NULL
                     """,
-                    (user_id,),
+                    (user_phone,),
                 )
                 active_row = await cur.fetchone()
                 active_count = active_row[0] if active_row else 0
@@ -275,15 +328,24 @@ async def get_user_limit_info(db_pool, user_id: int) -> Dict[str, Any]:
 
 async def _get_active_count(conn, user_id: int) -> int:
     async with conn.cursor() as cur:
+        # Получаем телефон пользователя
+        await cur.execute("""
+            SELECT phone_e164 FROM app_user WHERE user_id = %s
+        """, (user_id,))
+        phone_result = await cur.fetchone()
+        if not phone_result:
+            return 0
+        user_phone = phone_result[0]
+        
         await cur.execute(
             """
             SELECT COUNT(*) as active_count
             FROM orders o
-            WHERE o.user_id = %s 
+            WHERE o.user_phone = %s 
               AND o.status = 'borrow' 
               AND o.completed_at IS NULL
             """,
-            (user_id,),
+            (user_phone,),
         )
         row = await cur.fetchone()
         return row[0] if row else 0

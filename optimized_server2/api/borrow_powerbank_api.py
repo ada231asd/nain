@@ -53,7 +53,7 @@ class BorrowPowerbankAPI:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
                 if powerbank and (include_all or powerbank.status == 'active'):
                     # Проверяем, что повербанк не находится в активном заказе
-                    existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                    existing_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                     if existing_order:
                         continue  # Пропускаем повербанки в активных заказах
                     
@@ -374,7 +374,7 @@ class BorrowPowerbankAPI:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
                 if powerbank and powerbank.status == 'active':
                     # Проверяем, что повербанк не находится в активном заказе
-                    existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                    existing_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                     if existing_order:
                         continue
                     
@@ -529,7 +529,14 @@ class BorrowPowerbankAPI:
                 return {"error": "В слоте находится другой повербанк", "success": False}
             
             # Проверяем, что повербанк не находится в активном заказе
-            existing_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+            # Получаем серийный номер powerbank'а
+            powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
+            if not powerbank:
+                return {
+                    "success": False,
+                    "message": "Повербанк не найден"
+                }
+            existing_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
             if existing_order:
                 return {
                     "success": False,

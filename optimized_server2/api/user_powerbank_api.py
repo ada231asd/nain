@@ -73,7 +73,7 @@ class UserPowerbankAPI:
                     break
 
                 # Проверяем, не выдан ли уже повербанк
-                active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                 if not active_order:
                     # Проверяем права доступа
                     can_borrow, access_reason = await can_user_borrow_powerbank(
@@ -145,7 +145,7 @@ class UserPowerbankAPI:
                     break
 
                 # Проверяем, не выдан ли уже повербанк
-                active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank.powerbank_id)
+                active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                 if not active_order:
                     # Проверяем права доступа
                     can_borrow, access_reason = await can_user_borrow_powerbank(
@@ -252,7 +252,7 @@ class UserPowerbankAPI:
                 return json_fail("Повербанк не найден", status=404)
 
             # Проверяем, что повербанк не выдан
-            active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+            active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
             if active_order:
                 return json_fail("Повербанк уже выдан другому пользователю", status=400)
 
@@ -484,7 +484,11 @@ class UserPowerbankAPI:
                     available_count = 0
                     for sp in station_powerbanks:
                         # Проверяем, не выдан ли повербанк
-                        active_order = await Order.get_active_by_powerbank_id(self.db_pool, sp.powerbank_id)
+                        # Получаем серийный номер powerbank'а
+                        powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
+                        if not powerbank:
+                            continue
+                        active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                         if not active_order:
                             available_count += 1
                     
@@ -532,9 +536,14 @@ class UserPowerbankAPI:
             if not user:
                 return json_fail("Пользователь не найден", status=404)
 
+            # Получаем телефон пользователя для поиска в orders
+            user_phone = user.phone_e164 if user else None
+            if not user_phone:
+                return json_fail("Телефон пользователя не найден", status=404)
+            
             # Получаем статистику пользователя
-            active_orders = await Order.get_active_by_user_id(self.db_pool, user_id)
-            total_orders = await Order.get_count_by_user_id(self.db_pool, user_id)
+            active_orders = await Order.get_active_by_user_phone(self.db_pool, user_phone)
+            total_orders = await Order.get_count_by_user_phone(self.db_pool, user_phone)
 
             return json_ok({
                 "user": {

@@ -174,8 +174,8 @@ const submitErrorReport = async () => {
   try {
     // Отправляем запрос на возврат с ошибкой через Long Polling API
     const response = await pythonAPI.returnError({
-      station_id: props.order?.station_id,
-      user_id: props.order?.user_id,
+      station_box_id: props.order?.station_box_id,
+      user_phone: props.order?.user_phone,
       error_type_id: selectedErrorType.value,
       timeout_seconds: 30 // 30 секунд ожидания
     })
@@ -184,9 +184,9 @@ const submitErrorReport = async () => {
       // Успешно обработан возврат с ошибкой
       const errorReport = {
         order_id: props.order?.order_id || props.order?.id,
-        powerbank_id: response.powerbank_id || props.order?.powerbank_id,
-        station_id: response.station_id || props.order?.station_id,
-        user_id: response.user_id || props.order?.user_id,
+        powerbank_serial: response.powerbank_serial || props.order?.powerbank_serial,
+        station_box_id: response.station_box_id || props.order?.station_box_id,
+        user_phone: response.user_phone || props.order?.user_phone,
         error_type: response.error_type || selectedErrorType.value,
         error_name: response.error_name,
         slot_number: response.slot_number,

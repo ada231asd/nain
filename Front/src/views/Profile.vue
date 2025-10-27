@@ -107,8 +107,9 @@
               
               <transition name="accordion">
                 <div v-show="isOrderExpanded(item.id || item.order_id)" class="history-details">
-                  <p><strong>Повербанк:</strong> {{ item.powerbank_serial || item.powerbank_id || 'Не указан' }}</p>
-                  <p><strong>Станция:</strong> {{ item.station_box_id || item.station_id || 'Не указана' }}</p>
+                  <p><strong>Повербанк:</strong> {{ item.powerbank_serial || 'Не указан' }}</p>
+                  <p><strong>Станция:</strong> {{ item.station_box_id || 'Не указана' }}</p>
+                  <p v-if="item.org_unit_name"><strong>Группа:</strong> {{ item.org_unit_name }}</p>
                   <p><strong>Дата создания:</strong> {{ formatDate(item.timestamp) }}</p>
                   <p v-if="item.completed_at"><strong>Завершен:</strong> {{ formatDate(item.completed_at) }}</p>
                 </div>
@@ -348,8 +349,8 @@ const loadUserOrders = async () => {
         orders = response.data
       }
     } else {
-      // Администраторы используют /api/orders с фильтром
-      response = await pythonAPI.getOrders({ user_id: user.value.user_id })
+      // Администраторы используют /api/orders с фильтром по телефону
+      response = await pythonAPI.getOrders({ user_phone: user.value.phone_e164 })
       console.log('📋 Ответ API для администратора:', response)
       
       // Извлекаем массив из ответа

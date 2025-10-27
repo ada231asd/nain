@@ -10,7 +10,7 @@ import { pythonAPI } from '../api/pythonApi'
 
 /**
  * Централизованное обновление всех данных после возврата аккумулятора
- * @param {Object} orderData - Данные заказа { station_id, user_id, powerbank_id }
+ * @param {Object} orderData - Данные заказа { station_box_id, user_phone, powerbank_serial }
  * @param {Object} user - Данные пользователя
  * @param {Function} loadUserOrders - Функция загрузки заказов пользователя
  */
@@ -25,13 +25,22 @@ export const refreshAllDataAfterReturn = async (orderData, user, loadUserOrders)
     // Параллельно обновляем все необходимые данные
     const updatePromises = []
     
-    // 1. Обновляем данные станции
-    if (orderData.station_id) {
-      updatePromises.push(
-        stationsStore.refreshStationData(orderData.station_id).catch(error => {
-          console.warn('Не удалось обновить данные станции:', error)
-        })
-      )
+    // 1. Обновляем данные станции (нужно найти station_id по station_box_id)
+    if (orderData.station_box_id) {
+      // Получаем station_id по station_box_id
+      try {
+        const stations = await pythonAPI.getStations()
+        const station = stations.data?.find(s => s.box_id === orderData.station_box_id)
+        if (station) {
+          updatePromises.push(
+            stationsStore.refreshStationData(station.station_id || station.id).catch(error => {
+              console.warn('Не удалось обновить данные станции:', error)
+            })
+          )
+        }
+      } catch (error) {
+        console.warn('Не удалось найти станцию по box_id:', error)
+      }
     }
     
     // 2. Обновляем историю заказов пользователя

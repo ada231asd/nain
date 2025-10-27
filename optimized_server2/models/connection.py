@@ -124,6 +124,9 @@ class ConnectionManager:
             if connection and connection.writer and not connection.writer.is_closing():
                 try:
                     connection.writer.close()
+                    # Правильно очищаем callback
+                    if hasattr(connection.writer, '_transport') and connection.writer._transport:
+                        connection.writer._transport._read_ready_cb = None
                     print(f"СЕРВЕР ЗАКРЫЛ СОЕДИНЕНИЕ: {connection.box_id} (fd={fd}) - нет heartbeat {timeout_seconds} сек")
                 except Exception as e:
                     print(f"Ошибка закрытия соединения {fd}: {e}")
@@ -137,11 +140,15 @@ class ConnectionManager:
             connection = self.connections[fd]
             if connection.writer and not connection.writer.is_closing():
                 try:
+                    # Правильно закрываем writer
                     connection.writer.close()
+                    # Ждем завершения закрытия
+                    if hasattr(connection.writer, '_transport') and connection.writer._transport:
+                        connection.writer._transport._read_ready_cb = None
                 except Exception as e:
                     # Игнорируем ошибки закрытия для сброшенных соединений
                     if not isinstance(e, (ConnectionResetError, OSError, socket.error)):
-                        self.logger.error(f"Ошибка: {e}")
+                        print(f"Ошибка закрытия соединения {fd}: {e}")
             self.remove_connection(fd)
     
     def close_station_connections(self, station_id: int):

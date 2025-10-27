@@ -405,6 +405,9 @@ class OptimizedServer:
             try:
                 if not writer.is_closing():
                     writer.close()
+                    # Правильно очищаем callback
+                    if hasattr(writer, '_transport') and writer._transport:
+                        writer._transport._read_ready_cb = None
                     
                     if not connection_reset:
                         try:
@@ -633,6 +636,9 @@ class OptimizedServer:
                     if conn.writer and not conn.writer.is_closing():
                         self.logger.debug(f"Закрываем соединение {conn.addr} (станция: {conn.box_id})")
                         conn.writer.close()
+                        # Правильно очищаем callback
+                        if hasattr(conn.writer, '_transport') and conn.writer._transport:
+                            conn.writer._transport._read_ready_cb = None
                         await conn.writer.wait_closed()
                         closed_count += 1
                     else:

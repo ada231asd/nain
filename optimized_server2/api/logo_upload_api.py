@@ -18,7 +18,8 @@ class LogoUploadAPI:
         self.db_pool = db_pool
         
         # Настройки загрузки
-        self.upload_dir = "uploads/logos"
+        # Путь относительно корня проекта (tcp_server/uploads/logos)
+        self.upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "uploads", "logos")
         # Разрешаем до 15MB на файл (совместимо с глобальным лимитом 20MB)
         self.max_file_size = 15 * 1024 * 1024
         self.allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}

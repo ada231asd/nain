@@ -63,17 +63,24 @@ class NormalReturnPowerbankHandler:
                 return {"success": False, "error": "Повербанк не найден"}
 
             # Проверяем, есть ли активный заказ на выдачу для этого повербанка
-            active_order = await Order.get_active_borrow_order(self.db_pool, powerbank_id)
+            active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.serial_number)
             
             if active_order:
                 # Закрываем активный заказ
                 await active_order.update_status(self.db_pool, 'return')
                 self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id}")
                 
+                # Получаем user_id по телефону для логирования
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute("SELECT user_id FROM app_user WHERE phone_e164 = %s", (active_order.user_phone,))
+                        user_result = await cur.fetchone()
+                        user_id = user_result[0] if user_result else None
+                
                 # Логируем действие
                 await ActionLog.create(
                     self.db_pool,
-                    user_id=active_order.user_id,
+                    user_id=user_id,
                     action_type='order_update',
                     entity_type='order',
                     entity_id=active_order.order_id,
@@ -128,14 +135,18 @@ class NormalReturnPowerbankHandler:
             from utils.packet_utils import parse_return_power_bank_request, build_return_power_bank_response
             from utils.station_resolver import get_station_id_by_box_id
           
+            # Проверяем, есть ли ожидающие возвраты с ошибкой
+            # Если есть - делегируем обработку error_return_handler
             try:
                 from handlers.return_powerbank import ReturnPowerbankHandler
                 error_return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
-                delegated = await error_return_handler.handle_tcp_error_return_request(data, connection)
-                if delegated is not None:
-                    return delegated
+                
+                # Проверяем есть ли ожидающие возвраты с ошибкой
+                if error_return_handler.pending_error_returns:
+                    delegated = await error_return_handler.handle_tcp_error_return_request(data, connection)
+                    if delegated is not None:
+                        return delegated
             except Exception:
-               
                 pass
             
             # Парсим данные запроса
@@ -228,18 +239,30 @@ class NormalReturnPowerbankHandler:
         Обрабатывает возврат повербанка, обнаруженного в инвентаре станции
         """
         try:
+            # Получаем повербанк для получения его serial_number
+            powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
+            if not powerbank:
+                return {"success": False, "error": "Повербанк не найден"}
+            
             # Проверяем, есть ли активный заказ на выдачу для этого повербанка
-            active_order = await Order.get_active_borrow_order(self.db_pool, powerbank_id)
+            active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.serial_number)
             
             if active_order:
                 # Закрываем активный заказ
                 await active_order.update_status(self.db_pool, 'return')
                 self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id} (обнаружен в инвентаре)")
                 
+                # Получаем user_id по телефону для логирования
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute("SELECT user_id FROM app_user WHERE phone_e164 = %s", (active_order.user_phone,))
+                        user_result = await cur.fetchone()
+                        user_id = user_result[0] if user_result else None
+                
                 # Логируем действие
                 await ActionLog.create(
                     self.db_pool,
-                    user_id=active_order.user_id,
+                    user_id=user_id,
                     action_type='order_update',
                     entity_type='order',
                     entity_id=active_order.order_id,
@@ -250,7 +273,7 @@ class NormalReturnPowerbankHandler:
                     "success": True,
                     "message": "Заказ закрыт (повербанк обнаружен в инвентаре)",
                     "order_id": active_order.order_id,
-                    "user_id": active_order.user_id
+                    "user_phone": active_order.user_phone
                 }
             else:
                 self.logger.info(f"Нет активного заказа для повербанка {powerbank_id} (обнаружен в инвентаре)")

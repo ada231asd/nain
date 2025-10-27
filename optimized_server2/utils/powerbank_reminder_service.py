@@ -26,19 +26,17 @@ class PowerbankReminderService:
                     await cur.execute("""
                         SELECT 
                             o.id as order_id,
-                            o.user_id,
-                            o.powerbank_id,
+                            o.user_phone,
+                            o.user_fio as user_name,
+                            o.powerbank_serial,
+                            o.org_unit_name,
                             o.timestamp as borrow_time,
-                            u.fio as user_name,
+                            TIMESTAMPDIFF(HOUR, o.timestamp, NOW()) as hours_borrowed,
                             u.email as user_email,
-                            p.serial_number as powerbank_serial,
-                            ou.name as org_unit_name,
-                            ou.reminder_hours,
-                            TIMESTAMPDIFF(HOUR, o.timestamp, NOW()) as hours_borrowed
+                            ou.reminder_hours
                         FROM orders o
-                        INNER JOIN app_user u ON o.user_id = u.user_id
-                        INNER JOIN powerbank p ON o.powerbank_id = p.id
-                        LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
+                        LEFT JOIN app_user u ON o.user_phone = u.phone_e164
+                        LEFT JOIN org_unit ou ON o.org_unit_name = ou.name
                         WHERE o.status = 'borrow'
                           AND o.completed_at IS NULL
                           AND TIMESTAMPDIFF(HOUR, o.timestamp, NOW()) >= COALESCE(ou.reminder_hours, 24)
@@ -97,12 +95,19 @@ class PowerbankReminderService:
         try:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
+                    # Получаем user_id по телефону для логирования
+                    await cur.execute("""
+                        SELECT user_id FROM app_user WHERE phone_e164 = %s
+                    """, (order_data['user_phone'],))
+                    user_result = await cur.fetchone()
+                    user_id = user_result[0] if user_result else None
+                    
                     await cur.execute("""
                         INSERT INTO action_logs 
                         (user_id, action_type, entity_type, entity_id, description)
                         VALUES (%s, 'system_error', 'order', %s, %s)
                     """, (
-                        order_data['user_id'],
+                        user_id,
                         order_data['order_id'],
                         f"Отправлено напоминание о возврате аккумулятора {order_data['powerbank_serial']}"
                     ))

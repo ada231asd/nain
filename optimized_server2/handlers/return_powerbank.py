@@ -33,7 +33,12 @@ class ReturnPowerbankHandler:
             from utils.packet_utils import build_query_inventory_request
             
             connection = self.connection_manager.get_connection_by_station_id(station_id)
-            if not connection or not connection.writer or connection.writer.is_closing():
+            if not connection:
+                return
+                
+            # Проверяем writer более тщательно
+            writer = getattr(connection, 'writer', None)
+            if not writer or writer.is_closing():
                 return
             
             secret_key = connection.secret_key
@@ -47,11 +52,16 @@ class ReturnPowerbankHandler:
                 station_box_id=connection.box_id or f"station_{station_id}"
             )
             
-            connection.writer.write(inventory_request_packet)
-            await connection.writer.drain()
+            # Дополнительная проверка перед записью
+            if not writer.is_closing():
+                writer.write(inventory_request_packet)
+                await writer.drain()
             
+        except (ConnectionError, OSError, asyncio.CancelledError):
+            # Игнорируем ошибки соединения (без логирования)
+            pass
         except Exception:
-            # Игнорируем ошибки (без логирования)
+            # Игнорируем остальные ошибки (без логирования)
             pass
 
     async def start_background_cleanup(self):
@@ -188,7 +198,12 @@ class ReturnPowerbankHandler:
             future = return_data.get('future')
 
             # Ищем активный заказ по повербанку
-            active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+            powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
+            if not powerbank:
+                if future and not future.done():
+                    future.set_result({"error": "Повербанк не найден", "success": False})
+                return {"error": "Повербанк не найден", "success": False}
+            active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
             if not active_order:
                 if future and not future.done():
                     future.set_result({
@@ -377,30 +392,42 @@ class ReturnPowerbankHandler:
             error_type = None
 
             try:
-                active_order = await Order.get_active_by_powerbank_id(self.db_pool, powerbank_id)
+                active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
             except Exception:
                 active_order = None
 
-            if active_order and active_order.user_id in self.pending_error_returns:
-                pending = self.pending_error_returns.get(active_order.user_id)
+            if active_order and active_order.user_phone in self.pending_error_returns:
+                pending = self.pending_error_returns.get(active_order.user_phone)
                 if not pending or pending.get('station_id') is None or pending.get('station_id') == station_id:
-                    matching_user_id = active_order.user_id
+                    matching_user_id = active_order.user_phone
                     error_type = pending.get('error_type') if pending else None
 
             if not matching_user_id:
-                for user_id, return_data in self.pending_error_returns.items():
+                for user_phone, return_data in self.pending_error_returns.items():
                     if return_data.get('station_id') == station_id:
-                        matching_user_id = user_id
+                        matching_user_id = user_phone
                         error_type = return_data.get('error_type')
                         break
             
             if matching_user_id:
-                self.logger.info(f"Обрабатываем возврат с ошибкой для пользователя {matching_user_id}, повербанк {powerbank_id}")
+                # Получаем user_id по телефону
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute("""
+                            SELECT user_id FROM app_user WHERE phone_e164 = %s
+                        """, (matching_user_id,))
+                        user_result = await cur.fetchone()
+                        if not user_result:
+                            self.logger.error(f"Пользователь с телефоном {matching_user_id} не найден")
+                            return {"error": "Пользователь не найден", "success": False}
+                        user_id = user_result[0]
+                
+                self.logger.info(f"Обрабатываем возврат с ошибкой для пользователя {user_id}, повербанк {powerbank_id}")
                 await self._process_error_return(
                     station_id=station_id,
                     slot_number=slot,
                     powerbank_id=powerbank_id,
-                    matching_user_id=matching_user_id
+                    matching_user_id=user_id
                 )
                 return build_return_power_bank_response(
                     slot=slot,

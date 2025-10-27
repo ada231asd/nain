@@ -288,6 +288,12 @@ class HTTPServer:
         self.slot_abnormal_report_endpoints = SlotAbnormalReportEndpoints(self.db_pool, connection_manager)
         self.slot_abnormal_report_endpoints.setup_routes(app)
         
+        # Настройка раздачи статических файлов (логотипов)
+        # Путь к папке с логотипами (tcp_server/uploads/logos)
+        uploads_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "logos")
+        os.makedirs(uploads_path, exist_ok=True)
+        app.router.add_static('/logos/', uploads_path, show_index=False)
+        
         
     
     async def start_server(self):
