@@ -21,22 +21,24 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label for="parent_org_unit_id">Родительская группа</label>
+        <div v-if="formData.unit_type === 'subgroup'" class="form-group">
+          <label for="parent_org_unit_id">Родительская группа *</label>
           <select 
             id="parent_org_unit_id" 
             v-model="formData.parent_org_unit_id" 
+            :required="formData.unit_type === 'subgroup'"
             class="form-select"
           >
-            <option value="">Без родительской группы</option>
+            <option value="">Выберите родительскую группу</option>
             <option 
               v-for="parent in availableParents" 
               :key="parent.org_unit_id" 
               :value="parent.org_unit_id"
             >
-              {{ parent.name }} ({{ parent.unit_type }})
+              {{ parent.name }}
             </option>
           </select>
+          <small class="form-hint">Подгруппа должна принадлежать родительской группе</small>
         </div>
 
         <div class="form-group">
@@ -185,12 +187,13 @@ const formData = ref({
 
 const isEditing = computed(() => !!props.orgUnit)
 
-// Доступные родительские группы (исключаем текущую группу при редактировании)
+// Доступные родительские группы
 const availableParents = computed(() => {
+  // Показываем только группы (не подгруппы)
   let parents = adminStore.orgUnits.filter(ou => ou.unit_type === 'group')
   
   if (isEditing.value && props.orgUnit) {
-    // Исключаем текущую группу и её дочерние элементы
+    // Исключаем текущую группу при редактировании
     parents = parents.filter(ou => ou.org_unit_id !== props.orgUnit.org_unit_id)
   }
   
@@ -215,6 +218,13 @@ const resetForm = () => {
     logoInput.value.value = ''
   }
 }
+
+// Следим за изменением типа группы и сбрасываем родительскую группу для группы
+watch(() => formData.value.unit_type, (newType, oldType) => {
+  if (newType === 'group') {
+    formData.value.parent_org_unit_id = ''
+  }
+})
 
 // Заполнение формы при редактировании
 const fillForm = () => {
@@ -246,6 +256,20 @@ const handleSubmit = async () => {
   
   try {
     const data = { ...formData.value }
+    
+    // Валидация: группа не должна иметь родительскую группу
+    if (data.unit_type === 'group' && data.parent_org_unit_id) {
+      alert('Группа не может иметь родительскую группу')
+      isSubmitting.value = false
+      return
+    }
+    
+    // Валидация: подгруппа должна иметь родительскую группу
+    if (data.unit_type === 'subgroup' && !data.parent_org_unit_id) {
+      alert('Подгруппа должна иметь родительскую группу')
+      isSubmitting.value = false
+      return
+    }
     
     // Очищаем пустые значения
     if (!data.parent_org_unit_id) {

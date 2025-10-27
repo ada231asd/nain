@@ -37,14 +37,45 @@ class OrgUnitCRUD:
                     "error": f"Недопустимый тип организационной единицы. Допустимые значения: {', '.join(valid_unit_types)}"
                 }, status=400)
             
+            # Валидация: группа не должна иметь родительскую группу
+            if data['unit_type'] == 'group' and data.get('parent_org_unit_id'):
+                return web.json_response({
+                    "success": False,
+                    "error": "Группа не может иметь родительскую группу"
+                }, status=400)
+            
+            # Валидация: подгруппа должна иметь родительскую группу
+            if data['unit_type'] == 'subgroup' and not data.get('parent_org_unit_id'):
+                return web.json_response({
+                    "success": False,
+                    "error": "Подгруппа должна иметь родительскую группу"
+                }, status=400)
+            
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверка типа родительской группы
+                    if data.get('parent_org_unit_id'):
+                        await cur.execute("""
+                            SELECT unit_type FROM org_unit WHERE org_unit_id = %s
+                        """, (data['parent_org_unit_id'],))
+                        parent_data = await cur.fetchone()
+                        if not parent_data:
+                            return web.json_response({
+                                "success": False,
+                                "error": "Родительская группа не найдена"
+                            }, status=400)
+                        if parent_data['unit_type'] != 'group':
+                            return web.json_response({
+                                "success": False,
+                                "error": "Подгруппа может иметь родителем только группу"
+                            }, status=400)
+                    
                     # Создаем организационную единицу
                     await cur.execute("""
                         INSERT INTO org_unit (parent_org_unit_id, unit_type, name, adress, logo_url, default_powerbank_limit, reminder_hours, write_off_hours)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
-                        data.get('parent_org_unit_id'),
+                        data.get('parent_org_unit_id') if data['unit_type'] == 'subgroup' else None,
                         data['unit_type'],
                         data['name'],
                         data.get('adress'),
@@ -216,6 +247,52 @@ class OrgUnitCRUD:
                     "success": False,
                     "error": f"Недопустимый тип организационной единицы. Допустимые значения: {', '.join(valid_unit_types)}"
                 }, status=400)
+            
+            # Проверяем текущий unit_type и новые данные
+            async with self.db_pool.acquire() as conn:
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Получаем текущий unit_type
+                    await cur.execute("SELECT unit_type FROM org_unit WHERE org_unit_id = %s", (org_unit_id,))
+                    current_unit = await cur.fetchone()
+                    if not current_unit:
+                        return web.json_response({
+                            "success": False,
+                            "error": "Организационная единица не найдена"
+                        }, status=404)
+                    
+                    current_unit_type = data.get('unit_type', current_unit['unit_type'])
+                    new_parent_id = data.get('parent_org_unit_id')
+                    
+                    # Валидация: группа не должна иметь родительскую группу
+                    if current_unit_type == 'group' and new_parent_id:
+                        return web.json_response({
+                            "success": False,
+                            "error": "Группа не может иметь родительскую группу"
+                        }, status=400)
+                    
+                    # Валидация: подгруппа должна иметь родительскую группу
+                    if current_unit_type == 'subgroup' and new_parent_id is None and 'parent_org_unit_id' in data:
+                        return web.json_response({
+                            "success": False,
+                            "error": "Подгруппа должна иметь родительскую группу"
+                        }, status=400)
+                    
+                    # Проверка типа родительской группы
+                    if new_parent_id and 'parent_org_unit_id' in data:
+                        await cur.execute("""
+                            SELECT unit_type FROM org_unit WHERE org_unit_id = %s
+                        """, (new_parent_id,))
+                        parent_data = await cur.fetchone()
+                        if not parent_data:
+                            return web.json_response({
+                                "success": False,
+                                "error": "Родительская группа не найдена"
+                            }, status=400)
+                        if parent_data['unit_type'] != 'group':
+                            return web.json_response({
+                                "success": False,
+                                "error": "Подгруппа может иметь родителем только группу"
+                            }, status=400)
             
             allowed_fields = ['parent_org_unit_id', 'unit_type', 'name', 'adress', 'logo_url', 'default_powerbank_limit', 'reminder_hours', 'write_off_hours']
             for field in allowed_fields:
