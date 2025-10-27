@@ -90,6 +90,13 @@
                 <input v-else v-model.number="editData.reminder_hours" class="edit-input" type="number" min="1" max="168" />
               </div>
 
+              <!-- Время до списания -->
+              <div class="detail-row" :class="{ 'editable-field': isEditing }">
+                <span class="detail-label">Время до списания (часы):</span>
+                <span v-if="!isEditing" class="detail-value">{{ orgUnit.write_off_hours }}ч</span>
+                <input v-else v-model.number="editData.write_off_hours" class="edit-input" type="number" min="1" max="720" />
+              </div>
+
               <!-- URL логотипа -->
               <div class="detail-row" :class="{ 'editable-field': isEditing }">
                 <span class="detail-label">URL логотипа:</span>
@@ -180,6 +187,7 @@ const editData = ref({
   logo_url: '',
   default_powerbank_limit: 1,
   reminder_hours: 24,
+  write_off_hours: 48,
   parent_org_unit_id: null
 })
 
@@ -257,6 +265,7 @@ const startEditing = () => {
     logo_url: props.orgUnit.logo_url || '',
     default_powerbank_limit: props.orgUnit.default_powerbank_limit || 1,
     reminder_hours: props.orgUnit.reminder_hours || 24,
+    write_off_hours: props.orgUnit.write_off_hours || 48,
     parent_org_unit_id: props.orgUnit.parent_org_unit_id || null
   }
   

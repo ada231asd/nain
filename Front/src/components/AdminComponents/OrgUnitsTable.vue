@@ -33,6 +33,7 @@
             <th class="col-address">Адрес</th>
             <th class="col-limit">Лимит</th>
             <th class="col-reminder">Напоминание</th>
+            <th class="col-writeoff">Списание</th>
           </tr>
         </thead>
         <tbody>
@@ -101,6 +102,14 @@
               </span>
               <span v-else class="no-reminder">—</span>
             </td>
+
+            <!-- Списание -->
+            <td class="col-writeoff">
+              <span class="writeoff-badge" v-if="orgUnit.write_off_hours">
+                📋 {{ orgUnit.write_off_hours }}ч
+              </span>
+              <span v-else class="no-writeoff">—</span>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -143,123 +152,6 @@
       <p v-if="searchQuery">Попробуйте изменить поисковый запрос</p>
       <p v-else>Добавьте первую группу</p>
     </div>
-
-    <!-- Модальное окно удалено - используется OrgUnitDetailsModal из AdminPanel -->
-    <!-- <div v-if="isModalOpen" class="modal-overlay" @click="closeOrgUnitModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Детальная информация о группе</h3>
-          <button @click="closeOrgUnitModal" class="modal-close-btn">×</button>
-        </div>
-        
-        <div class="modal-body" v-if="selectedOrgUnit">
-          <div class="org-unit-details">
-            <!-- Логотип -->
-            <div class="detail-section logo-section">
-              <div class="org-unit-logo-large-container">
-                <img 
-                  v-if="selectedOrgUnit.logo_url" 
-                  :src="selectedOrgUnit.logo_url" 
-                  :alt="selectedOrgUnit.name"
-                  class="org-unit-logo-large"
-                  @error="handleLogoError"
-                />
-                <div v-else class="org-unit-logo-placeholder-large">
-                  <span class="logo-placeholder-text-large">{{ getLogoPlaceholder(selectedOrgUnit) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Основная информация -->
-            <div class="detail-section">
-              <h4>Основная информация</h4>
-              <div class="detail-rows">
-                <div class="detail-row">
-                  <span class="detail-label">Название:</span>
-                  <span class="detail-value">{{ selectedOrgUnit.name || 'N/A' }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Тип:</span>
-                  <span class="detail-value">{{ getUnitTypeText(selectedOrgUnit.unit_type) }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedOrgUnit.description">
-                  <span class="detail-label">Описание:</span>
-                  <span class="detail-value">{{ selectedOrgUnit.description }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedOrgUnit.parent_name">
-                  <span class="detail-label">Родительская группа:</span>
-                  <span class="detail-value">{{ selectedOrgUnit.parent_name }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Адрес -->
-            <div class="detail-section" v-if="selectedOrgUnit.adress || selectedOrgUnit.address">
-              <h4>Адрес</h4>
-              <div class="detail-rows">
-                <div class="detail-row">
-                  <span class="detail-label">Адрес:</span>
-                  <span class="detail-value">{{ selectedOrgUnit.adress || selectedOrgUnit.address }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Настройки -->
-            <div class="detail-section">
-              <h4>Настройки</h4>
-              <div class="detail-rows">
-                <div class="detail-row">
-                  <span class="detail-label">Лимит аккумуляторов:</span>
-                  <span class="detail-value">
-                    {{ selectedOrgUnit.default_powerbank_limit || 'Не установлен' }}
-                  </span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Напоминание (часы):</span>
-                  <span class="detail-value">
-                    {{ selectedOrgUnit.reminder_hours || 'Не установлено' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Дополнительная информация -->
-            <div class="detail-section">
-              <h4>Дополнительная информация</h4>
-              <div class="detail-rows">
-                <div class="detail-row">
-                  <span class="detail-label">ID группы:</span>
-                  <span class="detail-value">{{ selectedOrgUnit.org_unit_id }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedOrgUnit.created_at">
-                  <span class="detail-label">Дата создания:</span>
-                  <span class="detail-value">{{ formatTime(selectedOrgUnit.created_at) }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedOrgUnit.updated_at">
-                  <span class="detail-label">Последнее обновление:</span>
-                  <span class="detail-value">{{ formatTime(selectedOrgUnit.updated_at) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button @click="$emit('view-stations', selectedOrgUnit)" class="btn-action">
-            📡 Станции
-          </button>
-          <button @click="editOrgUnit" class="btn-action">
-            ✏️ Редактировать
-          </button>
-          <button @click="deleteOrgUnit" class="btn-action btn-delete">
-            🗑️ Удалить
-          </button>
-          <button @click="closeOrgUnitModal" class="btn-close">
-            Закрыть
-          </button>
-        </div>
-      </div>
-    </div> -->
   </div>
 </template>
 
@@ -587,6 +479,11 @@ watch(searchQuery, () => {
   min-width: 100px;
 }
 
+.col-writeoff {
+  width: 10%;
+  min-width: 100px;
+}
+
 /* Содержимое ячеек */
 .logo-container {
   display: flex;
@@ -694,8 +591,19 @@ watch(searchQuery, () => {
   font-weight: 500;
 }
 
+.writeoff-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f8d7da;
+  color: #721c24;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .no-limit,
-.no-reminder {
+.no-reminder,
+.no-writeoff {
   color: #999;
   font-size: 0.9rem;
 }
