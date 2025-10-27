@@ -135,7 +135,7 @@ class PowerbankReminderService:
             self.logger.error(f"Ошибка при проверке и отправке напоминаний: {e}", exc_info=True)
             return 0
     
-    async def run_periodic_check(self, interval_hours: int = 1) -> None:
+    async def run_periodic_check(self, interval_hours: float = 0.5) -> None:
         """Запускает периодическую проверку невозвращенных аккумуляторов"""
         while True:
             try:

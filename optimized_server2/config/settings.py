@@ -18,9 +18,9 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://redmine.primetech.ru:8443")
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "appuser",
-    "password": "MyPassw0rd!",
-    "db": "zaryd2",
+    "user": "root",
+    "password": "root",
+    "db": "zaryd",
     "autocommit": True
 }
 
@@ -68,7 +68,7 @@ MAX_PACKET_SIZE = 1024
 # Настройки напоминаний о возврате аккумуляторов
 POWERBANK_REMINDER_CONFIG = {
     "enabled": os.getenv("REMINDER_ENABLED", "true").lower() == "true",  # Включены ли напоминания
-    "check_interval_hours": int(os.getenv("REMINDER_CHECK_INTERVAL", "1")),  # Как часто проверять (в часах)
+    "check_interval_hours": float(os.getenv("REMINDER_CHECK_INTERVAL", "0.5")),  # Как часто проверять (в часах, по умолчанию 0.5 = 30 минут)
 }
 
 # Таймаут ожидания подтверждения возврата (в секундах), используется сервером

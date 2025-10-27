@@ -89,6 +89,19 @@
         </div>
 
         <div class="form-group">
+          <label for="write_off_hours">Время до списания (часы)</label>
+          <input 
+            id="write_off_hours" 
+            v-model.number="formData.write_off_hours" 
+            type="number"
+            min="1"
+            class="form-input"
+            placeholder="48"
+          />
+          <small class="form-hint">Через сколько часов считать повербанк не возвращенным</small>
+        </div>
+
+        <div class="form-group">
           <label for="logo">Логотип группы</label>
           <div class="logo-upload-section">
             <div v-if="logoPreview" class="logo-preview">
@@ -166,7 +179,8 @@ const formData = ref({
   name: '',
   adress: '',
   default_powerbank_limit: 1,
-  reminder_hours: 24
+  reminder_hours: 24,
+  write_off_hours: 48
 })
 
 const isEditing = computed(() => !!props.orgUnit)
@@ -191,7 +205,8 @@ const resetForm = () => {
     name: '',
     adress: '',
     default_powerbank_limit: 1,
-    reminder_hours: 24
+    reminder_hours: 24,
+    write_off_hours: 48
   }
   logoFile.value = null
   logoPreview.value = null
@@ -210,7 +225,8 @@ const fillForm = () => {
       name: props.orgUnit.name || '',
       adress: props.orgUnit.adress || '',
       default_powerbank_limit: props.orgUnit.default_powerbank_limit || 1,
-      reminder_hours: props.orgUnit.reminder_hours || 24
+      reminder_hours: props.orgUnit.reminder_hours || 24,
+      write_off_hours: props.orgUnit.write_off_hours || 48
     }
     
     // Устанавливаем предварительный просмотр существующего логотипа
