@@ -35,6 +35,18 @@
             </div>
           </div>
           
+          <!-- Показываем индикатор загрузки, если данные группы загружаются -->
+          <div v-else-if="isLoadingOrgUnit" class="layout-header__org-unit">
+            <div class="layout-header__org-unit-logo">
+              <div class="layout-header__org-unit-logo-placeholder loading">
+                <div class="layout-header__loading-spinner"></div>
+              </div>
+            </div>
+            <div class="layout-header__org-unit-info">
+              <h1 class="layout-header__title">{{ title }}</h1>
+            </div>
+          </div>
+          
           <h1 v-else class="layout-header__title">{{ title }}</h1>
         </div>
         
@@ -77,7 +89,7 @@
                   class="layout-header__user-menu-item"
                   @click="goToAdmin"
                 >
-                  ⚙️ Панель администратора
+                  ⚙️ Панель управления
                 </button>
                 
                 <button
@@ -384,6 +396,16 @@ onUnmounted(() => {
   height: 100%;
   object-fit: cover;
   border-radius: 8px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .layout-header__org-unit-logo-placeholder {

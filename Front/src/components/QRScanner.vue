@@ -29,7 +29,7 @@
            />
            
            <div v-if="!showCamera" class="camera-placeholder">
-             <p>Нажмите "Сканировать QR-код" для сканирования</p>
+             <p>Нажмите "Сканировать QR-код" чтоб найти станцию</p>
            </div>
            
            <!-- Отображение ошибок -->
@@ -54,9 +54,6 @@
           >
             Выключить камеру
           </button>
-          <button @click="closeScanner" class="btn-cancel">
-            Отмена
-          </button>
         </div>
         
         <!-- Ручной ввод как fallback -->
@@ -78,6 +75,13 @@
             Добавить
           </button>
         </div>
+      </div>
+      
+      <!-- Футер с кнопкой отмены -->
+      <div class="scanner-footer">
+        <button @click="closeScanner" class="btn-cancel">
+          Отмена
+        </button>
       </div>
     </div>
   </div>
@@ -285,6 +289,13 @@ onUnmounted(() => {
   padding: 30px;
 }
 
+.scanner-footer {
+  padding: 20px 30px;
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 0 0 20px 20px;
+}
+
 .no-camera,
 .loading-camera,
 .camera-placeholder {
@@ -427,7 +438,7 @@ onUnmounted(() => {
 }
 
 .btn-cancel {
-  flex: 1;
+  width: 100%;
   padding: 12px 20px;
   background: #dc3545;
   color: white;
@@ -450,17 +461,16 @@ onUnmounted(() => {
   }
   
   .scanner-header,
-  .scanner-body,
+  .scanner-body {
+    padding: 15px 20px;
+  }
+  
   .scanner-footer {
     padding: 15px 20px;
   }
   
   .qr-stream {
     height: 250px;
-  }
-  
-  .scanner-footer {
-    flex-direction: column;
   }
 }
 </style>

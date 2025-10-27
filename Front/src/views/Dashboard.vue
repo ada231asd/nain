@@ -83,7 +83,7 @@
         
         <div v-if="favoriteStations.length === 0" class="empty-state">
           <p>У вас пока нет избранных станций</p>
-          <p class="empty-state-hint">Чтобы добавить станцию, нажмите "Добавить станцию"</p>
+          <p class="empty-state-hint">Чтобы добавить станцию, нажмите "Найти станцию"</p>
         </div>
         
         <div v-else class="stations-grid">
@@ -228,7 +228,7 @@ const errorReportOrder = ref(null)
 // Состояние для данных группы и логотипа
 const userOrgUnit = ref(null)
 const orgUnitLogo = ref(null)
-const isLoadingOrgUnit = ref(false)
+const isLoadingOrgUnit = ref(true) // Изначально true, чтобы показать индикатор загрузки
 
 // Автоматическое обновление данных
 const autoRefreshInterval = ref(null)
@@ -265,6 +265,7 @@ const refreshFavorites = async () => {
 const loadUserOrgUnit = async () => {
   if (!userOrgUnitId.value) {
     console.log('Нет org_unit_id для пользователя')
+    isLoadingOrgUnit.value = false
     return
   }
 
@@ -1331,6 +1332,40 @@ const handleLogoError = () => {
 }
 
 
+// Watch для отслеживания изменений userOrgUnitId
+watch(
+  () => userOrgUnitId.value,
+  async (newId) => {
+    if (newId && !userOrgUnit.value) {
+      console.log('userOrgUnitId изменился, загружаем данные группы:', newId)
+      await loadUserOrgUnit()
+    } else if (!newId && user.value) {
+      // Если пользователь есть, но нет org_unit_id, останавливаем индикатор загрузки
+      console.log('У пользователя нет org_unit_id')
+      isLoadingOrgUnit.value = false
+    }
+  },
+  { immediate: true } // Выполнить сразу при монтировании, если значение уже есть
+)
+
+// Watch для отслеживания изменений пользователя
+watch(
+  () => user.value,
+  async (newUser) => {
+    if (newUser) {
+      if (userOrgUnitId.value && !userOrgUnit.value) {
+        console.log('Пользователь загружен, загружаем данные группы')
+        await loadUserOrgUnit()
+      } else if (!userOrgUnitId.value) {
+        // Если у пользователя нет org_unit_id, останавливаем индикатор загрузки
+        console.log('Пользователь загружен, но нет org_unit_id')
+        isLoadingOrgUnit.value = false
+      }
+    }
+  },
+  { immediate: true }
+)
+
 // Жизненный цикл
 onMounted(async () => {
   try {
@@ -1342,8 +1377,10 @@ onMounted(async () => {
     // Загружаем QR-станцию если есть параметры
     await loadQRStation()
     
-    // Загружаем данные группы пользователя
-    await loadUserOrgUnit()
+    // Загружаем данные группы пользователя (если еще не загружены через watch)
+    if (userOrgUnitId.value && !userOrgUnit.value) {
+      await loadUserOrgUnit()
+    }
     
     
     // Не запускаем автоматическое обновление по таймеру

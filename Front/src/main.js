@@ -11,8 +11,12 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Инициализируем авторизацию при загрузке приложения
+// Инициализируем авторизацию при загрузке приложения и ждем завершения
 const authStore = useAuthStore()
-authStore.initializeAuth()
-
-app.mount('#app')
+authStore.initializeAuth().then(() => {
+  // Монтируем приложение после инициализации авторизации
+  app.mount('#app')
+}).catch(() => {
+  // Даже при ошибке монтируем приложение
+  app.mount('#app')
+})
