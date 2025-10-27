@@ -44,7 +44,10 @@
 
             <!-- Управление аккумуляторами -->
             <div v-if="activeTab === 'powerbanks'" class="tab-pane">
-              <PowerbankList />
+              <PowerbanksTable
+                :powerbanks="adminStore.powerbanks"
+                :org-units="orgUnits"
+              />
             </div>
 
             <!-- Управление группами -->
@@ -351,12 +354,12 @@ import StationActivationModal from '../components/StationActivationModal.vue'
 import AddOrgUnitModal from '../components/AddOrgUnitModal.vue'
 import OrgUnitStationsModal from '../components/OrgUnitStationsModal.vue'
 import OrgUnitDetailsModal from '../components/OrgUnitDetailsModal.vue'
-import PowerbankList from '../components/PowerbankList.vue'
 import SlotAbnormalReports from '../components/SlotAbnormalReports.vue'
 import StationQRModal from '../components/StationQRModal.vue'
 import StationsTable from '../components/AdminComponents/StationsTable.vue'
 import UsersTable from '../components/AdminComponents/UsersTable.vue'
 import OrgUnitsTable from '../components/AdminComponents/OrgUnitsTable.vue'
+import PowerbanksTable from '../components/AdminComponents/PowerbanksTable.vue'
 import AdminSidebar from '../components/AdminComponents/AdminSidebar.vue'
 
 const router = useRouter()

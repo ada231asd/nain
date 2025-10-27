@@ -149,10 +149,10 @@ const availableStatuses = computed(() => {
       ]
     case 'powerbanks':
       return [
-        { value: 'available', label: 'Доступен', class: 'active', aliases: ['доступен'] },
-        { value: 'borrowed', label: 'Арендован', class: 'borrowed', aliases: ['арендован'] },
-        { value: 'maintenance', label: 'На обслуживании', class: 'maintenance', aliases: [] },
-        { value: 'broken', label: 'Сломан', class: 'broken', aliases: [] }
+        { value: 'active', label: 'Активный', class: 'active', aliases: [] },
+        { value: 'user_reported_broken', label: 'Сломан', class: 'broken', aliases: [] },
+        { value: 'system_error', label: 'Ошибка системы', class: 'broken', aliases: [] },
+        { value: 'written_off', label: 'Списан', class: 'inactive', aliases: [] }
       ]
     case 'orders':
       return [
