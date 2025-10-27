@@ -12,7 +12,7 @@ class OrgUnit:
     def __init__(self, org_unit_id: int, parent_org_unit_id: Optional[int], 
                  unit_type: str, name: str, adress: Optional[str] = None,
                  logo_url: Optional[str] = None, created_at: Optional[datetime] = None,
-                 default_powerbank_limit: int = 1, reminder_hours: int = 24):
+                 default_powerbank_limit: int = 1, reminder_hours: int = 24, write_off_hours: int = 48):
         self.org_unit_id = org_unit_id
         self.parent_org_unit_id = parent_org_unit_id
         self.unit_type = unit_type
@@ -22,6 +22,7 @@ class OrgUnit:
         self.created_at = created_at
         self.default_powerbank_limit = default_powerbank_limit
         self.reminder_hours = reminder_hours
+        self.write_off_hours = write_off_hours
     
     @classmethod
     async def get_by_id(cls, db_pool, org_unit_id: int) -> Optional['OrgUnit']:
@@ -29,7 +30,7 @@ class OrgUnit:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute("""
-                    SELECT org_unit_id, parent_org_unit_id, unit_type, name, adress, logo_url, created_at, default_powerbank_limit, reminder_hours
+                    SELECT org_unit_id, parent_org_unit_id, unit_type, name, adress, logo_url, created_at, default_powerbank_limit, reminder_hours, write_off_hours
                     FROM org_unit
                     WHERE org_unit_id = %s
                 """, (org_unit_id,))
@@ -44,7 +45,8 @@ class OrgUnit:
                         logo_url=row[5],
                         created_at=row[6],
                         default_powerbank_limit=row[7] or 1,
-                        reminder_hours=row[8] or 24
+                        reminder_hours=row[8] or 24,
+                        write_off_hours=row[9] or 48
                     )
                 return None
     
@@ -59,5 +61,6 @@ class OrgUnit:
             'logo_url': self.logo_url,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'default_powerbank_limit': self.default_powerbank_limit,
-            'reminder_hours': self.reminder_hours
+            'reminder_hours': self.reminder_hours,
+            'write_off_hours': self.write_off_hours
         }

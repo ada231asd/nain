@@ -252,6 +252,9 @@ class AdminEndpoints:
         """POST /api/admin/write-off-powerbank - списать повербанк у пользователя как утерянный
 
         Body JSON: { user_id, powerbank_id, admin_user_id, note? }
+        
+        note - опциональное поле, используется только для доп. комментария в логах.
+        В БД сохраняются: status='written_off', write_off_reason='lost'
         """
         try:
             data = await request.json()

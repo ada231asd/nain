@@ -18,6 +18,10 @@
           <span class="reminder-icon">⏰</span>
           <span>Напоминание: {{ orgUnit.reminder_hours }}ч</span>
         </div>
+        <div v-if="orgUnit.write_off_hours" class="org-unit-reminder">
+          <span class="reminder-icon">⚠️</span>
+          <span>Списание: {{ orgUnit.write_off_hours }}ч</span>
+        </div>
       </div>
       
       <div class="org-unit-stats">
