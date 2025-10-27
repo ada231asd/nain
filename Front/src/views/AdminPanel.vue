@@ -49,26 +49,14 @@
 
             <!-- Управление группами -->
             <div v-if="activeTab === 'org-units'" class="tab-pane">
-              <div class="section-header">
-                <h2>Управление группами</h2>
-                <div class="header-actions">
-                  <input type="text" v-model="orgUnitSearch" placeholder="Поиск групп..." class="search-input" />
-                  <button @click="() => { editingOrgUnit = null; showAddOrgUnitModal = true }" class="btn-primary">
-                    + Добавить группу
-                  </button>
-                </div>
-              </div>
-
-              <div class="org-units-list">
-                <div v-for="orgUnit in filteredOrgUnits" :key="orgUnit.org_unit_id" class="org-unit-item">
-                  <OrgUnitCard 
-                    :org-unit="orgUnit"
-                    @edit="editOrgUnit"
-                    @delete="deleteOrgUnit"
-                    @view-stations="viewOrgUnitStations"
-                  />
-                </div>
-              </div>
+              <OrgUnitsTable
+                :org-units="orgUnits"
+                @add-org-unit="() => { editingOrgUnit = null; showAddOrgUnitModal = true }"
+                @edit="editOrgUnit"
+                @delete="deleteOrgUnit"
+                @view-stations="viewOrgUnitStations"
+                @view-details="viewOrgUnitDetails"
+              />
             </div>
 
             <!-- Все заказы -->
@@ -313,6 +301,15 @@
       @close="closeOrgUnitStationsModal"
     />
 
+    <OrgUnitDetailsModal
+      :is-visible="showOrgUnitDetailsModal"
+      :org-unit="selectedOrgUnit"
+      :auto-edit="autoEditOrgUnit"
+      @close="closeOrgUnitDetailsModal"
+      @updated="handleOrgUnitUpdated"
+      @view-stations="viewOrgUnitStations"
+    />
+
     <!-- New User History Modal -->
     <div v-if="showUserHistoryModal" class="modal-overlay" @click="closeUserHistoryModal">
       <div class="modal-content" @click.stop>
@@ -352,13 +349,14 @@ import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import StationActivationModal from '../components/StationActivationModal.vue'
  
 import AddOrgUnitModal from '../components/AddOrgUnitModal.vue'
-import OrgUnitCard from '../components/OrgUnitCard.vue'
 import OrgUnitStationsModal from '../components/OrgUnitStationsModal.vue'
+import OrgUnitDetailsModal from '../components/OrgUnitDetailsModal.vue'
 import PowerbankList from '../components/PowerbankList.vue'
 import SlotAbnormalReports from '../components/SlotAbnormalReports.vue'
 import StationQRModal from '../components/StationQRModal.vue'
 import StationsTable from '../components/AdminComponents/StationsTable.vue'
 import UsersTable from '../components/AdminComponents/UsersTable.vue'
+import OrgUnitsTable from '../components/AdminComponents/OrgUnitsTable.vue'
 import AdminSidebar from '../components/AdminComponents/AdminSidebar.vue'
 
 const router = useRouter()
@@ -390,7 +388,9 @@ const selectedStationForQR = ref(null)
 const showAddOrgUnitModal = ref(false)
 const editingOrgUnit = ref(null)
 const showOrgUnitStationsModal = ref(false)
+const showOrgUnitDetailsModal = ref(false)
 const selectedOrgUnit = ref(null)
+const autoEditOrgUnit = ref(false)
 
 // Глобальное уведомление, если сервер не отвечает
 // Удалено - больше не используется
@@ -429,26 +429,6 @@ const monthOrders = computed(() => {
   return orders.value.filter(order => new Date(order.created_at) >= monthAgo)
 })
 
-const orgUnitSearch = ref('')
-
-const filteredOrgUnits = computed(() => {
-  const list = orgUnits.value || []
-  const query = (orgUnitSearch.value || '').toString().trim().toLowerCase()
-  if (!query) return list
-
-  return list.filter(orgUnit => {
-    const name = (orgUnit.name || '').toString().toLowerCase()
-    const description = (orgUnit.description || '').toString().toLowerCase()
-    const unitType = (orgUnit.unit_type || '').toString().toLowerCase()
-    const parentName = (orgUnit.parent_name || '').toString().toLowerCase()
-    return (
-      name.includes(query) ||
-      description.includes(query) ||
-      unitType.includes(query) ||
-      parentName.includes(query)
-    )
-  })
-})
 
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString('ru-RU')
@@ -929,8 +909,9 @@ const refreshAfterAction = async () => {
   }
 }
 const editOrgUnit = (orgUnit) => {
-  editingOrgUnit.value = orgUnit
-  showAddOrgUnitModal.value = true
+  selectedOrgUnit.value = orgUnit
+  autoEditOrgUnit.value = true
+  showOrgUnitDetailsModal.value = true
 }
 
 const deleteOrgUnit = async (orgUnitId) => {
@@ -948,6 +929,12 @@ const viewOrgUnitStations = (orgUnit) => {
   showOrgUnitStationsModal.value = true
 }
 
+const viewOrgUnitDetails = (orgUnit) => {
+  selectedOrgUnit.value = orgUnit
+  autoEditOrgUnit.value = false
+  showOrgUnitDetailsModal.value = true
+}
+
 const closeOrgUnitModal = () => {
   showAddOrgUnitModal.value = false
   editingOrgUnit.value = null
@@ -956,6 +943,17 @@ const closeOrgUnitModal = () => {
 const closeOrgUnitStationsModal = () => {
   showOrgUnitStationsModal.value = false
   selectedOrgUnit.value = null
+}
+
+const closeOrgUnitDetailsModal = () => {
+  showOrgUnitDetailsModal.value = false
+  selectedOrgUnit.value = null
+  autoEditOrgUnit.value = false
+}
+
+const handleOrgUnitUpdated = async () => {
+  // Обновляем список групп после редактирования
+  await adminStore.fetchOrgUnits()
 }
 
 const handleOrgUnitAdded = async (data) => {
@@ -1034,14 +1032,6 @@ onMounted(async () => {
   gap: 10px;
   align-items: center;
 }
-
-.search-input {
-  padding: 10px;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  width: 300px;
-}
-
 
 .tab-content {
   background: white;
