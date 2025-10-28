@@ -8,12 +8,14 @@ from typing import Dict, Any, List, Optional
 import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
+from api.base_api import BaseAPI
 
 
-class OrdersCRUD:
+class OrdersCRUD(BaseAPI):
     """CRUD endpoints для orders"""
     
     def __init__(self, db_pool):
+        super().__init__(db_pool)
         self.db_pool = db_pool
     
     async def create_order(self, request: Request) -> Response:
@@ -111,9 +113,16 @@ class OrdersCRUD:
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем нужно ли показывать удаленные
+                    show_deleted = await self.should_show_deleted(request)
+                    
                     # Строим условия для фильтрации
                     where_conditions = []
                     params = []
+                    
+                    # КРИТИЧНО: Фильтр удаленных записей
+                    if not show_deleted:
+                        where_conditions.append("is_deleted = 0")
                     
                     if status:
                         where_conditions.append("status = %s")
@@ -156,6 +165,8 @@ class OrdersCRUD:
                     }))
                     
         except Exception as e:
+            from utils.centralized_logger import log_error
+            log_error(__name__, f"ERROR in get_orders: {e}", exc_info=True)
             return web.json_response({
                 "success": False,
                 "error": str(e)

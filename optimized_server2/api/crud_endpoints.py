@@ -8,13 +8,14 @@ from typing import Dict, Any, List, Optional
 import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
+from api.base_api import BaseAPI
 
 
-class CRUDEndpoints:
+class CRUDEndpoints(BaseAPI):
     """CRUD endpoints для всех таблиц БД"""
     
     def __init__(self, db_pool):
-        self.db_pool = db_pool
+        super().__init__(db_pool)
     
     # ==================== APP_USER CRUD ====================
     
@@ -136,9 +137,15 @@ class CRUDEndpoints:
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем нужно ли показывать удаленные
+                    show_deleted = await self.should_show_deleted(request)
+                    
                     # Строим запрос
                     where_conditions = []
                     params = []
+                    
+                    # КРИТИЧНО: Фильтр удаленных записей
+                    self.add_is_deleted_filter(where_conditions, ['au'], show_deleted)
                     
                     if status:
                         where_conditions.append("au.status = %s")
@@ -465,50 +472,35 @@ class CRUDEndpoints:
             }, status=500)
     
     async def delete_user(self, request: Request) -> Response:
-        """DELETE /api/users/{user_id} - Удалить пользователя"""
+        """DELETE /api/users/{user_id} - Мягкое удаление пользователя"""
         try:
-            user_id = int(request.match_info['user_id'])
+            # Проверка авторизации
+            auth_ok, error_response = self.check_auth(request)
+            if not auth_ok:
+                return error_response
             
-            async with self.db_pool.acquire() as conn:
-                async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование
-                    await cur.execute("SELECT user_id FROM app_user WHERE user_id = %s", (user_id,))
-                    user = await cur.fetchone()
-                    if not user:
-                        return web.json_response({
-                            "success": False,
-                            "error": "Пользователь не найден"
-                        }, status=404)
+            user = self.get_user_from_request(request)
+            
+            # Парсинг ID
+            user_id, error_response = self.parse_int_param(request.match_info['user_id'], 'user_id')
+            if error_response:
+                return error_response
+            
+            # Проверка существования
+            exists = await self.entity_exists('app_user', 'user_id', user_id)
+            if not exists:
+                return self.error_response("Пользователь не найден", 404)
+            
+            # Мягкое удаление
+            success, message = await self.soft_delete_entity('user', user_id, user.get('user_id'))
+            
+            if success:
+                return self.success_response(message=message)
+            else:
+                return self.error_response(message, 404)
                     
-                    
-                    # Проверяем связанные записи
-                    await cur.execute("SELECT COUNT(*) as count FROM orders WHERE user_id = %s", (user_id,))
-                    orders_count = (await cur.fetchone())['count']
-                    
-                    await cur.execute("SELECT COUNT(*) as count FROM user_favorites WHERE user_id = %s", (user_id,))
-                    favorites_count = (await cur.fetchone())['count']
-                    
-                    await cur.execute("SELECT COUNT(*) as count FROM user_role WHERE user_id = %s", (user_id,))
-                    roles_count = (await cur.fetchone())['count']
-                    
-                    # Удаляем
-                    await cur.execute("DELETE FROM app_user WHERE user_id = %s", (user_id,))
-                    
-                    return web.json_response({
-                        "success": True,
-                        "message": "Пользователь удален"
-                    })
-                    
-        except ValueError:
-            return web.json_response({
-                "success": False,
-                "error": "Неверный ID пользователя"
-            }, status=400)
         except Exception as e:
-            return web.json_response({
-                "success": False,
-                "error": str(e)
-            }, status=500)
+            return self.error_response(f"Ошибка при удалении: {str(e)}")
     
     # ==================== STATION CRUD ====================
     
@@ -596,9 +588,15 @@ class CRUDEndpoints:
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем нужно ли показывать удаленные
+                    show_deleted = await self.should_show_deleted(request)
+                    
                     # Строим запрос
                     where_conditions = []
                     params = []
+                    
+                    # КРИТИЧНО: Фильтр удаленных записей (только основная таблица!)
+                    self.add_is_deleted_filter(where_conditions, ['s'], show_deleted)
                     
                     if status:
                         where_conditions.append("s.status = %s")
@@ -845,38 +843,35 @@ class CRUDEndpoints:
             }, status=500)
     
     async def delete_station(self, request: Request) -> Response:
-        """DELETE /api/stations/{station_id} - Удалить станцию"""
+        """DELETE /api/stations/{station_id} - Мягкое удаление станции"""
         try:
-            station_id = int(request.match_info['station_id'])
+            # Проверка авторизации
+            auth_ok, error_response = self.check_auth(request)
+            if not auth_ok:
+                return error_response
             
-            async with self.db_pool.acquire() as conn:
-                async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование
-                    await cur.execute("SELECT station_id FROM station WHERE station_id = %s", (station_id,))
-                    if not await cur.fetchone():
-                        return web.json_response({
-                            "success": False,
-                            "error": "Станция не найдена"
-                        }, status=404)
+            user = self.get_user_from_request(request)
+            
+            # Парсинг ID
+            station_id, error_response = self.parse_int_param(request.match_info['station_id'], 'station_id')
+            if error_response:
+                return error_response
+            
+            # Проверка существования
+            exists = await self.entity_exists('station', 'station_id', station_id)
+            if not exists:
+                return self.error_response("Станция не найдена", 404)
+            
+            # Мягкое удаление
+            success, message = await self.soft_delete_entity('station', station_id, user.get('user_id'))
+            
+            if success:
+                return self.success_response(message=message)
+            else:
+                return self.error_response(message, 404)
                     
-                    # Удаляем
-                    await cur.execute("DELETE FROM station WHERE station_id = %s", (station_id,))
-                    
-                    return web.json_response({
-                        "success": True,
-                        "message": "Станция удалена"
-                    })
-                    
-        except ValueError:
-            return web.json_response({
-                "success": False,
-                "error": "Неверный ID станции"
-            }, status=400)
         except Exception as e:
-            return web.json_response({
-                "success": False,
-                "error": str(e)
-            }, status=500)
+            return self.error_response(f"Ошибка при удалении: {str(e)}")
     
     def setup_routes(self, app):
         """Настраивает маршруты CRUD API"""

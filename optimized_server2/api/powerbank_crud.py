@@ -9,13 +9,14 @@ import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
 from utils.time_utils import get_moscow_time
+from api.base_api import BaseAPI
 
 
-class PowerbankCRUD:
+class PowerbankCRUD(BaseAPI):
     """CRUD endpoints для powerbank"""
     
     def __init__(self, db_pool):
-        self.db_pool = db_pool
+        super().__init__(db_pool)
     
     async def create_powerbank(self, request: Request) -> Response:
         """POST /api/powerbanks - Создать powerbank"""
@@ -101,9 +102,15 @@ class PowerbankCRUD:
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем нужно ли показывать удаленные
+                    show_deleted = await self.should_show_deleted(request)
+                    
                     # Строим запрос
                     where_conditions = []
                     params = []
+                    
+                    # КРИТИЧНО: Фильтр удаленных записей (только основная таблица!)
+                    self.add_is_deleted_filter(where_conditions, ['p'], show_deleted)
                     
                     if status:
                         where_conditions.append("p.status = %s")
@@ -293,38 +300,39 @@ class PowerbankCRUD:
             }, status=500)
     
     async def delete_powerbank(self, request: Request) -> Response:
-        """DELETE /api/powerbanks/{powerbank_id} - Удалить powerbank"""
+        """DELETE /api/powerbanks/{powerbank_id} - Мягкое удаление powerbank"""
         try:
-            powerbank_id = int(request.match_info['powerbank_id'])
+            # Проверка авторизации
+            auth_ok, error_response = self.check_auth(request)
+            if not auth_ok:
+                return error_response
             
-            async with self.db_pool.acquire() as conn:
-                async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование
-                    await cur.execute("SELECT id FROM powerbank WHERE id = %s", (powerbank_id,))
-                    if not await cur.fetchone():
-                        return web.json_response({
-                            "success": False,
-                            "error": "Powerbank не найден"
-                        }, status=404)
+            user = self.get_user_from_request(request)
+            
+            # Парсинг ID
+            powerbank_id, error_response = self.parse_int_param(
+                request.match_info['powerbank_id'], 'powerbank_id'
+            )
+            if error_response:
+                return error_response
+            
+            # Проверка существования
+            exists = await self.entity_exists('powerbank', 'id', powerbank_id)
+            if not exists:
+                return self.error_response("Powerbank не найден", 404)
+            
+            # Мягкое удаление
+            success, message = await self.soft_delete_entity(
+                'powerbank', powerbank_id, user.get('user_id')
+            )
+            
+            if success:
+                return self.success_response(message=message)
+            else:
+                return self.error_response(message, 404)
                     
-                    # Удаляем
-                    await cur.execute("DELETE FROM powerbank WHERE id = %s", (powerbank_id,))
-                    
-                    return web.json_response({
-                        "success": True,
-                        "message": "Аккумулятор удален"
-                    })
-                    
-        except ValueError:
-            return web.json_response({
-                "success": False,
-                "error": "Неверный ID аккумулятора"
-            }, status=400)
         except Exception as e:
-            return web.json_response({
-                "success": False,
-                "error": str(e)
-            }, status=500)
+            return self.error_response(f"Ошибка при удалении: {str(e)}")
     
     async def approve_powerbank(self, request: Request) -> Response:
         """PUT /api/powerbanks/{powerbank_id}/approve - Одобрить аккумулятор"""

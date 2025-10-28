@@ -8,12 +8,14 @@ from typing import Dict, Any, List, Optional
 import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
+from api.base_api import BaseAPI
 
 
-class OrgUnitCRUD:
+class OrgUnitCRUD(BaseAPI):
     """CRUD endpoints для org_unit"""
     
     def __init__(self, db_pool):
+        super().__init__(db_pool)
         self.db_pool = db_pool
     
     async def create_org_unit(self, request: Request) -> Response:
@@ -111,7 +113,7 @@ class OrgUnitCRUD:
             offset = (page - 1) * limit
             
             # Получаем доступные org_unit для текущего администратора
-            user = request.get('user')
+            user = self.get_user_from_request(request)
             accessible_org_units = None
             if user:
                 from utils.org_unit_utils import get_admin_accessible_org_units
@@ -119,9 +121,15 @@ class OrgUnitCRUD:
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Проверяем нужно ли показывать удаленные
+                    show_deleted = await self.should_show_deleted(request)
+                    
                     # Строим запрос
                     where_conditions = []
                     params = []
+                    
+                    # КРИТИЧНО: Фильтр удаленных записей
+                    self.add_is_deleted_filter(where_conditions, ['ou'], show_deleted)
                     
                     if unit_type:
                         where_conditions.append("ou.unit_type = %s")
@@ -185,6 +193,8 @@ class OrgUnitCRUD:
                     }))
                     
         except Exception as e:
+            from utils.centralized_logger import log_error
+            log_error(__name__, f"ERROR in get_org_units: {e}", exc_info=True)
             return web.json_response({
                 "success": False,
                 "error": str(e)
