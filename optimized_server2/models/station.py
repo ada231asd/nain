@@ -13,7 +13,8 @@ class Station:
     def __init__(self, station_id: int, box_id: str, slots_declared: int, 
                  remain_num: int, status: str, org_unit_id: int = 1,
                  iccid: Optional[str] = None, last_seen: Optional[datetime] = None, 
-                 created_at: Optional[datetime] = None, updated_at: Optional[datetime] = None):
+                 created_at: Optional[datetime] = None, updated_at: Optional[datetime] = None,
+                 is_deleted: int = 0, deleted_at: Optional[datetime] = None):
         self.station_id = station_id
         self.box_id = box_id
         self.slots_declared = slots_declared
@@ -24,6 +25,8 @@ class Station:
         self.last_seen = last_seen
         self.created_at = created_at or get_moscow_time()
         self.updated_at = updated_at or get_moscow_time()
+        self.is_deleted = is_deleted
+        self.deleted_at = deleted_at
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует станцию в словарь"""
@@ -37,7 +40,9 @@ class Station:
             'iccid': self.iccid,
             'last_seen': self.last_seen.isoformat() if self.last_seen else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_deleted': self.is_deleted,
+            'deleted_at': self.deleted_at.isoformat() if self.deleted_at else None
         }
     
     @classmethod
@@ -62,7 +67,9 @@ class Station:
                         iccid=station_data.get("iccid").rstrip('\x00') if station_data.get("iccid") else None,
                         last_seen=normalize_datetime_to_moscow(station_data.get("last_seen")),
                         created_at=normalize_datetime_to_moscow(station_data.get("created_at")),
-                        updated_at=normalize_datetime_to_moscow(station_data.get("updated_at"))
+                        updated_at=normalize_datetime_to_moscow(station_data.get("updated_at")),
+                        is_deleted=int(station_data.get("is_deleted", 0)),
+                        deleted_at=normalize_datetime_to_moscow(station_data.get("deleted_at"))
                     )
                 return None
     
@@ -106,6 +113,8 @@ class Station:
                 key_row = await cur.fetchone()
                 secret_key = key_row["key_value"] if key_row else None
                 
+                from utils.time_utils import normalize_datetime_to_moscow
+                
                 station = cls(
                     station_id=int(station_data["station_id"]),
                     box_id=str(station_data["box_id"]),
@@ -113,7 +122,9 @@ class Station:
                     remain_num=int(station_data["remain_num"]),
                     status=str(station_data["status"]),
                     org_unit_id=int(station_data["org_unit_id"]),
-                    iccid=station_data.get("iccid")
+                    iccid=station_data.get("iccid"),
+                    is_deleted=int(station_data.get("is_deleted", 0)),
+                    deleted_at=normalize_datetime_to_moscow(station_data.get("deleted_at"))
                 )
                 
                 return station, secret_key

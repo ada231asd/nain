@@ -847,7 +847,11 @@ class CRUDEndpoints(BaseAPI):
             }, status=500)
     
     async def delete_station(self, request: Request) -> Response:
-        """DELETE /api/stations/{station_id} - Мягкое удаление станции"""
+        """
+        DELETE /api/stations/{station_id} - Мягкое удаление станции
+        
+        При удалении станции статус меняется на 'inactive' - сервер не работает с этой станцией
+        """
         try:
             # Проверка авторизации
             auth_ok, error_response = self.check_auth(request)

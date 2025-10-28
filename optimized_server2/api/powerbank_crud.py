@@ -300,7 +300,11 @@ class PowerbankCRUD(BaseAPI):
             }, status=500)
     
     async def delete_powerbank(self, request: Request) -> Response:
-        """DELETE /api/powerbanks/{powerbank_id} - Мягкое удаление powerbank"""
+        """
+        DELETE /api/powerbanks/{powerbank_id} - Мягкое удаление powerbank
+        
+        При удалении повербанка также меняется статус на 'unknown'
+        """
         try:
             # Проверка авторизации
             auth_ok, error_response = self.check_auth(request)

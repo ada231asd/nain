@@ -115,13 +115,8 @@ class BaseAPI:
         
         if entity_type not in delete_functions:
             # Для других таблиц используем общий метод
-            table_mapping = {
-                'user_role': ('user_role', 'id'),
-                'user_favorite': ('user_favorites', 'id'),
-                'station_powerbank': ('station_powerbank', 'id'),
-                'station_secret_key': ('station_secret_key', 'id'),
-                'slot_abnormal_report': ('slot_abnormal_reports', 'report_id')
-            }
+            table_mapping = {}
+            # Примечание: user_role, user_favorite, slot_abnormal_report, station_powerbank, station_secret_key используют физическое удаление
             
             if entity_type in table_mapping:
                 table, id_field = table_mapping[entity_type]
@@ -201,7 +196,8 @@ class BaseAPI:
         Проверяет, нужно ли показывать удаленные записи
         
         Returns:
-            bool: True если service_admin И передан параметр show_deleted=true
+            bool: True если service_admin (по умолчанию показываем удаленные,
+                  можно отключить через show_deleted=false)
         """
         # Проверяем роль
         user = self.get_user_from_request(request)
@@ -218,10 +214,11 @@ class BaseAPI:
         if not is_service_admin:
             return False
         
-        # Проверяем параметр show_deleted
-        show_deleted = request.query.get('show_deleted', 'false').lower() == 'true'
+        # Для service_admin показываем удаленные по умолчанию,
+        # но можно отключить через show_deleted=false
+        show_deleted = request.query.get('show_deleted', 'true').lower()
         
-        return show_deleted
+        return show_deleted != 'false'
     
     def add_is_deleted_filter(
         self, 

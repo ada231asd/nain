@@ -49,6 +49,11 @@ class StationHandler:
                 packet["SlotsNumDeclared"]
             )
             
+            # Проверяем is_deleted - если станция удалена, не обрабатываем пакеты
+            if station.is_deleted:
+                logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} удалена (is_deleted=1) — соединение закрыто")
+                return None
+            
             # Проверяем статус станции и наличие ключа
             if station.status == "pending" or secret_key is None:
                 logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} в статусе pending или нет ключа — соединение закрыто")
