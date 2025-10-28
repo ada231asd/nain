@@ -179,9 +179,9 @@ class OrdersCRUD(BaseAPI):
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Получаем заказ с монолитными полями
+                    # Получаем заказ с монолитными полями (только не удаленные)
                     await cur.execute("""
-                        SELECT * FROM orders WHERE id = %s
+                        SELECT * FROM orders WHERE id = %s AND is_deleted = 0
                     """, (order_id,))
                     
                     order = await cur.fetchone()
@@ -241,8 +241,8 @@ class OrdersCRUD(BaseAPI):
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование заказа
-                    await cur.execute("SELECT id FROM orders WHERE id = %s", (order_id,))
+                    # Проверяем существование заказа (только не удаленные)
+                    await cur.execute("SELECT id FROM orders WHERE id = %s AND is_deleted = 0", (order_id,))
                     if not await cur.fetchone():
                         return web.json_response({
                             "success": False,
@@ -270,22 +270,27 @@ class OrdersCRUD(BaseAPI):
             }, status=500)
     
     async def delete_order(self, request: Request) -> Response:
-        """DELETE /api/orders/{order_id} - Удалить заказ"""
+        """DELETE /api/orders/{order_id} - Мягкое удаление заказа"""
         try:
             order_id = int(request.match_info['order_id'])
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование
-                    await cur.execute("SELECT id FROM orders WHERE id = %s", (order_id,))
+                    await cur.execute("SELECT id FROM orders WHERE id = %s AND is_deleted = 0", (order_id,))
                     if not await cur.fetchone():
                         return web.json_response({
                             "success": False,
                             "error": "Заказ не найден"
                         }, status=404)
                     
-                    # Удаляем
-                    await cur.execute("DELETE FROM orders WHERE id = %s", (order_id,))
+                    # Мягкое удаление
+                    from datetime import datetime
+                    await cur.execute(
+                        "UPDATE orders SET is_deleted = 1, deleted_at = %s WHERE id = %s",
+                        (datetime.now(), order_id)
+                    )
+                    await conn.commit()
                     
                     return web.json_response({
                         "success": True,

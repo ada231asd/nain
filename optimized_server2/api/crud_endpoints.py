@@ -472,7 +472,11 @@ class CRUDEndpoints(BaseAPI):
             }, status=500)
     
     async def delete_user(self, request: Request) -> Response:
-        """DELETE /api/users/{user_id} - Мягкое удаление пользователя"""
+        """
+        DELETE /api/users/{user_id} - Мягкое удаление пользователя
+        
+        При удалении пользователя также меняется статус на 'blocked'
+        """
         try:
             # Проверка авторизации
             auth_ok, error_response = self.check_auth(request)

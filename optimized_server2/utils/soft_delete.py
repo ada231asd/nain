@@ -195,8 +195,32 @@ class SoftDeleteMixin:
 
 # Функции-хелперы для удобного использования
 async def soft_delete_user(db_pool, user_id: int) -> bool:
-    """Мягкое удаление пользователя"""
-    return await SoftDeleteMixin.soft_delete(db_pool, 'app_user', user_id, 'user_id')
+    """
+    Мягкое удаление пользователя
+    При удалении также меняет статус на 'blocked'
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                query = """
+                    UPDATE `app_user` 
+                    SET is_deleted = 1, deleted_at = %s, status = 'blocked'
+                    WHERE user_id = %s AND is_deleted = 0
+                """
+                await cur.execute(query, (datetime.now(), user_id))
+                await conn.commit()
+                
+                affected_rows = cur.rowcount
+                if affected_rows > 0:
+                    logger.info(f"Пользователь {user_id} помечен как удаленный и заблокирован")
+                    return True
+                else:
+                    logger.warning(f"Пользователь {user_id} не найден или уже удален")
+                    return False
+                    
+    except Exception as e:
+        logger.error(f"Ошибка при мягком удалении пользователя {user_id}: {e}", exc_info=True)
+        return False
 
 
 async def soft_delete_station(db_pool, station_id: int) -> bool:
@@ -220,8 +244,32 @@ async def soft_delete_order(db_pool, order_id: int) -> bool:
 
 
 async def restore_user(db_pool, user_id: int) -> bool:
-    """Восстановление пользователя"""
-    return await SoftDeleteMixin.restore(db_pool, 'app_user', user_id, 'user_id')
+    """
+    Восстановление пользователя
+    При восстановлении также меняет статус на 'active'
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                query = """
+                    UPDATE `app_user` 
+                    SET is_deleted = 0, deleted_at = NULL, status = 'active'
+                    WHERE user_id = %s AND is_deleted = 1
+                """
+                await cur.execute(query, (user_id,))
+                await conn.commit()
+                
+                affected_rows = cur.rowcount
+                if affected_rows > 0:
+                    logger.info(f"Пользователь {user_id} восстановлен и активирован")
+                    return True
+                else:
+                    logger.warning(f"Пользователь {user_id} не найден или не был удален")
+                    return False
+                    
+    except Exception as e:
+        logger.error(f"Ошибка при восстановлении пользователя {user_id}: {e}", exc_info=True)
+        return False
 
 
 async def restore_station(db_pool, station_id: int) -> bool:

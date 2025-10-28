@@ -26,7 +26,11 @@ class SoftDeleteAPI:
         self.db_pool = db_pool
     
     async def soft_delete_entity(self, request: Request) -> Response:
-        """DELETE /api/soft-delete/{entity_type}/{entity_id} - Мягкое удаление"""
+        """
+        DELETE /api/soft-delete/{entity_type}/{entity_id} - Мягкое удаление
+        
+        Важно: При удалении пользователя (user) также меняется статус на 'blocked'
+        """
         try:
             # Проверка авторизации
             user = request.get('user')
@@ -82,7 +86,11 @@ class SoftDeleteAPI:
             }, status=500)
     
     async def restore_entity(self, request: Request) -> Response:
-        """POST /api/soft-delete/restore/{entity_type}/{entity_id} - Восстановление"""
+        """
+        POST /api/soft-delete/restore/{entity_type}/{entity_id} - Восстановление
+        
+        Важно: При восстановлении пользователя (user) также меняется статус на 'active'
+        """
         try:
             # Проверка авторизации
             user = request.get('user')

@@ -157,7 +157,7 @@ class OtherEntitiesCRUD:
             }, status=500)
     
     async def delete_user_role(self, request: Request) -> Response:
-        """DELETE /api/user-roles/{role_id} - Удалить роль пользователя"""
+        """DELETE /api/user-roles/{role_id} - Мягкое удаление роли пользователя"""
         try:
             role_id = int(request.match_info['role_id'])
             
@@ -168,7 +168,7 @@ class OtherEntitiesCRUD:
                 if current_user_id:
                     async with self.db_pool.acquire() as conn:
                         async with conn.cursor(aiomysql.DictCursor) as cur:
-                            await cur.execute("SELECT user_id FROM user_role WHERE id = %s", (role_id,))
+                            await cur.execute("SELECT user_id FROM user_role WHERE id = %s AND is_deleted = 0", (role_id,))
                             row = await cur.fetchone()
                             if row and row.get('user_id') == current_user_id:
                                 return web.json_response({
@@ -181,15 +181,20 @@ class OtherEntitiesCRUD:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование
-                    await cur.execute("SELECT id FROM user_role WHERE id = %s", (role_id,))
+                    await cur.execute("SELECT id FROM user_role WHERE id = %s AND is_deleted = 0", (role_id,))
                     if not await cur.fetchone():
                         return web.json_response({
                             "success": False,
                             "error": "Роль пользователя не найдена"
                         }, status=404)
                     
-                    # Удаляем
-                    await cur.execute("DELETE FROM user_role WHERE id = %s", (role_id,))
+                    # Мягкое удаление
+                    from datetime import datetime
+                    await cur.execute(
+                        "UPDATE user_role SET is_deleted = 1, deleted_at = %s WHERE id = %s",
+                        (datetime.now(), role_id)
+                    )
+                    await conn.commit()
                     
                     return web.json_response({
                         "success": True,
@@ -310,8 +315,10 @@ class OtherEntitiesCRUD:
             }, status=500)
     
     async def delete_user_favorite(self, request: Request) -> Response:
-        """DELETE /api/user-favorites/{favorite_id} - Удалить из избранного"""
+        """DELETE /api/user-favorites/{favorite_id} - Мягкое удаление из избранного"""
         try:
+            from datetime import datetime
+            
             # Поддерживаем оба варианта: через favorite_id в пути или через user_id+station_id в теле
             data = None
             try:
@@ -324,10 +331,13 @@ class OtherEntitiesCRUD:
             if user_id and station_id:
                 async with self.db_pool.acquire() as conn:
                     async with conn.cursor(aiomysql.DictCursor) as cur:
+                        # Мягкое удаление по user_id и station_id
                         await cur.execute("""
-                            DELETE FROM user_favorites
-                            WHERE user_id = %s AND station_id = %s
-                        """, (int(user_id), int(station_id)))
+                            UPDATE user_favorites
+                            SET is_deleted = 1, deleted_at = %s
+                            WHERE user_id = %s AND station_id = %s AND is_deleted = 0
+                        """, (datetime.now(), int(user_id), int(station_id)))
+                        await conn.commit()
                         return web.json_response({
                             "success": True,
                             "message": "Станция удалена из избранного"
@@ -338,15 +348,19 @@ class OtherEntitiesCRUD:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование
-                    await cur.execute("SELECT id FROM user_favorites WHERE id = %s", (favorite_id,))
+                    await cur.execute("SELECT id FROM user_favorites WHERE id = %s AND is_deleted = 0", (favorite_id,))
                     if not await cur.fetchone():
                         return web.json_response({
                             "success": False,
                             "error": "Запись в избранном не найдена"
                         }, status=404)
                     
-                    # Удаляем
-                    await cur.execute("DELETE FROM user_favorites WHERE id = %s", (favorite_id,))
+                    # Мягкое удаление
+                    await cur.execute(
+                        "UPDATE user_favorites SET is_deleted = 1, deleted_at = %s WHERE id = %s",
+                        (datetime.now(), favorite_id)
+                    )
+                    await conn.commit()
                     
                     return web.json_response({
                         "success": True,

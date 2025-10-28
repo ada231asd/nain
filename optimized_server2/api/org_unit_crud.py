@@ -350,22 +350,26 @@ class OrgUnitCRUD(BaseAPI):
             }, status=500)
     
     async def delete_org_unit(self, request: Request) -> Response:
-        """DELETE /api/org-units/{org_unit_id} - Удалить организационную единицу"""
+        """DELETE /api/org-units/{org_unit_id} - Мягкое удаление организационной единицы"""
         try:
             org_unit_id = int(request.match_info['org_unit_id'])
             
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем существование
-                    await cur.execute("SELECT org_unit_id FROM org_unit WHERE org_unit_id = %s", (org_unit_id,))
+                    await cur.execute("SELECT org_unit_id FROM org_unit WHERE org_unit_id = %s AND is_deleted = 0", (org_unit_id,))
                     if not await cur.fetchone():
                         return web.json_response({
                             "success": False,
                             "error": "Организационная единица не найдена"
                         }, status=404)
                     
-                    # Удаляем
-                    await cur.execute("DELETE FROM org_unit WHERE org_unit_id = %s", (org_unit_id,))
+                    # Мягкое удаление
+                    from datetime import datetime
+                    await cur.execute(
+                        "UPDATE org_unit SET is_deleted = 1, deleted_at = %s WHERE org_unit_id = %s",
+                        (datetime.now(), org_unit_id)
+                    )
                     await conn.commit()
                     
                     return web.json_response({

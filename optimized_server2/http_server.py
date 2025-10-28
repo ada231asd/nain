@@ -32,6 +32,8 @@ from api.logo_upload_api import LogoUploadAPI
 from api.return_endpoints import ReturnEndpoints
 from api.invitation_api import InvitationAPI
 from api.invitation_storage_api import InvitationStorageAPI
+from api.soft_delete_api import SoftDeleteAPI
+from api.hard_delete_api import HardDeleteAPI
 from middleware.auth_middleware import AuthMiddleware
 
 
@@ -63,6 +65,8 @@ class HTTPServer:
         self.return_endpoints: ReturnEndpoints = None
         self.invitation_api: InvitationAPI = None
         self.invitation_storage_api: InvitationStorageAPI = None
+        self.soft_delete_api: SoftDeleteAPI = None
+        self.hard_delete_api: HardDeleteAPI = None
         self.auth_middleware: AuthMiddleware = None
         
     
@@ -189,6 +193,8 @@ class HTTPServer:
         self.return_endpoints = ReturnEndpoints(self.db_pool, connection_manager)
         self.invitation_api = InvitationAPI(self.db_pool)
         self.invitation_storage_api = InvitationStorageAPI(self.db_pool)
+        self.soft_delete_api = SoftDeleteAPI(self.db_pool)
+        self.hard_delete_api = HardDeleteAPI(self.db_pool)
         self.auth_middleware = AuthMiddleware(self.db_pool)
         
         # Регистрируем маршруты
@@ -287,6 +293,18 @@ class HTTPServer:
         from api.slot_abnormal_report_endpoints import SlotAbnormalReportEndpoints
         self.slot_abnormal_report_endpoints = SlotAbnormalReportEndpoints(self.db_pool, connection_manager)
         self.slot_abnormal_report_endpoints.setup_routes(app)
+        
+        # API для мягкого и жесткого удаления
+        # Мягкое удаление (soft delete)
+        app.router.add_delete('/api/soft-delete/{entity_type}/{entity_id}', self.soft_delete_api.soft_delete_entity)
+        app.router.add_post('/api/soft-delete/restore/{entity_type}/{entity_id}', self.soft_delete_api.restore_entity)
+        app.router.add_get('/api/soft-delete/{entity_type}', self.soft_delete_api.get_deleted_entities)
+        app.router.add_get('/api/soft-delete/statistics', self.soft_delete_api.get_statistics)
+        
+        # Жесткое удаление (hard delete) - только для service_admin
+        app.router.add_delete('/api/hard-delete/{entity_type}/{entity_id}', self.hard_delete_api.hard_delete_entity)
+        app.router.add_delete('/api/hard-delete/cleanup', self.hard_delete_api.cleanup_old_deleted)
+        app.router.add_get('/api/hard-delete/cleanup/preview', self.hard_delete_api.get_cleanup_candidates)
         
         # Настройка раздачи статических файлов (логотипов)
         # Путь к папке с логотипами (tcp_server/uploads/logos)
