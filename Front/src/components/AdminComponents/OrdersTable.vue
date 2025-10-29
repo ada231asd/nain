@@ -15,16 +15,14 @@
           />
           <span class="search-icon">🔍</span>
         </div>
-        <div class="filter-container">
-          <select v-model="statusFilter" class="filter-select">
-            <option value="">Все статусы</option>
-            <option value="pending">В ожидании</option>
-            <option value="borrow">Взято</option>
-            <option value="return">Возвращено</option>
-            <option value="completed">Завершены</option>
-            <option value="cancelled">Отменены</option>
-          </select>
-        </div>
+        <FilterButton 
+          filter-type="orders"
+          :org-units="orgUnits"
+          :show-org-unit-filter="false"
+          :show-status-filter="true"
+          :show-role-filter="false"
+          @filter-change="handleFilterChange"
+        />
         <button @click="$emit('refresh')" class="btn-refresh" :disabled="isLoading">
           {{ isLoading ? '🔄' : '↻' }} Обновить
         </button>
@@ -45,6 +43,7 @@
              <th class="col-created">Создан</th>
              <th class="col-completed">Завершен</th>
              <th class="col-powerbank">Повербанк</th>
+             <th class="col-actions">Операции</th>
            </tr>
         </thead>
         <tbody>
@@ -117,6 +116,30 @@
                </span>
                <span v-else class="no-powerbank">—</span>
              </td>
+
+             <!-- Операции -->
+             <td class="col-actions">
+               <div class="actions-container">
+                 <!-- Показываем кнопку восстановления для удалённых -->
+                 <button 
+                   v-if="showDeletedOrders"
+                   @click="handleRestore(order)"
+                   class="btn-action btn-restore"
+                   title="Восстановить заказ"
+                 >
+                   ↺
+                 </button>
+                 <!-- Показываем кнопку удаления -->
+                 <button 
+                   @click="handleDelete(order)"
+                   class="btn-action btn-delete"
+                   :class="{ 'btn-hard-delete': showDeletedOrders }"
+                   :title="showDeletedOrders ? 'Удалить навсегда' : 'Удалить заказ'"
+                 >
+                   {{ showDeletedOrders ? '✕' : '🗑' }}
+                 </button>
+               </div>
+             </td>
           </tr>
         </tbody>
       </table>
@@ -157,7 +180,7 @@
       <div class="empty-icon">📋</div>
       <h3>Заказы не найдены</h3>
       <p v-if="searchQuery">Попробуйте изменить поисковый запрос</p>
-      <p v-else-if="statusFilter">Попробуйте изменить фильтр или обновить данные</p>
+      <p v-else-if="activeFilters.statuses.length > 0 || statusFilter">Попробуйте изменить фильтр или обновить данные</p>
       <p v-else>Заказов пока нет в системе</p>
     </div>
   </div>
@@ -166,9 +189,15 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { formatMoscowTime } from '../../utils/timeUtils'
+import { pythonAPI } from '../../api/pythonApi'
+import FilterButton from './FilterButton.vue'
 
 const props = defineProps({
   orders: {
+    type: Array,
+    default: () => []
+  },
+  orgUnits: {
     type: Array,
     default: () => []
   },
@@ -182,19 +211,110 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'order-deleted', 'order-restored'])
 
 // Состояние компонента
 const searchQuery = ref('')
 const statusFilter = ref('')
 const currentPage = ref(1)
+const activeFilters = ref({
+  orgUnits: [],
+  statuses: [],
+  roles: []
+})
+
+// Проверка, показываем ли удалённые заказы
+const showDeletedOrders = computed(() => {
+  return activeFilters.value.statuses.includes('deleted')
+})
+
+// Методы
+const handleFilterChange = (filters) => {
+  activeFilters.value = filters
+  currentPage.value = 1 // Сбрасываем на первую страницу при изменении фильтров
+}
+
+// Удаление заказа (мягкое или жёсткое в зависимости от фильтра)
+const handleDelete = async (order) => {
+  const orderId = order.id || order.order_id
+  
+  if (showDeletedOrders.value) {
+    // Жёсткое удаление для удалённых заказов
+    const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить заказ #${orderId}?\n\nЭто действие необратимо!`
+    if (!confirm(confirmMessage)) return
+    
+    try {
+      await pythonAPI.hardDelete('order', orderId)
+      alert('Заказ удалён навсегда')
+      emit('order-deleted', orderId)
+      emit('refresh')
+    } catch (error) {
+      console.error('Ошибка при жёстком удалении заказа:', error)
+      alert('Ошибка при удалении заказа: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  } else {
+    // Мягкое удаление для обычных заказов
+    const confirmMessage = `Вы уверены, что хотите удалить заказ #${orderId}?`
+    if (!confirm(confirmMessage)) return
+    
+    try {
+      await pythonAPI.softDelete('order', orderId)
+      alert('Заказ успешно удалён')
+      emit('order-deleted', orderId)
+      emit('refresh')
+    } catch (error) {
+      console.error('Ошибка при мягком удалении заказа:', error)
+      alert('Ошибка при удалении заказа: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  }
+}
+
+// Восстановление удалённого заказа
+const handleRestore = async (order) => {
+  const orderId = order.id || order.order_id
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить заказ #${orderId}?`
+  if (!confirm(confirmMessage)) return
+  
+  try {
+    await pythonAPI.restoreDeleted('order', orderId)
+    alert('Заказ успешно восстановлен')
+    emit('order-restored', orderId)
+    emit('refresh')
+  } catch (error) {
+    console.error('Ошибка при восстановлении заказа:', error)
+    alert('Ошибка при восстановлении заказа: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
 
 // Вычисляемые свойства
 const filteredOrders = computed(() => {
   let filtered = [...props.orders]
   
-  // Фильтрация по статусу
-  if (statusFilter.value) {
+  // ФИЛЬТРАЦИЯ ПО УДАЛЁННЫМ/НЕУДАЛЁННЫМ ЗАКАЗАМ
+  if (showDeletedOrders.value) {
+    // Показываем только удалённые заказы (is_deleted = 1)
+    filtered = filtered.filter(order => order.is_deleted === 1 || order.is_deleted === true)
+  } else {
+    // По умолчанию показываем только НЕ удалённые заказы (is_deleted = 0 или null)
+    filtered = filtered.filter(order => !order.is_deleted || order.is_deleted === 0)
+  }
+  
+  // Фильтрация по статусу через FilterButton (кроме 'deleted')
+  if (activeFilters.value.statuses.length > 0) {
+    // Исключаем фильтр 'deleted' из обычной фильтрации статусов
+    const statusesWithoutDeleted = activeFilters.value.statuses.filter(s => s !== 'deleted')
+    
+    if (statusesWithoutDeleted.length > 0) {
+      filtered = filtered.filter(order => {
+        const orderStatus = order.status
+        return statusesWithoutDeleted.includes(orderStatus)
+      })
+    }
+  }
+  
+  // Фильтрация по старому statusFilter (для обратной совместимости)
+  if (statusFilter.value && statusFilter.value !== 'deleted') {
     filtered = filtered.filter(order => order.status === statusFilter.value)
   }
   
@@ -310,16 +430,6 @@ const truncateText = (text, maxLength) => {
   return text.substring(0, maxLength) + '...'
 }
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return '—'
-  return formatMoscowTime(timestamp, {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
 const formatTimeOnly = (timestamp) => {
   if (!timestamp) return '—'
   const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp
@@ -346,10 +456,14 @@ const formatDateOnly = (timestamp) => {
   }).format(date)
 }
 
-// Сброс страницы при изменении поиска или фильтра
-watch([searchQuery, statusFilter], () => {
+// Сброс страницы при изменении поиска
+watch(searchQuery, () => {
   currentPage.value = 1
 })
+
+// Следим за изменением фильтра "Удалённые"
+// Примечание: фильтрация происходит автоматически через computed filteredOrders,
+// поэтому дополнительная загрузка не требуется
 </script>
 
 <style scoped>
@@ -418,26 +532,6 @@ watch([searchQuery, statusFilter], () => {
   left: 12px;
   color: #666;
   font-size: 16px;
-}
-
-.filter-container {
-  display: flex;
-  align-items: center;
-}
-
-.filter-select {
-  padding: 10px 16px;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  min-width: 180px;
-  transition: border-color 0.3s ease;
-  background: white;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: #667eea;
 }
 
 .btn-refresh {
@@ -590,6 +684,11 @@ watch([searchQuery, statusFilter], () => {
   min-width: 90px;
 }
 
+.col-actions {
+  width: 10%;
+  min-width: 100px;
+}
+
 /* Содержимое ячеек */
 .order-id-text {
   font-weight: 600;
@@ -687,6 +786,58 @@ watch([searchQuery, statusFilter], () => {
 .no-powerbank {
   color: #999;
   font-size: 0.9rem;
+}
+
+/* Кнопки действий */
+.actions-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-action {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.btn-delete {
+  background: #ffc107;
+  color: #856404;
+}
+
+.btn-delete:hover {
+  background: #ff9800;
+  color: white;
+}
+
+.btn-hard-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-hard-delete:hover {
+  background: #c82333;
+}
+
+.btn-restore {
+  background: #28a745;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.btn-restore:hover {
+  background: #218838;
 }
 
 /* Пагинация */

@@ -367,7 +367,7 @@ export const useAdminStore = defineStore('admin', {
     async fetchOrders() {
       this.isLoading = true;
       try {
-        // Запрашиваем все заказы с большим лимитом
+        // Запрашиваем все заказы с большим лимитом (включая удалённые)
         const res = await pythonAPI.getOrders({ limit: 10000 });
         const orders = (res && Array.isArray(res.data)) ? res.data : [];
         // Normalize timestamp field for UI that expects created_at

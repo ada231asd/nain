@@ -156,9 +156,9 @@ const availableStatuses = computed(() => {
       ]
     case 'orders':
       return [
-        { value: 'active', label: 'Активный', class: 'active', aliases: ['активный'] },
-        { value: 'completed', label: 'Завершен', class: 'completed', aliases: ['завершен'] },
-        { value: 'cancelled', label: 'Отменен', class: 'cancelled', aliases: [] }
+        { value: 'borrow', label: 'Взято', class: 'borrowed', aliases: [] },
+        { value: 'return', label: 'Возвращено', class: 'return', aliases: [] },
+        { value: 'deleted', label: 'Удалённые', class: 'deleted', aliases: [] }
       ]
     default:
       return []
@@ -521,6 +521,10 @@ onUnmounted(() => {
 
 .dot-cancelled {
   background: #6c757d;
+}
+
+.dot-return {
+  background: #28a745;
 }
 
 .filter-chip.active .status-dot {

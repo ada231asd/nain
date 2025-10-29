@@ -683,6 +683,43 @@ export const pythonAPI = {
     return handleResponse(apiClient.get('/invitations/storage/statistics'), 'get invitation statistics')
   },
 
+  // МЯГКОЕ И ЖЁСТКОЕ УДАЛЕНИЕ
+  // Мягкое удаление (soft delete) - помечает запись как удалённую
+  softDelete: (entityType, entityId) => {
+    validateId(entityId, `${entityType} ID`)
+    return handleResponse(apiClient.delete(`/soft-delete/${entityType}/${entityId}`), `soft delete ${entityType}`)
+  },
+  
+  // Восстановление мягко удалённой записи
+  restoreDeleted: (entityType, entityId) => {
+    validateId(entityId, `${entityType} ID`)
+    return handleResponse(apiClient.post(`/soft-delete/restore/${entityType}/${entityId}`), `restore ${entityType}`)
+  },
+  
+  // Получение списка удалённых записей
+  getDeletedRecords: (entityType, limit = 50, offset = 0) => {
+    return handleResponse(
+      apiClient.get(`/soft-delete/${entityType}?limit=${limit}&offset=${offset}`),
+      `get deleted ${entityType} records`
+    )
+  },
+  
+  // Жёсткое удаление (hard delete) - физически удаляет запись из БД
+  hardDelete: (entityType, entityId) => {
+    validateId(entityId, `${entityType} ID`)
+    return handleResponse(
+      apiClient.delete(`/hard-delete/${entityType}/${entityId}`, {
+        data: { confirm: true }
+      }),
+      `hard delete ${entityType}`
+    )
+  },
+  
+  // Статистика удалённых записей
+  getDeletedStatistics: () => {
+    return handleResponse(apiClient.get('/soft-delete/statistics'), 'get deleted statistics')
+  },
+
   // ДРУГОЕ
   getConnections: () => handleResponse(apiClient.get('/connections'), 'get connections')
 }

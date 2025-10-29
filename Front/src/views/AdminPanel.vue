@@ -66,6 +66,7 @@
             <div v-if="activeTab === 'orders'" class="tab-pane">
               <OrdersTable
                 :orders="orders"
+                :org-units="orgUnits"
                 :is-loading="isLoading"
                 @refresh="refreshOrders"
               />
