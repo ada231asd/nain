@@ -64,114 +64,11 @@
 
             <!-- Все заказы -->
             <div v-if="activeTab === 'orders'" class="tab-pane">
-              <div class="section-header">
-                <h2>Все заказы</h2>
-                <div class="header-actions">
-                  <div class="order-filters">
-                    <select v-model="orderFilter.status" class="filter-select">
-                      <option value="">Все статусы</option>
-                      <option value="pending">В ожидании</option>
-                      <option value="completed">Завершены</option>
-                      <option value="cancelled">Отменены</option>
-                    </select>
-                  </div>
-                  <button @click="refreshOrders" class="btn-primary" :disabled="isLoading">
-                    {{ isLoading ? '🔄' : '↻' }} Обновить
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="isLoading" class="loading-state">
-                <div class="loading-spinner"></div>
-                <p>Загрузка заказов...</p>
-              </div>
-
-              <div v-else-if="filteredOrders.length === 0" class="empty-state">
-                <div class="empty-icon">📋</div>
-                <h3>Заказы не найдены</h3>
-                <p v-if="orders.length === 0">Заказов пока нет в системе</p>
-                <p v-else>Попробуйте изменить фильтр или обновить данные</p>
-              </div>
-
-              <div v-else>
-                <!-- Переключатель вида -->
-                <div class="view-toggle">
-                  <button 
-                    @click="ordersViewMode = 'cards'" 
-                    :class="['view-btn', { active: ordersViewMode === 'cards' }]"
-                  >
-                    📋 Карточки
-                  </button>
-                  <button 
-                    @click="ordersViewMode = 'table'" 
-                    :class="['view-btn', { active: ordersViewMode === 'table' }]"
-                  >
-                    📊 Таблица
-                  </button>
-                </div>
-
-                <!-- Карточный вид -->
-                <div v-if="ordersViewMode === 'cards'" class="orders-list">
-                  <div v-for="order in filteredOrders" :key="order.id || order.order_id" class="order-card">
-                    <div class="order-info">
-                      <div class="order-main">
-                        <h3>Заказ #{{ order.id || order.order_id }}</h3>
-                        <p class="order-user">Пользователь: {{ order.user_fio || order.user_phone || 'N/A' }}</p>
-                        <p class="order-station">Станция: {{ order.station_box_id || order.station_name || order.station_id || 'N/A' }}</p>
-                        <p class="order-action">Действие: {{ getOrderActionText(order.status) }}</p>
-                      </div>
-                      <div class="order-status">
-                        <span class="status-badge" :class="getOrderStatusClass(order.status)">
-                          {{ getOrderStatusText(order.status) }}
-                        </span>
-                      </div>
-                    </div>
-                    <div class="order-details">
-                      <p class="order-time">Создан: {{ formatTime(order.timestamp) }}</p>
-                      <p class="order-completed" v-if="order.completed_at">
-                        Завершен: {{ formatTime(order.completed_at) }}
-                      </p>
-                      <p class="order-powerbank" v-if="order.powerbank_serial || order.powerbank_id">
-                        Повербанк: {{ order.powerbank_serial || order.powerbank_id }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Табличный вид -->
-                <div v-else class="orders-table-container">
-                  <table class="orders-table">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Пользователь</th>
-                        <th>Станция</th>
-                        <th>Действие</th>
-                        <th>Статус</th>
-                        <th>Создан</th>
-                        <th>Завершен</th>
-                        <th>Повербанк</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="order in filteredOrders" :key="order.id || order.order_id">
-                        <td class="order-id">#{{ order.id || order.order_id }}</td>
-                        <td>{{ order.user_fio || order.user_phone || 'N/A' }}</td>
-                        <td>{{ order.station_box_id || order.station_name || order.station_id || 'N/A' }}</td>
-                        <td>{{ getOrderActionText(order.status) }}</td>
-                        <td>
-                          <span class="status-badge" :class="getOrderStatusClass(order.status)">
-                            {{ getOrderStatusText(order.status) }}
-                          </span>
-                        </td>
-                        <td>{{ formatTime(order.timestamp) }}</td>
-                        <td>{{ order.completed_at ? formatTime(order.completed_at) : '—' }}</td>
-                        <td>{{ order.powerbank_serial || order.powerbank_id || '—' }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <OrdersTable
+                :orders="orders"
+                :is-loading="isLoading"
+                @refresh="refreshOrders"
+              />
             </div>
 
             <!-- Отчеты об аномалиях слотов -->
@@ -360,6 +257,7 @@ import StationsTable from '../components/AdminComponents/StationsTable.vue'
 import UsersTable from '../components/AdminComponents/UsersTable.vue'
 import OrgUnitsTable from '../components/AdminComponents/OrgUnitsTable.vue'
 import PowerbanksTable from '../components/AdminComponents/PowerbanksTable.vue'
+import OrdersTable from '../components/AdminComponents/OrdersTable.vue'
 import AdminSidebar from '../components/AdminComponents/AdminSidebar.vue'
 
 const router = useRouter()
@@ -368,10 +266,6 @@ const authStore = useAuthStore()
 
 // Состояние
 const activeTab = ref('users')
-const orderFilter = ref({
-  status: ''
-})
-const ordersViewMode = ref('cards') // 'cards' или 'table'
 
 // Модальные окна
 const showAddUserModal = ref(false)
@@ -415,11 +309,6 @@ const pendingUsers = computed(() => adminStore.pendingUsers)
 const activeStations = computed(() => adminStore.activeStations)
 const todayOrders = computed(() => adminStore.todayOrders)
 
-const filteredOrders = computed(() => {
-  if (!orderFilter.value.status) return orders.value
-  return orders.value.filter(order => order.status === orderFilter.value.status)
-})
-
 const weekOrders = computed(() => {
   const weekAgo = new Date()
   weekAgo.setDate(weekAgo.getDate() - 7)
@@ -438,38 +327,6 @@ const formatDate = (date) => {
 }
 
 // Методы
-
-const getOrderStatusClass = (status) => {
-  switch (status) {
-    case 'pending': return 'status-pending'
-    case 'borrow': return 'status-active'
-    case 'return': return 'status-success'
-    case 'completed': return 'status-success'
-    case 'cancelled': return 'status-error'
-    default: return 'status-unknown'
-  }
-}
-
-const getOrderStatusText = (status) => {
-  switch (status) {
-    case 'pending': return 'В ожидании'
-    case 'borrow': return 'Взято'
-    case 'return': return 'Возвращено'
-    case 'completed': return 'Завершен'
-    case 'cancelled': return 'Отменен'
-    default: return status || 'Неизвестно'
-  }
-}
-
-const getOrderActionText = (action) => {
-  switch (action) {
-    case 'take': return 'Получение аккумулятора'
-    case 'return': return 'Возврат аккумулятора'
-    case 'borrow': return 'Взятие повербанка'
-    case 'eject': return 'Извлечение повербанка'
-    default: return action || 'Неизвестное действие'
-  }
-}
 
 const refreshOrders = async () => {
   try {
@@ -1156,159 +1013,6 @@ onMounted(async () => {
   gap: 10px;
 }
 
-/* Orders */
-.order-filters {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-}
-
-.filter-select {
-  padding: 10px;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  min-width: 150px;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: #666;
-}
-
-.loading-state .loading-spinner {
-  margin-bottom: 15px;
-}
-
-.view-toggle {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.view-btn {
-  padding: 8px 16px;
-  background: white;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-}
-
-.view-btn:hover {
-  background: #e9ecef;
-}
-
-.view-btn.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
-}
-
-.orders-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.orders-table-container {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-}
-
-.orders-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-}
-
-.orders-table th,
-.orders-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #e9ecef;
-  vertical-align: middle;
-}
-
-.orders-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: #333;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.orders-table tbody tr:hover {
-  background: #f8f9fa;
-}
-
-.order-id {
-  font-weight: 600;
-  color: #667eea;
-}
-
-.order-card {
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 10px;
-  border-left: 4px solid #6f42c1;
-  transition: all 0.3s ease;
-}
-
-.order-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.order-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
-}
-
-.order-main h3 {
-  color: #333;
-  margin: 0 0 10px 0;
-  font-size: 1.1rem;
-}
-
-.order-user,
-.order-station,
-.order-action {
-  color: #666;
-  margin: 0 0 5px 0;
-  font-size: 0.9rem;
-}
-
-.order-status {
-  margin-left: 20px;
-}
-
-.order-details {
-  border-top: 1px solid #e9ecef;
-  padding-top: 15px;
-}
-
-.order-time,
-.order-completed,
-.order-powerbank,
-.order-slot {
-  color: #666;
-  margin: 0 0 5px 0;
-  font-size: 0.8rem;
-}
-
 /* Status badges */
 .status-badge {
   padding: 5px 12px;
@@ -1448,21 +1152,6 @@ onMounted(async () => {
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
-  .order-filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .order-info {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .order-status {
-    margin-left: 0;
-  }
-  
 }
 
 .modal-overlay {
