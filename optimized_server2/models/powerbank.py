@@ -154,7 +154,7 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "UPDATE powerbank SET status = %s WHERE id = %s",
-                    (new_status, self.powerbank_id)
+                    (str(new_status), int(self.powerbank_id))
                 )
                 self.status = new_status
                 return True
@@ -165,7 +165,7 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "UPDATE powerbank SET write_off_reason = %s WHERE id = %s",
-                    (new_reason, self.powerbank_id)
+                    (str(new_reason), int(self.powerbank_id))
                 )
                 self.write_off_reason = new_reason
                 return True
@@ -176,7 +176,7 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "UPDATE powerbank SET soh = %s WHERE id = %s",
-                    (soh, self.powerbank_id)
+                    (int(soh) if soh is not None else None, int(self.powerbank_id))
                 )
                 self.soh = soh
                 return True
@@ -187,7 +187,7 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "UPDATE powerbank SET status = %s, soh = %s WHERE id = %s",
-                    (new_status, soh, self.powerbank_id)
+                    (str(new_status), int(soh) if soh is not None else None, int(self.powerbank_id))
                 )
                 self.status = new_status
                 self.soh = soh
@@ -223,9 +223,11 @@ class Powerbank:
         """Устанавливает тип ошибки (power_er) для повербанка."""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Явно преобразуем error_type в int, если это не None
+                error_value = int(error_type) if error_type is not None else None
                 await cursor.execute(
                     "UPDATE powerbank SET power_er = %s WHERE id = %s",
-                    (error_type, self.powerbank_id)
+                    (error_value, int(self.powerbank_id))
                 )
                 return True
 
