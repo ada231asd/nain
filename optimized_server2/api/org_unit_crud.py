@@ -193,8 +193,11 @@ class OrgUnitCRUD(BaseAPI):
                     }))
                     
         except Exception as e:
-            from utils.centralized_logger import log_error
-            log_error(__name__, f"ERROR in get_org_units: {e}", exc_info=True)
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('org_unit_crud')
+            logger.error(f"ERROR in get_org_units: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)

@@ -24,6 +24,7 @@ DB_CONFIG = {
     "autocommit": True
 }
 
+
 # Настройки логирования
 LOG_LEVEL = "INFO"
 # Все логи теперь записываются в единый файл logs/server.log  

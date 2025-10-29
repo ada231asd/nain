@@ -220,6 +220,11 @@ class CRUDEndpoints(BaseAPI):
                     }))
                     
         except Exception as e:
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('crud_endpoints')
+            logger.error(f"ERROR in get_users: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -673,6 +678,11 @@ class CRUDEndpoints(BaseAPI):
                     }))
                     
         except Exception as e:
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('crud_endpoints')
+            logger.error(f"ERROR in get_stations: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)

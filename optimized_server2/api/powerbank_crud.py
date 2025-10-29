@@ -175,6 +175,11 @@ class PowerbankCRUD(BaseAPI):
                     }))
                     
         except Exception as e:
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('powerbank_crud')
+            logger.error(f"ERROR in get_powerbanks: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)

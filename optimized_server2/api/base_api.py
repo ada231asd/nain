@@ -50,7 +50,6 @@ class BaseAPI:
                     SELECT role FROM user_role 
                     WHERE user_id = %s 
                     AND role IN ('service_admin', 'group_admin', 'subgroup_admin')
-                    AND is_deleted = 0
                 """, (user_id,))
                 roles = await cur.fetchall()
                 return len(roles) > 0
@@ -61,7 +60,7 @@ class BaseAPI:
             async with conn.cursor() as cur:
                 await cur.execute("""
                     SELECT role FROM user_role 
-                    WHERE user_id = %s AND role = 'service_admin' AND is_deleted = 0
+                    WHERE user_id = %s AND role = 'service_admin'
                 """, (user_id,))
                 return await cur.fetchone() is not None
     
@@ -75,14 +74,12 @@ class BaseAPI:
                         WHERE user_id = %s 
                         AND role IN ('service_admin', 'group_admin')
                         AND (org_unit_id = %s OR role = 'service_admin')
-                        AND is_deleted = 0
                     """, (user_id, org_unit_id))
                 else:
                     await cur.execute("""
                         SELECT role FROM user_role 
                         WHERE user_id = %s 
                         AND role IN ('service_admin', 'group_admin')
-                        AND is_deleted = 0
                     """, (user_id,))
                 return await cur.fetchone() is not None
     
