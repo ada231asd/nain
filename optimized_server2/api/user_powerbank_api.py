@@ -615,35 +615,42 @@ class UserPowerbankAPI:
         """
         Возврат повербанка с ошибкой (удерживает соединение до получения данных о вставке)
         POST /api/return-error
+        Принимает: station_box_id, user_phone, error_type_id
         """
         try:
             data = await request.json()
-            station_id = data.get('station_id')
-            user_id = data.get('user_id')
-            error_type_id = data.get('error_type_id', 1)  # По умолчанию ID = 1
+            station_box_id = data.get('station_box_id')
+            user_phone = data.get('user_phone')
+            error_type_id = data.get('error_type_id')  # По умолчанию ID = 1
 
-            if not station_id:
-                return json_fail("Не указан ID станции", status=400)
+            if not station_box_id:
+                return json_fail("Не указан box_id станции", status=400)
 
-            if not user_id:
-                return json_fail("Не указан ID пользователя", status=400)
+            if not user_phone:
+                return json_fail("Не указан телефон пользователя", status=400)
 
             # Валидируем ID типа ошибки
             try:
-                self.logger.info(f" Получен error_type_id: {error_type_id}, тип: {type(error_type_id)}")
+                self.logger.info(f"Получен error_type_id: {error_type_id}, тип: {type(error_type_id)}")
                 error_type_id = int(error_type_id)
                 if error_type_id <= 0:
                     return json_fail("ID типа ошибки должен быть положительным числом", status=400)
-                self.logger.info(f" error_type_id после конвертации: {error_type_id}")
+                self.logger.info(f"error_type_id после конвертации: {error_type_id}")
             except (ValueError, TypeError):
                 return json_fail("Неверный формат ID типа ошибки", status=400)
 
-            self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с ошибкой: ID={error_type_id}")
+            self.logger.info(f"Пользователь {user_phone} запросил возврат повербанка с ошибкой на станцию {station_box_id}: ID={error_type_id}")
 
-            # Проверяем, что станция существует
-            station = await Station.get_by_id(self.db_pool, station_id)
+            # Получаем station_id по box_id
+            station = await Station.get_by_box_id(self.db_pool, station_box_id)
             if not station:
                 return json_fail("Станция не найдена", status=404)
+
+            # Получаем user_id по телефону
+            from models.user import User
+            user = await User.get_by_phone(self.db_pool, user_phone)
+            if not user:
+                return json_fail("Пользователь не найден", status=404)
 
             # Используем обработчик возврата с ошибкой
             from handlers.return_powerbank import ReturnPowerbankHandler
@@ -652,7 +659,7 @@ class UserPowerbankAPI:
             # Получаем timeout из параметров запроса (по умолчанию 30 секунд)
             timeout_seconds = int(data.get('timeout_seconds', 30))
             
-            result = await return_handler.handle_error_return_request(user_id, station_id, error_type_id, timeout_seconds)
+            result = await return_handler.handle_error_return_request(user.user_id, station.station_id, error_type_id, timeout_seconds)
             
             if result.get('success'):
                 return json_ok({

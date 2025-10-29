@@ -525,21 +525,21 @@ export const pythonAPI = {
   // ВОЗВРАТ С ОШИБКОЙ (новый API с типами из БД и Long Polling)
   returnError: (data) => {
     validateData(data, 'return error data')
-    const { station_id, user_id, error_type_id, timeout_seconds = 30 } = data
+    const { station_box_id, user_phone, error_type_id, timeout_seconds = 30 } = data
 
-    if (!station_id) {
-      throw new Error('Отсутствует обязательное поле: station_id')
+    if (!station_box_id) {
+      throw new Error('Отсутствует обязательное поле: station_box_id')
     }
-    if (!user_id) {
-      throw new Error('Отсутствует обязательное поле: user_id')
+    if (!user_phone) {
+      throw new Error('Отсутствует обязательное поле: user_phone')
     }
     if (!error_type_id) {
       throw new Error('Отсутствует обязательное поле: error_type_id')
     }
 
     const payload = {
-      station_id,
-      user_id,
+      station_box_id,
+      user_phone,
       error_type_id,
       timeout_seconds
     }

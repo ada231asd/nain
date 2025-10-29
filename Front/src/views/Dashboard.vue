@@ -569,26 +569,26 @@ const confirmBorrowAfterNetworkError = async (stationId, userId, timeoutMs = 200
 
 const handleReturnWithError = async (station) => {
   try {
-    const stationId = station.station_id || station.id
-    const userId = user.value?.user_id
+    const stationBoxId = station.box_id || station.station_box_id
+    const userPhone = user.value?.phone_e164
     
-    if (!stationId) {
-      console.error('Отсутствует ID станции')
+    if (!stationBoxId) {
+      console.error('Отсутствует box_id станции')
       return
     }
     
-    if (!userId) {
-      console.error('Отсутствует ID пользователя')
+    if (!userPhone) {
+      console.error('Отсутствует телефон пользователя')
       return
     }
     
-    console.log('Открытие модального окна для возврата с ошибкой:', { stationId, userId })
+    console.log('Открытие модального окна для возврата с ошибкой:', { stationBoxId, userPhone })
     
     // Формируем базовый объект заказа для модального окна
     // Конкретные данные о повербанке будут заполнены при отправке отчета
     errorReportOrder.value = {
-      station_id: stationId,
-      user_id: userId
+      station_box_id: stationBoxId,
+      user_phone: userPhone
     }
     
     errorReportStation.value = station
