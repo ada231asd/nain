@@ -74,6 +74,33 @@ class Station:
                 return None
     
     @classmethod
+    async def get_by_box_id(cls, pool, box_id: str) -> Optional['Station']:
+        """Получает станцию по box_id"""
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute("SELECT * FROM station WHERE box_id=%s", (box_id,))
+                station_data = await cur.fetchone()
+                
+                if station_data:
+                    from utils.time_utils import normalize_datetime_to_moscow
+                    
+                    return cls(
+                        station_id=int(station_data["station_id"]),
+                        box_id=str(station_data["box_id"]),
+                        slots_declared=int(station_data["slots_declared"]),
+                        remain_num=int(station_data["remain_num"]),
+                        status=str(station_data["status"]),
+                        org_unit_id=int(station_data["org_unit_id"]),
+                        iccid=station_data.get("iccid").rstrip('\x00') if station_data.get("iccid") else None,
+                        last_seen=normalize_datetime_to_moscow(station_data.get("last_seen")),
+                        created_at=normalize_datetime_to_moscow(station_data.get("created_at")),
+                        updated_at=normalize_datetime_to_moscow(station_data.get("updated_at")),
+                        is_deleted=int(station_data.get("is_deleted", 0)),
+                        deleted_at=normalize_datetime_to_moscow(station_data.get("deleted_at"))
+                    )
+                return None
+    
+    @classmethod
     async def get_or_create(cls, pool, box_id: str, slots_declared: int) -> tuple['Station', Optional[bytes]]:
         """
         Получает или создает станцию

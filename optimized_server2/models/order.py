@@ -46,10 +46,79 @@ class Order:
     @classmethod
     async def create_pending_order(cls, db_pool, user_id: int, powerbank_id: int,
                                  station_id: int) -> 'Order':
-        """Создает заказ со статусом pending (ожидание)"""
+        """Создает заказ со статусом pending (ожидание) - монолитная структура"""
+        current_time = get_moscow_time()
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                # Получаем данные пользователя
+                await cursor.execute("""
+                    SELECT phone_e164, fio FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                user_data = await cursor.fetchone()
+                
+                if not user_data:
+                    raise ValueError(f"Пользователь с ID {user_id} не найден")
+                
+                user_phone = user_data[0]
+                user_fio = user_data[1] or f'user_{user_id}'
 
-        return await cls.create(db_pool, station_id, user_id, powerbank_id,
-                              status='pending')
+                # Получаем данные станции
+                await cursor.execute("""
+                    SELECT box_id, org_unit_id FROM station WHERE station_id = %s
+                """, (station_id,))
+                station_data = await cursor.fetchone()
+                
+                if not station_data:
+                    raise ValueError(f"Станция с ID {station_id} не найдена")
+                
+                station_box_id = station_data[0]
+                org_unit_id = station_data[1]
+
+                # Получаем данные повербанка
+                await cursor.execute("""
+                    SELECT serial_number FROM powerbank WHERE id = %s
+                """, (powerbank_id,))
+                powerbank_data = await cursor.fetchone()
+                
+                powerbank_serial = powerbank_data[0] if powerbank_data else None
+
+                # Получаем название org_unit если есть
+                org_unit_name = None
+                if org_unit_id:
+                    await cursor.execute("""
+                        SELECT name FROM org_unit WHERE org_unit_id = %s
+                    """, (org_unit_id,))
+                    org_unit_data = await cursor.fetchone()
+                    if org_unit_data:
+                        org_unit_name = org_unit_data[0]
+
+                # Создаем заказ с монолитными полями
+                await cursor.execute("""
+                    INSERT INTO orders (
+                        station_box_id, user_phone, user_fio,
+                        powerbank_serial, org_unit_name,
+                        status, timestamp
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                """, (
+                    station_box_id, user_phone, user_fio,
+                    powerbank_serial, org_unit_name,
+                    'pending'
+                ))
+
+                order_id = cursor.lastrowid
+
+                return cls(
+                    order_id=order_id,
+                    station_box_id=station_box_id,
+                    user_phone=user_phone,
+                    user_fio=user_fio,
+                    powerbank_serial=powerbank_serial,
+                    org_unit_name=org_unit_name,
+                    status='pending',
+                    timestamp=current_time,
+                    completed_at=None
+                )
     
     @classmethod
     async def create(cls, db_pool, station_id: int, user_id: int,
@@ -284,15 +353,29 @@ class Order:
     
     @classmethod
     async def get_user_orders(cls, db_pool, user_id: int, limit: int = 10) -> List['Order']:
-        """Получает заказы пользователя"""
+        """Получает заказы пользователя (монолитная структура)"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Сначала получаем телефон пользователя по user_id
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
-                    WHERE user_id = %s
+                    SELECT phone_e164 FROM app_user WHERE user_id = %s
+                """, (user_id,))
+                user_result = await cursor.fetchone()
+                
+                if not user_result:
+                    return []
+                
+                user_phone = user_result[0]
+                
+                # Теперь получаем заказы по телефону из монолитной таблицы
+                await cursor.execute("""
+                    SELECT id, station_box_id, user_phone, user_fio, powerbank_serial, 
+                           org_unit_name, status, timestamp, completed_at
+                    FROM orders
+                    WHERE user_phone = %s
                     ORDER BY timestamp DESC
                     LIMIT %s
-                """, (user_id, limit))
+                """, (user_phone, limit))
 
                 results = await cursor.fetchall()
 
@@ -300,26 +383,42 @@ class Order:
                 for result in results:
                     orders.append(cls(
                         order_id=result[0],
-                        station_id=result[1],
-                        user_id=result[2],
-                        powerbank_id=result[3],
-                        status=result[4],
-                        timestamp=result[5],
-                        completed_at=result[6],
+                        station_box_id=result[1],
+                        user_phone=result[2],
+                        user_fio=result[3],
+                        powerbank_serial=result[4],
+                        org_unit_name=result[5],
+                        status=result[6],
+                        timestamp=result[7],
+                        completed_at=result[8],
                     ))
 
                 return orders
     
     @classmethod
     async def get_active_orders_by_user(cls, db_pool, user_id: int) -> List['Order']:
-        """Получает активные заказы пользователя"""
+        """Получает активные заказы пользователя (монолитная структура)"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Сначала получаем телефон пользователя по user_id
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
-                    WHERE user_id = %s AND status IN ('borrow', 'return_damage')
-                    ORDER BY timestamp DESC
+                    SELECT phone_e164 FROM app_user WHERE user_id = %s
                 """, (user_id,))
+                user_result = await cursor.fetchone()
+                
+                if not user_result:
+                    return []
+                
+                user_phone = user_result[0]
+                
+                # Теперь получаем заказы по телефону из монолитной таблицы
+                await cursor.execute("""
+                    SELECT id, station_box_id, user_phone, user_fio, powerbank_serial, 
+                           org_unit_name, status, timestamp, completed_at
+                    FROM orders
+                    WHERE user_phone = %s AND status IN ('borrow', 'return_damage')
+                    ORDER BY timestamp DESC
+                """, (user_phone,))
 
                 results = await cursor.fetchall()
 
@@ -327,27 +426,43 @@ class Order:
                 for result in results:
                     orders.append(cls(
                         order_id=result[0],
-                        station_id=result[1],
-                        user_id=result[2],
-                        powerbank_id=result[3],
-                        status=result[4],
-                        timestamp=result[5],
-                        completed_at=result[6],
+                        station_box_id=result[1],
+                        user_phone=result[2],
+                        user_fio=result[3],
+                        powerbank_serial=result[4],
+                        org_unit_name=result[5],
+                        status=result[6],
+                        timestamp=result[7],
+                        completed_at=result[8],
                     ))
 
                 return orders
     
     @classmethod
     async def get_station_orders(cls, db_pool, station_id: int, limit: int = 10) -> List['Order']:
-        """Получает заказы станции"""
+        """Получает заказы станции (монолитная структура)"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Сначала получаем box_id станции по station_id
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
-                    WHERE station_id = %s
+                    SELECT box_id FROM station WHERE station_id = %s
+                """, (station_id,))
+                station_result = await cursor.fetchone()
+                
+                if not station_result:
+                    return []
+                
+                station_box_id = station_result[0]
+                
+                # Теперь получаем заказы по box_id из монолитной таблицы
+                await cursor.execute("""
+                    SELECT id, station_box_id, user_phone, user_fio, powerbank_serial, 
+                           org_unit_name, status, timestamp, completed_at
+                    FROM orders
+                    WHERE station_box_id = %s
                     ORDER BY timestamp DESC
                     LIMIT %s
-                """, (station_id, limit))
+                """, (station_box_id, limit))
 
                 results = await cursor.fetchall()
 
@@ -355,26 +470,42 @@ class Order:
                 for result in results:
                     orders.append(cls(
                         order_id=result[0],
-                        station_id=result[1],
-                        user_id=result[2],
-                        powerbank_id=result[3],
-                        status=result[4],
-                        timestamp=result[5],
-                        completed_at=result[6],
+                        station_box_id=result[1],
+                        user_phone=result[2],
+                        user_fio=result[3],
+                        powerbank_serial=result[4],
+                        org_unit_name=result[5],
+                        status=result[6],
+                        timestamp=result[7],
+                        completed_at=result[8],
                     ))
 
                 return orders
 
     @classmethod
     async def get_by_user_id(cls, db_pool, user_id: int) -> List['Order']:
-        """Получает все заказы пользователя"""
+        """Получает все заказы пользователя (монолитная структура)"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Сначала получаем телефон пользователя по user_id
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at                    FROM orders
-                    WHERE user_id = %s
-                    ORDER BY timestamp DESC
+                    SELECT phone_e164 FROM app_user WHERE user_id = %s
                 """, (user_id,))
+                user_result = await cursor.fetchone()
+                
+                if not user_result:
+                    return []
+                
+                user_phone = user_result[0]
+                
+                # Теперь получаем все заказы по телефону из монолитной таблицы
+                await cursor.execute("""
+                    SELECT id, station_box_id, user_phone, user_fio, powerbank_serial, 
+                           org_unit_name, status, timestamp, completed_at
+                    FROM orders
+                    WHERE user_phone = %s
+                    ORDER BY timestamp DESC
+                """, (user_phone,))
 
                 results = await cursor.fetchall()
 
@@ -382,12 +513,14 @@ class Order:
                 for result in results:
                     orders.append(cls(
                         order_id=result[0],
-                        station_id=result[1],
-                        user_id=result[2],
-                        powerbank_id=result[3],
-                        status=result[4],
-                        timestamp=result[5],
-                        completed_at=result[6],
+                        station_box_id=result[1],
+                        user_phone=result[2],
+                        user_fio=result[3],
+                        powerbank_serial=result[4],
+                        org_unit_name=result[5],
+                        status=result[6],
+                        timestamp=result[7],
+                        completed_at=result[8],
                     ))
 
                 return orders
@@ -577,11 +710,12 @@ class Order:
     
     @classmethod
     async def get_all_active(cls, db_pool) -> List['Order']:
-        """Получает все активные заказы"""
+        """Получает все активные заказы (монолитная структура)"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
-                    SELECT id, station_id, user_id, powerbank_id, status, timestamp, completed_at
+                    SELECT id, station_box_id, user_phone, user_fio, powerbank_serial, 
+                           org_unit_name, status, timestamp, completed_at
                     FROM orders
                     WHERE status IN ('borrow', 'pending', 'return_damage')
                     ORDER BY timestamp DESC
@@ -593,12 +727,14 @@ class Order:
                 for result in results:
                     orders.append(cls(
                         order_id=result[0],
-                        station_id=result[1],
-                        user_id=result[2],
-                        powerbank_id=result[3],
-                        status=result[4],
-                        timestamp=result[5],
-                        completed_at=result[6],
+                        station_box_id=result[1],
+                        user_phone=result[2],
+                        user_fio=result[3],
+                        powerbank_serial=result[4],
+                        org_unit_name=result[5],
+                        status=result[6],
+                        timestamp=result[7],
+                        completed_at=result[8],
                     ))
 
                 return orders

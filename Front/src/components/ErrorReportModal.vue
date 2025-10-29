@@ -174,8 +174,8 @@ const submitErrorReport = async () => {
   try {
     // Отправляем запрос на возврат с ошибкой через Long Polling API
     const response = await pythonAPI.returnError({
-      station_id: props.order?.station_id,
-      user_id: props.order?.user_id,
+      station_box_id: props.order?.station_box_id,
+      user_phone: props.order?.user_phone,
       error_type_id: selectedErrorType.value,
       timeout_seconds: 30 // 30 секунд ожидания
     })
