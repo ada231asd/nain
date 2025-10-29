@@ -685,10 +685,10 @@ class OtherEntitiesCRUD:
                     
                     key_id = cur.lastrowid
                     
-                    # После вставки ключа - переводим станцию в статус 'pending' (неактивна)
+                    # После вставки ключа - переводим станцию в статус 'inactive' (неактивна)
                     await cur.execute("""
                         UPDATE station 
-                        SET status = 'pending'
+                        SET status = 'inactive'
                         WHERE station_id = %s
                     """, (data['station_id'],))
                     
@@ -697,7 +697,7 @@ class OtherEntitiesCRUD:
                     return web.json_response({
                         "success": True,
                         "data": {"id": key_id},
-                        "message": "Секретный ключ создан. Станция переведена в статус 'pending' (неактивна)."
+                        "message": "Секретный ключ создан. Станция переведена в статус 'inactive' (неактивна)."
                     })
                     
         except Exception as e:

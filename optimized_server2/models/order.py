@@ -629,16 +629,22 @@ class Order:
     
     async def update_status(self, db_pool, new_status: str) -> bool:
         """Обновляет статус заказа. Для 'return' устанавливает completed_at."""
+        from utils.centralized_logger import get_logger
+        logger = get_logger('order_model')
+        
         current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 if new_status == 'return':
+                    logger.info(f"Обновление заказа {self.order_id}: статус -> 'return', completed_at -> {current_time}")
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = %s WHERE id = %s",
                         (new_status, current_time, self.order_id)
                     )
                     self.completed_at = current_time
+                    logger.info(f"Заказ {self.order_id} обновлен в БД: status='{new_status}', completed_at={current_time}")
                 else:  # Для 'borrow' и других статусов
+                    logger.info(f"Обновление заказа {self.order_id}: статус -> '{new_status}', completed_at -> NULL")
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s",
                         (new_status, self.order_id)
@@ -646,6 +652,7 @@ class Order:
                     self.completed_at = None
                 await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
                 self.status = new_status
+                logger.info(f"Заказ {self.order_id}: транзакция завершена, новый статус сохранен в БД")
                 return True
     
     @classmethod

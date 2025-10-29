@@ -237,9 +237,17 @@ class OptimizedServer:
                 
                 # Сначала проверяем, есть ли ожидающие возврат с ошибкой пользователи
                 response = await self.return_handler.handle_tcp_error_return_request(data, connection)
+                
                 if response:
+                    # Возврат с ошибкой обработан
                     writer.write(response)
                     await writer.drain()
+                else:
+                    # Нет ожидающих возвратов с ошибкой - обрабатываем как обычный возврат
+                    response = await self.normal_return_handler.handle_return_request(data, connection)
+                    if response:
+                        writer.write(response)
+                        await writer.drain()
                 return False
             
             elif command == 0x80:  # Force Eject Power Bank

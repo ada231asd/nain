@@ -61,14 +61,46 @@ class NormalReturnPowerbankHandler:
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
             if not powerbank:
                 return {"success": False, "error": "Повербанк не найден"}
+            
+            # Получаем станцию для проверки совместимости групп
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if not station:
+                return {"success": False, "error": "Станция не найдена"}
+            
+            # Проверяем совместимость групп повербанка и станции
+            if powerbank.org_unit_id and station.org_unit_id:
+                from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
+                
+                compatible = await is_powerbank_compatible(
+                    self.db_pool, powerbank.org_unit_id, station.org_unit_id
+                )
+                
+                if not compatible:
+                    reason = await get_compatibility_reason(
+                        self.db_pool, powerbank.org_unit_id, station.org_unit_id
+                    )
+                    self.logger.warning(f"Попытка возврата повербанка {powerbank_id} в несовместимую станцию {station_id}: {reason}")
+                    return {
+                        "success": False, 
+                        "error": f"Повербанк нельзя вернуть в эту станцию. {reason}"
+                    }
+                else:
+                    reason = await get_compatibility_reason(
+                        self.db_pool, powerbank.org_unit_id, station.org_unit_id
+                    )
+                    self.logger.info(f"Проверка совместимости групп пройдена: {reason}")
 
             # Проверяем, есть ли активный заказ на выдачу для этого повербанка
+            self.logger.info(f"Поиск активного заказа для повербанка с serial_number: {powerbank.serial_number}")
             active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.serial_number)
             
             if active_order:
+                self.logger.info(f"Найден активный заказ {active_order.order_id} для повербанка {powerbank_id}, статус до обновления: {active_order.status}, completed_at: {active_order.completed_at}")
+                
                 # Закрываем активный заказ
                 await active_order.update_status(self.db_pool, 'return')
-                self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id}")
+                self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id}, новый статус: return, completed_at установлен")
                 
                 # Получаем user_id по телефону для логирования
                 async with self.db_pool.acquire() as conn:
@@ -87,7 +119,7 @@ class NormalReturnPowerbankHandler:
                     description='Обычный возврат повербанка'
                 )
             else:
-                self.logger.info(f"Нет активного заказа для повербанка {powerbank_id}")
+                self.logger.warning(f"НЕ НАЙДЕН активный заказ для повербанка {powerbank_id} (serial: {powerbank.serial_number}). Проверьте есть ли заказ со статусом 'borrow' и completed_at = NULL")
 
             # Обновляем статус повербанка на активный (если он был в другом статусе)
             if powerbank.status != 'active':
@@ -97,14 +129,11 @@ class NormalReturnPowerbankHandler:
             # Добавляем повербанк в станцию
             await StationPowerbank.add_powerbank(self.db_pool, station_id, powerbank_id, slot_number)
             
-            # Обновляем remain_num станции
-            from models.station import Station
-            station = await Station.get_by_id(self.db_pool, station_id)
-            if station:
-                # При возврате повербанков становится больше → remain_num увеличивается
-                new_remain_num = int(station.remain_num) + 1
-                await station.update_remain_num(self.db_pool, new_remain_num)
-                self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
+            # Обновляем remain_num станции (объект station уже получен ранее)
+            # При возврате повербанков становится больше → remain_num увеличивается
+            new_remain_num = int(station.remain_num) + 1
+            await station.update_remain_num(self.db_pool, new_remain_num)
+            self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
 
             result = {
                 "success": True,
@@ -134,20 +163,6 @@ class NormalReturnPowerbankHandler:
         try:
             from utils.packet_utils import parse_return_power_bank_request, build_return_power_bank_response
             from utils.station_resolver import get_station_id_by_box_id
-          
-            # Проверяем, есть ли ожидающие возвраты с ошибкой
-            # Если есть - делегируем обработку error_return_handler
-            try:
-                from handlers.return_powerbank import ReturnPowerbankHandler
-                error_return_handler = ReturnPowerbankHandler(self.db_pool, self.connection_manager)
-                
-                # Проверяем есть ли ожидающие возвраты с ошибкой
-                if error_return_handler.pending_error_returns:
-                    delegated = await error_return_handler.handle_tcp_error_return_request(data, connection)
-                    if delegated is not None:
-                        return delegated
-            except Exception:
-                pass
             
             # Парсим данные запроса
             parsed_data = parse_return_power_bank_request(data)

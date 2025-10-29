@@ -105,6 +105,23 @@ class SoftDeleteMixin:
         try:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
+                    # Для станций сначала удаляем связанные записи
+                    if table == 'station':
+                        # Удаляем секретный ключ станции
+                        await cur.execute(
+                            "DELETE FROM `station_secret_key` WHERE station_id = %s",
+                            (record_id,)
+                        )
+                        logger.info(f"Удалены секретные ключи для станции {record_id}")
+                        
+                        # Удаляем связи станции с повербанками
+                        await cur.execute(
+                            "DELETE FROM `station_powerbank` WHERE station_id = %s",
+                            (record_id,)
+                        )
+                        logger.info(f"Удалены связи станции {record_id} с повербанками")
+                    
+                    # Удаляем основную запись
                     query = f"DELETE FROM `{table}` WHERE {id_field} = %s"
                     await cur.execute(query, (record_id,))
                     await conn.commit()
