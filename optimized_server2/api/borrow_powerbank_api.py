@@ -51,6 +51,10 @@ class BorrowPowerbankAPI:
             result = []
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
+                # Пропускаем удаленные повербанки
+                if not powerbank or powerbank.is_deleted:
+                    continue
+                    
                 if powerbank and (include_all or powerbank.status == 'active'):
                     # Проверяем, что повербанк не находится в активном заказе
                     existing_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)

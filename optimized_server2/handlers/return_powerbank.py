@@ -97,14 +97,17 @@ class ReturnPowerbankHandler:
                 return {"success": False, "error": "У пользователя нет активных заказов"}
             
             # Проверяем, нет ли уже ожидающего запроса для этого пользователя
-            if user_id in ReturnPowerbankHandler._pending_error_returns:
+            # Используем телефон как ключ, так как в TCP обработчике ищем по телефону
+            user_phone = user.phone_e164
+            if user_phone in ReturnPowerbankHandler._pending_error_returns:
                 return {"success": False, "error": "У пользователя уже есть ожидающий запрос на возврат с ошибкой"}
             
             # Создаем Future для Long Polling
             future = asyncio.Future()
             
-            # Сохраняем запрос на возврат с ошибкой
-            ReturnPowerbankHandler._pending_error_returns[user_id] = {
+            # Сохраняем запрос на возврат с ошибкой (ключ - телефон пользователя)
+            ReturnPowerbankHandler._pending_error_returns[user_phone] = {
+                'user_id': user_id,  # Добавляем user_id для удобства
                 'station_id': station_id,
                 'error_type': error_type,
                 'timestamp': get_moscow_time(),
@@ -112,7 +115,7 @@ class ReturnPowerbankHandler:
                 'future': future
             }
             
-            self.logger.info(f"Пользователь {user_id} запросил возврат с ошибкой типа {error_type} в станцию {station_id}. Ожидаем вставки повербанка...")
+            self.logger.info(f"Пользователь {user_id} (телефон: {user_phone}) запросил возврат с ошибкой типа {error_type} в станцию {station_id}. Ожидаем вставки повербанка...")
             
             # Ждем результат с таймаутом
             try:
@@ -120,8 +123,8 @@ class ReturnPowerbankHandler:
                 return result
             except asyncio.TimeoutError:
                 # Удаляем просроченный запрос
-                if user_id in ReturnPowerbankHandler._pending_error_returns:
-                    del ReturnPowerbankHandler._pending_error_returns[user_id]
+                if user_phone in ReturnPowerbankHandler._pending_error_returns:
+                    del ReturnPowerbankHandler._pending_error_returns[user_phone]
                 return {
                     "success": False, 
                     "error": f"Таймаут ожидания вставки повербанка ({timeout_seconds} секунд). Повербанк не был вставлен в станцию."
@@ -189,13 +192,33 @@ class ReturnPowerbankHandler:
                 del self.pending_error_returns[user_id]
                 self.logger.info(f"Просроченный запрос на возврат с ошибкой для пользователя {user_id} удален")
 
-    async def _process_error_return(self, station_id: int, slot_number: int, powerbank_id: int, matching_user_id: int) -> Dict[str, Any]:
-        """Единая обработка успешного возврата с ошибкой: статусы, заказ, лог, future."""
+    async def _process_error_return(self, station_id: int, slot_number: int, powerbank_id: int, matching_user_phone: str, matching_user_id: int) -> Dict[str, Any]:
+        """Единая обработка успешного возврата с ошибкой: статусы, заказ, лог, future.
+        
+        Args:
+            station_id: ID станции
+            slot_number: Номер слота
+            powerbank_id: ID повербанка
+            matching_user_phone: Телефон пользователя (ключ в _pending_error_returns)
+            matching_user_id: ID пользователя
+        """
         try:
-            return_data = ReturnPowerbankHandler._pending_error_returns.get(matching_user_id, {})
+            return_data = ReturnPowerbankHandler._pending_error_returns.get(matching_user_phone, {})
             error_type = return_data.get('error_type')
             error_name = return_data.get('error_name')
             future = return_data.get('future')
+            requested_station_id = return_data.get('station_id')  # Станция, на которую был запрос
+
+            # ЗАЩИТА ОТ ДУРАКОВ: Проверяем, что пользователь возвращает в ту же станцию
+            if requested_station_id and requested_station_id != station_id:
+                error_msg = f"Пользователь {matching_user_id} попытался вернуть повербанк в станцию {station_id}, но запрос был на станцию {requested_station_id}"
+                self.logger.warning(error_msg)
+                if future and not future.done():
+                    future.set_result({
+                        "success": False,
+                        "error": "Повербанк должен быть возвращен в ту же станцию, где был сделан запрос"
+                    })
+                return {"success": False, "error": "Неправильная станция для возврата"}
 
             # Ищем активный заказ по повербанку
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
@@ -212,8 +235,16 @@ class ReturnPowerbankHandler:
                     })
                 return {"success": False, "error": "Нет активного заказа для этого повербанка"}
 
-           
-            effective_user_id = active_order.user_id
+            # Получаем user_id по телефону из заказа (Order содержит user_phone, а не user_id)
+            from models.user import User
+            order_user = await User.get_by_phone(self.db_pool, active_order.user_phone)
+            if not order_user:
+                self.logger.error(f"Пользователь с телефоном {active_order.user_phone} не найден")
+                if future and not future.done():
+                    future.set_result({"success": False, "error": "Пользователь не найден"})
+                return {"success": False, "error": "Пользователь не найден"}
+            
+            effective_user_id = order_user.user_id
             if effective_user_id != matching_user_id:
                 self.logger.warning(f"Повербанк {powerbank_id} принадлежит пользователю {effective_user_id}, а ожидал {matching_user_id}. Продолжаем по владельцу заказа.")
 
@@ -239,9 +270,9 @@ class ReturnPowerbankHandler:
                 await station.update_remain_num(self.db_pool, new_remain_num)
                 self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
 
-            # Удаляем из ожидающих
-            if matching_user_id in ReturnPowerbankHandler._pending_error_returns:
-                del ReturnPowerbankHandler._pending_error_returns[matching_user_id]
+            # Удаляем из ожидающих (используем телефон как ключ)
+            if matching_user_phone in ReturnPowerbankHandler._pending_error_returns:
+                del ReturnPowerbankHandler._pending_error_returns[matching_user_phone]
 
             # Логируем действие
             await ActionLog.create(
@@ -253,12 +284,24 @@ class ReturnPowerbankHandler:
                 description=f'Возврат повербанка с ошибкой: {error_name}'
             )
 
+            # Получаем дополнительные данные для ответа фронтенду
+            from models.station import Station
+            station_obj = await Station.get_by_id(self.db_pool, station_id)
+            station_box_id = station_obj.box_id if station_obj else None
+            
+            from models.user import User
+            user_obj = await User.get_by_id(self.db_pool, effective_user_id)
+            user_phone = user_obj.phone_e164 if user_obj else None
+            
             result = {
                 "success": True,
                 "message": "Повербанк успешно возвращен с ошибкой",
                 "user_id": effective_user_id,
+                "user_phone": user_phone,
                 "powerbank_id": powerbank_id,
+                "powerbank_serial": powerbank.serial_number,
                 "station_id": station_id,
+                "station_box_id": station_box_id,
                 "slot_number": slot_number,
                 "error_type": error_type,
                 "error_name": error_name
@@ -390,6 +433,7 @@ class ReturnPowerbankHandler:
             powerbank_id = powerbank.powerbank_id
             matching_user_id = None
             error_type = None
+            wrong_station = False  # Флаг для "защиты от дураков"
 
             try:
                 active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
@@ -398,16 +442,56 @@ class ReturnPowerbankHandler:
 
             if active_order and active_order.user_phone in self.pending_error_returns:
                 pending = self.pending_error_returns.get(active_order.user_phone)
-                if not pending or pending.get('station_id') is None or pending.get('station_id') == station_id:
+                requested_station_id = pending.get('station_id')
+                
+                # ЗАЩИТА ОТ ДУРАКОВ: Проверяем, что возврат идет в правильную станцию
+                if requested_station_id and requested_station_id != station_id:
+                    self.logger.warning(f"Пользователь {active_order.user_phone} пытается вернуть повербанк в станцию {station_id}, но запрос был на станцию {requested_station_id}. ВЫПЛЕВЫВАЕМ!")
+                    wrong_station = True
+                elif not pending or requested_station_id is None or requested_station_id == station_id:
                     matching_user_id = active_order.user_phone
                     error_type = pending.get('error_type') if pending else None
 
-            if not matching_user_id:
+            if not matching_user_id and not wrong_station:
                 for user_phone, return_data in self.pending_error_returns.items():
-                    if return_data.get('station_id') == station_id:
+                    requested_station_id = return_data.get('station_id')
+                    if requested_station_id == station_id:
                         matching_user_id = user_phone
                         error_type = return_data.get('error_type')
                         break
+            
+            # Если станция не та - выплевываем повербанк обратно
+            if wrong_station:
+                self.logger.warning(f"Возврат повербанка {powerbank_id} отклонен: неправильная станция. Отправляем команду на выплевывание (result=0)")
+                
+                # Уведомляем клиента об ошибке через Future
+                if active_order and active_order.user_phone in self.pending_error_returns:
+                    return_data = self.pending_error_returns.get(active_order.user_phone)
+                    future = return_data.get('future')
+                    if future and not future.done():
+                        future.set_result({
+                            "success": False,
+                            "error": "Повербанк должен быть возвращен в ту же станцию, где был сделан запрос"
+                        })
+                    # Удаляем из ожидающих
+                    del self.pending_error_returns[active_order.user_phone]
+                
+                # Отправляем TCP ответ с result=0 для выплевывания повербанка
+                response = build_return_power_bank_response(
+                    slot=slot,
+                    result=0,  # Отказ - повербанк будет выплюнут обратно
+                    terminal_id=terminal_id.encode('ascii'),
+                    level=level,
+                    voltage=voltage,
+                    current=current,
+                    temperature=temperature,
+                    status=status,
+                    soh=soh,
+                    vsn=vsn,
+                    token=connection.token
+                )
+                self.logger.info(f"Отправлен TCP ответ на выплевывание повербанка из слота {slot}")
+                return response
             
             if matching_user_id:
                 # Получаем user_id по телефону
@@ -419,15 +503,29 @@ class ReturnPowerbankHandler:
                         user_result = await cur.fetchone()
                         if not user_result:
                             self.logger.error(f"Пользователь с телефоном {matching_user_id} не найден")
-                            return {"error": "Пользователь не найден", "success": False}
+                            # Возвращаем bytes ответ с ошибкой для станции
+                            return build_return_power_bank_response(
+                                slot=slot,
+                                result=0,  # Ошибка
+                                terminal_id=terminal_id.encode('ascii'),
+                                level=level,
+                                voltage=voltage,
+                                current=current,
+                                temperature=temperature,
+                                status=status,
+                                soh=soh,
+                                vsn=vsn,
+                                token=connection.token
+                            )
                         user_id = user_result[0]
                 
-                self.logger.info(f"Обрабатываем возврат с ошибкой для пользователя {user_id}, повербанк {powerbank_id}")
+                self.logger.info(f"Обрабатываем возврат с ошибкой для пользователя {user_id} (телефон: {matching_user_id}), повербанк {powerbank_id}")
                 await self._process_error_return(
                     station_id=station_id,
                     slot_number=slot,
                     powerbank_id=powerbank_id,
-                    matching_user_id=user_id
+                    matching_user_phone=matching_user_id,  # matching_user_id содержит телефон
+                    matching_user_id=user_id  # user_id содержит ID пользователя
                 )
                 return build_return_power_bank_response(
                     slot=slot,
@@ -443,10 +541,9 @@ class ReturnPowerbankHandler:
                     token=connection.token
                 )
             else:
-             
-                from handlers.normal_return_powerbank import NormalReturnPowerbankHandler
-                normal_handler = NormalReturnPowerbankHandler(self.db_pool, self.connection_manager)
-                return await normal_handler.handle_return_request(data, connection)
+                # Нет ожидающего возврата с ошибкой - возвращаем None
+                # NormalReturnPowerbankHandler продолжит обычную обработку
+                return None
                 
         except Exception as e:
             self.logger.error(f"Ошибка обработки запроса возврата с ошибкой: {e}")

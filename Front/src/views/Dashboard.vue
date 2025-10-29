@@ -573,12 +573,14 @@ const handleReturnWithError = async (station) => {
     const userPhone = user.value?.phone_e164
     
     if (!stationBoxId) {
-      console.error('Отсутствует box_id станции')
+      console.error('Отсутствует box_id станции:', station)
+      alert(`Ошибка: У станции отсутствует box_id.\nID станции: ${station.station_id || station.id}`)
       return
     }
     
     if (!userPhone) {
       console.error('Отсутствует телефон пользователя')
+      alert('Ошибка: Не удалось получить телефон пользователя')
       return
     }
     
@@ -588,7 +590,9 @@ const handleReturnWithError = async (station) => {
     // Конкретные данные о повербанке будут заполнены при отправке отчета
     errorReportOrder.value = {
       station_box_id: stationBoxId,
-      user_phone: userPhone
+      user_phone: userPhone,
+      station_id: station.station_id || station.id,
+      user_id: user.value?.user_id
     }
     
     errorReportStation.value = station

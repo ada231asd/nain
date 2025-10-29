@@ -18,8 +18,8 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://redmine.primetech.ru:8443")
 DB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
-    "user": "appuser",
-    "password": "MyPassw0rd!",
+    "user": "root",
+    "password": "root",
     "db": "zaryd",
     "autocommit": True
 }
