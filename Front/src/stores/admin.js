@@ -103,9 +103,23 @@ export const useAdminStore = defineStore('admin', {
         throw err;
       }
     },
-    async deleteUser(id) {
+    async deleteUser(id, hardDelete = false) {
       try {
-        await pythonAPI.deleteUser(id);
+        if (hardDelete) {
+          // Жёсткое удаление - физическое удаление из БД
+          await pythonAPI.hardDelete('user', id);
+        } else {
+          // Мягкое удаление - помечаем как удалённого
+          await pythonAPI.softDelete('user', id);
+        }
+        await this.fetchUsers();
+      } catch (err) {
+        throw err;
+      }
+    },
+    async restoreUser(id) {
+      try {
+        await pythonAPI.restoreDeleted('user', id);
         await this.fetchUsers();
       } catch (err) {
         throw err;
@@ -321,19 +335,34 @@ export const useAdminStore = defineStore('admin', {
         // Не рефетчим, чтобы не перезатереть оптимистичное состояние старыми данными
       }
     },
-    async deleteStation(id) {
-      // Оптимистичное удаление локально
+    async deleteStation(id, hardDelete = false) {
+      // Оптимистичное удаление локально (только для жёсткого удаления)
       const index = this.stations.findIndex(s => (s.station_id || s.id) === id);
       let removed = null;
-      if (index !== -1) {
+      if (hardDelete && index !== -1) {
         removed = this.stations[index];
         this.stations.splice(index, 1);
       }
       try {
-        await pythonAPI.deleteStation(id);
+        if (hardDelete) {
+          // Жёсткое удаление - физическое удаление из БД
+          await pythonAPI.hardDelete('station', id);
+        } else {
+          // Мягкое удаление - помечаем как удалённую
+          await pythonAPI.softDelete('station', id);
+        }
         await this._refreshStationsSilently();
       } catch (err) {
         // Не рефетчим, чтобы не вернуть удалённую станцию из сервера
+        throw err;
+      }
+    },
+    async restoreStation(id) {
+      try {
+        await pythonAPI.restoreDeleted('station', id);
+        await this._refreshStationsSilently();
+      } catch (err) {
+        throw err;
       }
     },
     async fetchAddresses() {

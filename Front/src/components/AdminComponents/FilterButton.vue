@@ -139,13 +139,15 @@ const availableStatuses = computed(() => {
       return [
         { value: 'pending', label: 'Ожидание', class: 'pending', aliases: ['ожидает'] },
         { value: 'active', label: 'Активный', class: 'active', aliases: ['активный'] },
-        { value: 'blocked', label: 'Заблокирован', class: 'blocked', aliases: ['заблокирован'] }
+        { value: 'blocked', label: 'Заблокирован', class: 'blocked', aliases: ['заблокирован'] },
+        { value: 'deleted', label: 'Удалённые', class: 'deleted', aliases: [] }
       ]
     case 'stations':
       return [
         { value: 'pending', label: 'Ожидание', class: 'pending', aliases: ['ожидает'] },
         { value: 'active', label: 'Активна', class: 'active', aliases: ['активна'] },
-        { value: 'inactive', label: 'Неактивна', class: 'inactive', aliases: ['неактивна'] }
+        { value: 'inactive', label: 'Неактивна', class: 'inactive', aliases: ['неактивна'] },
+        { value: 'deleted', label: 'Удалённые', class: 'deleted', aliases: [] }
       ]
     case 'powerbanks':
       return [
@@ -532,6 +534,10 @@ onUnmounted(() => {
 
 .dot-return {
   background: #28a745;
+}
+
+.dot-deleted {
+  background: #dc3545;
 }
 
 .filter-chip.active .status-dot {

@@ -39,6 +39,7 @@
                 @view-powerbanks="openPowerbanks"
                 @restart-station="restartStation"
                 @delete-station="(station) => deleteStation(station.station_id || station.id)"
+                @station-updated="refreshAfterAction"
               />
             </div>
 
