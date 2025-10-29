@@ -1,32 +1,74 @@
-2025-10-28 17:56:29 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
-2025-10-28 17:56:32 - server - ERROR - Ошибка: (2003, "Can't connect to MySQL server on '127.0.0.1'")
-2025-10-28 17:56:32 - server - INFO - Остановка серверов...
-2025-10-28 17:56:32 - server - INFO - Деактивация всех станций...
-2025-10-28 17:56:32 - server - INFO - Активных станций не найдено
-2025-10-28 17:56:32 - server - INFO - Деактивация всех активных станций в БД...
-2025-10-28 17:56:32 - server - WARNING - Пул соединений с БД уже закрыт
-2025-10-28 17:56:32 - server - INFO - Принудительное закрытие всех TCP соединений...
-2025-10-28 17:56:32 - server - INFO - Логгеры закрыты
-2025-10-28 17:57:01 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
-2025-10-28 17:57:29 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:29 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:29 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:29 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:29 - userpowerbankapi - INFO - Пользователь 33 запросил доступные слоты станций
-2025-10-28 17:57:29 - userpowerbankapi - INFO - Информация о лимитах пользователя 33: {'user_id': 33, 'individual_limit': None, 'group_default_limit': None, 'group_name': None, 'effective_limit': None, 'limit_type': 'role_exempt', 'role': 'service_admin', 'active_count': 0}
-2025-10-28 17:57:29 - userpowerbankapi - INFO - Пользователь 33 - администратор, лимиты не применяются
-2025-10-28 17:57:29 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:29 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:29 - userpowerbankapi - INFO - Пользователь 33 запросил доступные слоты станций
-2025-10-28 17:57:29 - userpowerbankapi - INFO - Информация о лимитах пользователя 33: {'user_id': 33, 'individual_limit': None, 'group_default_limit': None, 'group_name': None, 'effective_limit': None, 'limit_type': 'role_exempt', 'role': 'service_admin', 'active_count': 0}
-2025-10-28 17:57:29 - userpowerbankapi - INFO - Пользователь 33 - администратор, лимиты не применяются
-2025-10-28 17:57:29 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:29 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:29 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:29 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3436 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:29 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:29 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:30 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:30 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 2806 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:30 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:30 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1227 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:30 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:30 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:30 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:30 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:30 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:30 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:52 - soft_delete - INFO - Запись 17 из таблицы app_user помечена как удаленная
-2025-10-28 17:57:53 - base_api - INFO - Пользователь 33 удалил user #17
-2025-10-28 17:57:53 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:52 +0300] "DELETE /api/users/17 HTTP/1.1" 200 512 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:53 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:53 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3140 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-10-28 17:57:53 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:17:57:53 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3140 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:06 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - userpowerbankapi - INFO - Пользователь 33 запросил доступные слоты станций
+2025-10-28 19:48:19 - userpowerbankapi - INFO - Информация о лимитах пользователя 33: {'user_id': 33, 'individual_limit': None, 'group_default_limit': None, 'group_name': None, 'effective_limit': None, 'limit_type': 'role_exempt', 'role': 'service_admin', 'active_count': 0}
+2025-10-28 19:48:19 - userpowerbankapi - INFO - Пользователь 33 - администратор, лимиты не применяются
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - userpowerbankapi - INFO - Пользователь 33 запросил доступные слоты станций
+2025-10-28 19:48:19 - userpowerbankapi - INFO - Информация о лимитах пользователя 33: {'user_id': 33, 'individual_limit': None, 'group_default_limit': None, 'group_name': None, 'effective_limit': None, 'limit_type': 'role_exempt', 'role': 'service_admin', 'active_count': 0}
+2025-10-28 19:48:19 - userpowerbankapi - INFO - Пользователь 33 - администратор, лимиты не применяются
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3436 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 2806 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1227 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:19 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:19 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:20 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:20 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:48:20 - aiohttp.access - INFO - 127.0.0.1 [28/Oct/2025:19:48:20 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2476 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-28 19:56:10 - server - INFO - Остановка серверов...
+2025-10-28 19:56:10 - server - INFO - Деактивация всех станций...
+2025-10-28 19:56:10 - server - INFO - Активных станций не найдено
+2025-10-28 19:56:10 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-28 19:56:10 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-28 19:56:10 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-28 19:56:10 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-28 19:56:11 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-28 19:56:11 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+2025-10-28 19:56:11 - server - INFO - Активных станций в БД не найдено
+2025-10-28 19:56:11 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-28 19:56:11 - http_server - INFO - Остановка HTTP сервера...
+2025-10-28 19:56:11 - server - INFO - Логгеры закрыты
+2025-10-28 19:56:11 - server - INFO - Остановка серверов...
+2025-10-28 19:56:11 - server - INFO - Деактивация всех станций...
+2025-10-28 19:56:11 - server - INFO - Активных станций не найдено
+2025-10-28 19:56:11 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-28 19:56:11 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-28 19:56:11 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-28 19:56:11 - http_server - INFO - Остановка HTTP сервера...
+2025-10-28 19:56:11 - server - INFO - Логгеры закрыты

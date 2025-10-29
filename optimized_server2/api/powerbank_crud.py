@@ -175,6 +175,11 @@ class PowerbankCRUD(BaseAPI):
                     }))
                     
         except Exception as e:
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('powerbank_crud')
+            logger.error(f"ERROR in get_powerbanks: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -300,7 +305,11 @@ class PowerbankCRUD(BaseAPI):
             }, status=500)
     
     async def delete_powerbank(self, request: Request) -> Response:
-        """DELETE /api/powerbanks/{powerbank_id} - Мягкое удаление powerbank"""
+        """
+        DELETE /api/powerbanks/{powerbank_id} - Мягкое удаление powerbank
+        
+        При удалении повербанка также меняется статус на 'unknown'
+        """
         try:
             # Проверка авторизации
             auth_ok, error_response = self.check_auth(request)

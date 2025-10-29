@@ -220,6 +220,11 @@ class CRUDEndpoints(BaseAPI):
                     }))
                     
         except Exception as e:
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('crud_endpoints')
+            logger.error(f"ERROR in get_users: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -673,6 +678,11 @@ class CRUDEndpoints(BaseAPI):
                     }))
                     
         except Exception as e:
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('crud_endpoints')
+            logger.error(f"ERROR in get_stations: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
@@ -847,7 +857,11 @@ class CRUDEndpoints(BaseAPI):
             }, status=500)
     
     async def delete_station(self, request: Request) -> Response:
-        """DELETE /api/stations/{station_id} - Мягкое удаление станции"""
+        """
+        DELETE /api/stations/{station_id} - Мягкое удаление станции
+        
+        При удалении станции статус меняется на 'inactive' - сервер не работает с этой станцией
+        """
         try:
             # Проверка авторизации
             auth_ok, error_response = self.check_auth(request)

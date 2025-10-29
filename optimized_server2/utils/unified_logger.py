@@ -25,9 +25,10 @@ class UnifiedLogger:
         self.setup_logging()
         
     def _get_current_log_file(self):
-        """Возвращает имя файла лога с текущей датой"""
-        current_date = datetime.now().strftime('%Y-%m-%d')
-        return f"server_{current_date}.log"
+        """Возвращает имя текущего активного файла лога"""
+        # Текущий активный файл всегда server.log
+        # При ротации он будет переименован в server_ГГГГ-ММ-ДД.log
+        return "server.log"
         
     def setup_logging(self):
         """Настраивает единую систему логирования с ротацией по дате"""
@@ -38,8 +39,8 @@ class UnifiedLogger:
         log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         date_format = '%Y-%m-%d %H:%M:%S'
         
-        # Создаем файловый обработчик с ротацией по дате
-        log_file_path = os.path.join(self.log_dir, self._get_current_log_file())
+        # Базовое имя файла - просто "server.log"
+        log_file_path = os.path.join(self.log_dir, "server.log")
         
         # Используем TimedRotatingFileHandler для автоматической ротации в полночь
         self._file_handler = TimedRotatingFileHandler(
@@ -52,9 +53,11 @@ class UnifiedLogger:
         )
         self._file_handler.setFormatter(logging.Formatter(log_format, date_format))
         
-        # Настраиваем формат имени для ротированных файлов
-        self._file_handler.suffix = "%Y-%m-%d"
-        self._file_handler.namer = lambda name: name.replace(".log.", "_") + ".log"
+        # Настраиваем формат имени: server.log -> server_2025-10-28.log
+        # При ротации файл переименовывается с добавлением даты
+        self._file_handler.suffix = "_%Y-%m-%d"
+        # Убираем расширение .log перед добавлением суффикса, потом добавляем обратно
+        self._file_handler.namer = lambda name: name.replace(".log", "") + ".log"
         
         # Создаем консольный обработчик
         self._console_handler = logging.StreamHandler(sys.stdout)

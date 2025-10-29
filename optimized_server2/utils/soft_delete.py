@@ -224,13 +224,61 @@ async def soft_delete_user(db_pool, user_id: int) -> bool:
 
 
 async def soft_delete_station(db_pool, station_id: int) -> bool:
-    """Мягкое удаление станции"""
-    return await SoftDeleteMixin.soft_delete(db_pool, 'station', station_id, 'station_id')
+    """
+    Мягкое удаление станции
+    При удалении также меняет статус на 'inactive' - сервер не работает с этой станцией
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                query = """
+                    UPDATE `station` 
+                    SET is_deleted = 1, deleted_at = %s, status = 'inactive'
+                    WHERE station_id = %s AND is_deleted = 0
+                """
+                await cur.execute(query, (datetime.now(), station_id))
+                await conn.commit()
+                
+                affected_rows = cur.rowcount
+                if affected_rows > 0:
+                    logger.info(f"Станция {station_id} помечена как удаленная, статус inactive")
+                    return True
+                else:
+                    logger.warning(f"Станция {station_id} не найдена или уже удалена")
+                    return False
+                    
+    except Exception as e:
+        logger.error(f"Ошибка при мягком удалении станции {station_id}: {e}", exc_info=True)
+        return False
 
 
 async def soft_delete_powerbank(db_pool, powerbank_id: int) -> bool:
-    """Мягкое удаление повербанка"""
-    return await SoftDeleteMixin.soft_delete(db_pool, 'powerbank', powerbank_id, 'id')
+    """
+    Мягкое удаление повербанка
+    При удалении также меняет статус на 'unknown'
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                query = """
+                    UPDATE `powerbank` 
+                    SET is_deleted = 1, deleted_at = %s, status = 'unknown'
+                    WHERE id = %s AND is_deleted = 0
+                """
+                await cur.execute(query, (datetime.now(), powerbank_id))
+                await conn.commit()
+                
+                affected_rows = cur.rowcount
+                if affected_rows > 0:
+                    logger.info(f"Повербанк {powerbank_id} помечен как удаленный, статус unknown")
+                    return True
+                else:
+                    logger.warning(f"Повербанк {powerbank_id} не найден или уже удален")
+                    return False
+                    
+    except Exception as e:
+        logger.error(f"Ошибка при мягком удалении повербанка {powerbank_id}: {e}", exc_info=True)
+        return False
 
 
 async def soft_delete_org_unit(db_pool, org_unit_id: int) -> bool:
@@ -273,13 +321,61 @@ async def restore_user(db_pool, user_id: int) -> bool:
 
 
 async def restore_station(db_pool, station_id: int) -> bool:
-    """Восстановление станции"""
-    return await SoftDeleteMixin.restore(db_pool, 'station', station_id, 'station_id')
+    """
+    Восстановление станции
+    При восстановлении также меняет статус на 'active'
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                query = """
+                    UPDATE `station` 
+                    SET is_deleted = 0, deleted_at = NULL, status = 'active'
+                    WHERE station_id = %s AND is_deleted = 1
+                """
+                await cur.execute(query, (station_id,))
+                await conn.commit()
+                
+                affected_rows = cur.rowcount
+                if affected_rows > 0:
+                    logger.info(f"Станция {station_id} восстановлена, статус active")
+                    return True
+                else:
+                    logger.warning(f"Станция {station_id} не найдена или не была удалена")
+                    return False
+                    
+    except Exception as e:
+        logger.error(f"Ошибка при восстановлении станции {station_id}: {e}", exc_info=True)
+        return False
 
 
 async def restore_powerbank(db_pool, powerbank_id: int) -> bool:
-    """Восстановление повербанка"""
-    return await SoftDeleteMixin.restore(db_pool, 'powerbank', powerbank_id, 'id')
+    """
+    Восстановление повербанка
+    При восстановлении также меняет статус на 'active'
+    """
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                query = """
+                    UPDATE `powerbank` 
+                    SET is_deleted = 0, deleted_at = NULL, status = 'active'
+                    WHERE id = %s AND is_deleted = 1
+                """
+                await cur.execute(query, (powerbank_id,))
+                await conn.commit()
+                
+                affected_rows = cur.rowcount
+                if affected_rows > 0:
+                    logger.info(f"Повербанк {powerbank_id} восстановлен, статус active")
+                    return True
+                else:
+                    logger.warning(f"Повербанк {powerbank_id} не найден или не был удален")
+                    return False
+                    
+    except Exception as e:
+        logger.error(f"Ошибка при восстановлении повербанка {powerbank_id}: {e}", exc_info=True)
+        return False
 
 
 async def restore_org_unit(db_pool, org_unit_id: int) -> bool:

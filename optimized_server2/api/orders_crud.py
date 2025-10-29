@@ -165,8 +165,11 @@ class OrdersCRUD(BaseAPI):
                     }))
                     
         except Exception as e:
-            from utils.centralized_logger import log_error
-            log_error(__name__, f"ERROR in get_orders: {e}", exc_info=True)
+            import traceback
+            from utils.centralized_logger import get_logger
+            logger = get_logger('orders_crud')
+            logger.error(f"ERROR in get_orders: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return web.json_response({
                 "success": False,
                 "error": str(e)
