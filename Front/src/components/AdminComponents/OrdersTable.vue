@@ -35,16 +35,17 @@
     <div class="table-wrapper">
       <table class="orders-table">
         <thead>
-          <tr>
-            <th class="col-id">ID</th>
-            <th class="col-user">Пользователь</th>
-            <th class="col-station">Станция</th>
-            <th class="col-action">Действие</th>
-            <th class="col-status">Статус</th>
-            <th class="col-created">Создан</th>
-            <th class="col-completed">Завершен</th>
-            <th class="col-powerbank">Повербанк</th>
-          </tr>
+           <tr>
+             <th class="col-id">ID</th>
+             <th class="col-user">Пользователь</th>
+             <th class="col-phone">Телефон</th>
+             <th class="col-station">Станция</th>
+             <th class="col-action">Действие</th>
+             <th class="col-status">Статус</th>
+             <th class="col-created">Создан</th>
+             <th class="col-completed">Завершен</th>
+             <th class="col-powerbank">Повербанк</th>
+           </tr>
         </thead>
         <tbody>
           <tr 
@@ -58,14 +59,19 @@
               <span class="order-id-text">#{{ order.id || order.order_id }}</span>
             </td>
 
-            <!-- Пользователь -->
-            <td class="col-user">
-              <div class="user-info">
-                <span class="user-name" :title="order.user_fio || order.user_phone">
-                  {{ truncateText(order.user_fio || order.user_phone || 'N/A', 25) }}
-                </span>
-              </div>
-            </td>
+             <!-- Пользователь -->
+             <td class="col-user">
+               <div class="user-info">
+                 <span class="user-name" :title="order.user_fio">
+                   {{ truncateText(order.user_fio || 'N/A', 10) }}
+                 </span>
+               </div>
+             </td>
+
+             <!-- Телефон -->
+             <td class="col-phone">
+               <span class="phone-text">{{ order.user_phone || '—' }}</span>
+             </td>
 
             <!-- Станция -->
             <td class="col-station">
@@ -86,23 +92,31 @@
               </span>
             </td>
 
-            <!-- Создан -->
-            <td class="col-created">
-              <span class="time-text">{{ formatTime(order.timestamp) }}</span>
-            </td>
+             <!-- Создан -->
+             <td class="col-created">
+               <div class="datetime-cell" v-if="order.timestamp">
+                 <span class="time-text">{{ formatTimeOnly(order.timestamp) }}</span>
+                 <span class="date-text">{{ formatDateOnly(order.timestamp) }}</span>
+               </div>
+               <span v-else>—</span>
+             </td>
 
-            <!-- Завершен -->
-            <td class="col-completed">
-              <span class="time-text">{{ order.completed_at ? formatTime(order.completed_at) : '—' }}</span>
-            </td>
+             <!-- Завершен -->
+             <td class="col-completed">
+               <div class="datetime-cell" v-if="order.completed_at">
+                 <span class="time-text">{{ formatTimeOnly(order.completed_at) }}</span>
+                 <span class="date-text">{{ formatDateOnly(order.completed_at) }}</span>
+               </div>
+               <span v-else>—</span>
+             </td>
 
-            <!-- Повербанк -->
-            <td class="col-powerbank">
-              <span class="powerbank-badge" v-if="order.powerbank_serial || order.powerbank_id">
-                🔋 {{ truncateText(order.powerbank_serial || order.powerbank_id, 15) }}
-              </span>
-              <span v-else class="no-powerbank">—</span>
-            </td>
+             <!-- Повербанк -->
+             <td class="col-powerbank">
+               <span class="powerbank-text" v-if="order.powerbank_serial || order.powerbank_id">
+                 {{ truncateText(order.powerbank_serial || order.powerbank_id, 15) }}
+               </span>
+               <span v-else class="no-powerbank">—</span>
+             </td>
           </tr>
         </tbody>
       </table>
@@ -306,6 +320,32 @@ const formatTime = (timestamp) => {
   })
 }
 
+const formatTimeOnly = (timestamp) => {
+  if (!timestamp) return '—'
+  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp
+  if (isNaN(date.getTime())) return '—'
+  
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Moscow',
+    hour12: false
+  }).format(date)
+}
+
+const formatDateOnly = (timestamp) => {
+  if (!timestamp) return '—'
+  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp
+  if (isNaN(date.getTime())) return '—'
+  
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    timeZone: 'Europe/Moscow'
+  }).format(date)
+}
+
 // Сброс страницы при изменении поиска или фильтра
 watch([searchQuery, statusFilter], () => {
   currentPage.value = 1
@@ -447,11 +487,31 @@ watch([searchQuery, statusFilter], () => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+.orders-table th.col-created {
+  padding-left: 12px;
+  padding-right: 2px;
+}
+
+.orders-table th.col-completed {
+  padding-left: 2px;
+  padding-right: 12px;
+}
+
 .orders-table td {
   padding: 16px 12px;
   border-bottom: 1px solid #e9ecef;
   vertical-align: middle;
   color: #333;
+}
+
+.orders-table td.col-created {
+  padding-left: 12px;
+  padding-right: 2px;
+}
+
+.orders-table td.col-completed {
+  padding-left: 2px;
+  padding-right: 12px;
 }
 
 .order-row {
@@ -484,43 +544,50 @@ watch([searchQuery, statusFilter], () => {
 
 /* Колонки */
 .col-id {
-  width: 8%;
-  min-width: 80px;
+  width: 7%;
+  min-width: 70px;
+  padding-right: 8px !important;
 }
 
 .col-user {
-  width: 18%;
-  min-width: 150px;
+  width: 10%;
+  min-width: 90px;
+  padding-left: 8px !important;
+}
+
+.col-phone {
+  width: 12%;
+  min-width: 110px;
 }
 
 .col-station {
-  width: 18%;
-  min-width: 150px;
+  width: 15%;
+  min-width: 130px;
 }
 
 .col-action {
-  width: 12%;
-  min-width: 100px;
+  width: 10%;
+  min-width: 90px;
 }
 
 .col-status {
-  width: 12%;
-  min-width: 100px;
+  width: 10%;
+  min-width: 90px;
 }
 
 .col-created {
-  width: 12%;
-  min-width: 100px;
+  width: 10%;
+  min-width: 85px;
 }
 
 .col-completed {
-  width: 12%;
-  min-width: 100px;
+  width: 10%;
+  min-width: 85px;
 }
 
 .col-powerbank {
-  width: 12%;
-  min-width: 100px;
+  width: 10%;
+  min-width: 90px;
 }
 
 /* Содержимое ячеек */
@@ -543,6 +610,11 @@ watch([searchQuery, statusFilter], () => {
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
+}
+
+.phone-text {
+  font-size: 0.85rem;
+  color: #666;
 }
 
 .station-text {
@@ -589,19 +661,27 @@ watch([searchQuery, statusFilter], () => {
   color: #666;
 }
 
-.time-text {
-  font-size: 0.85rem;
-  color: #666;
+.datetime-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.powerbank-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: #e7f3ff;
-  color: #0066cc;
+.time-text {
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.2;
+}
+
+.date-text {
+  font-size: 0.75rem;
+  color: #999;
+  line-height: 1.2;
+}
+
+.powerbank-text {
   font-size: 0.85rem;
-  font-weight: 500;
+  color: #333;
 }
 
 .no-powerbank {
