@@ -15,6 +15,14 @@
           />
           <span class="search-icon">🔍</span>
         </div>
+        <FilterButton 
+          filter-type="org-units"
+          :org-units="orgUnits"
+          :show-org-unit-filter="false"
+          :show-status-filter="true"
+          :show-role-filter="false"
+          @filter-change="handleFilterChange"
+        />
         <button @click="$emit('add-org-unit')" class="btn-add-org-unit">
           + Добавить группу
         </button>
@@ -34,6 +42,7 @@
             <th class="col-limit">Лимит</th>
             <th class="col-reminder">Напоминание</th>
             <th class="col-writeoff">Списание</th>
+            <th class="col-actions">Операции</th>
           </tr>
         </thead>
         <tbody>
@@ -110,6 +119,30 @@
               </span>
               <span v-else class="no-writeoff">—</span>
             </td>
+
+            <!-- Операции -->
+            <td class="col-actions" @click.stop>
+              <div class="actions-container">
+                <!-- Показываем кнопку восстановления для удалённых -->
+                <button 
+                  v-if="showDeletedOrgUnits"
+                  @click="handleRestore(orgUnit)"
+                  class="btn-action btn-restore"
+                  title="Восстановить группу"
+                >
+                  ↺
+                </button>
+                <!-- Показываем кнопку удаления -->
+                <button 
+                  @click="handleDelete(orgUnit)"
+                  class="btn-action btn-delete-action"
+                  :class="{ 'btn-hard-delete': showDeletedOrgUnits }"
+                  :title="showDeletedOrgUnits ? 'Удалить навсегда' : 'Удалить группу'"
+                >
+                  {{ showDeletedOrgUnits ? '✕' : '🗑' }}
+                </button>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -157,6 +190,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { pythonAPI } from '../../api/pythonApi'
+import { useAdminStore } from '../../stores/admin'
+import FilterButton from './FilterButton.vue'
 
 const props = defineProps({
   orgUnits: {
@@ -175,17 +211,58 @@ const emit = defineEmits([
   'delete',
   'view-stations',
   'view-details',
-  'org-unit-clicked'
+  'org-unit-clicked',
+  'org-unit-deleted',
+  'org-unit-restored'
 ])
+
+const adminStore = useAdminStore()
 
 // Состояние компонента
 const searchQuery = ref('')
 const currentPage = ref(1)
+const activeFilters = ref({
+  orgUnits: [],
+  statuses: [],
+  roles: []
+})
 // selectedOrgUnit и isModalOpen удалены - используется OrgUnitDetailsModal из AdminPanel
+
+// Проверка, показываем ли удалённые группы
+const showDeletedOrgUnits = computed(() => {
+  return activeFilters.value.statuses.includes('deleted')
+})
+
+// Методы
+const handleFilterChange = (filters) => {
+  activeFilters.value = filters
+  currentPage.value = 1
+}
 
 // Вычисляемые свойства
 const filteredOrgUnits = computed(() => {
   let filtered = [...props.orgUnits]
+  
+  // ФИЛЬТРАЦИЯ ПО УДАЛЁННЫМ/НЕУДАЛЁННЫМ ГРУППАМ
+  if (showDeletedOrgUnits.value) {
+    // Показываем только удалённые группы (is_deleted = 1)
+    filtered = filtered.filter(orgUnit => orgUnit.is_deleted === 1 || orgUnit.is_deleted === true)
+  } else {
+    // По умолчанию показываем только НЕ удалённые группы (is_deleted = 0 или null)
+    filtered = filtered.filter(orgUnit => !orgUnit.is_deleted || orgUnit.is_deleted === 0)
+  }
+  
+  // Фильтрация по типу (group/subgroup) кроме 'deleted'
+  if (activeFilters.value.statuses.length > 0) {
+    // Исключаем фильтр 'deleted' из обычной фильтрации
+    const statusesWithoutDeleted = activeFilters.value.statuses.filter(s => s !== 'deleted')
+    
+    if (statusesWithoutDeleted.length > 0) {
+      filtered = filtered.filter(orgUnit => {
+        return statusesWithoutDeleted.includes(orgUnit.unit_type)
+      })
+    }
+  }
   
   // Фильтрация по поисковому запросу
   if (searchQuery.value.trim()) {
@@ -248,7 +325,60 @@ const visiblePages = computed(() => {
   return pages
 })
 
-// Методы
+// Удаление группы (мягкое или жёсткое в зависимости от фильтра)
+const handleDelete = async (orgUnit) => {
+  const orgUnitId = orgUnit.org_unit_id
+  
+  if (showDeletedOrgUnits.value) {
+    // Жёсткое удаление для удалённых групп
+    const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить группу "${orgUnit.name}"?\n\nЭто действие необратимо!`
+    if (!confirm(confirmMessage)) return
+    
+    try {
+      await pythonAPI.hardDelete('org_unit', orgUnitId)
+      alert('Группа удалена навсегда')
+      await adminStore.fetchOrgUnits()
+      emit('org-unit-deleted', orgUnitId)
+    } catch (error) {
+      console.error('Ошибка при жёстком удалении группы:', error)
+      alert('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  } else {
+    // Мягкое удаление для обычных групп
+    const confirmMessage = `Вы уверены, что хотите удалить группу "${orgUnit.name}"?`
+    if (!confirm(confirmMessage)) return
+    
+    try {
+      await pythonAPI.softDelete('org_unit', orgUnitId)
+      alert('Группа успешно удалена')
+      await adminStore.fetchOrgUnits()
+      emit('org-unit-deleted', orgUnitId)
+    } catch (error) {
+      console.error('Ошибка при мягком удалении группы:', error)
+      alert('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  }
+}
+
+// Восстановление удалённой группы
+const handleRestore = async (orgUnit) => {
+  const orgUnitId = orgUnit.org_unit_id
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить группу "${orgUnit.name}"?`
+  if (!confirm(confirmMessage)) return
+  
+  try {
+    await pythonAPI.restoreDeleted('org_unit', orgUnitId)
+    alert('Группа успешно восстановлена')
+    await adminStore.fetchOrgUnits()
+    emit('org-unit-restored', orgUnitId)
+  } catch (error) {
+    console.error('Ошибка при восстановлении группы:', error)
+    alert('Ошибка при восстановлении группы: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+// Открытие модального окна
 const openOrgUnitModal = (orgUnit) => {
   // Просто эмитим событие - модальное окно откроется в AdminPanel
   emit('org-unit-clicked', orgUnit)
@@ -484,6 +614,11 @@ watch(searchQuery, () => {
   min-width: 100px;
 }
 
+.col-actions {
+  width: 10%;
+  min-width: 100px;
+}
+
 /* Содержимое ячеек */
 .logo-container {
   display: flex;
@@ -606,6 +741,58 @@ watch(searchQuery, () => {
 .no-writeoff {
   color: #999;
   font-size: 0.9rem;
+}
+
+/* Кнопки действий */
+.actions-container {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-action {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.btn-delete-action {
+  background: #ffc107;
+  color: #856404;
+}
+
+.btn-delete-action:hover {
+  background: #ff9800;
+  color: white;
+}
+
+.btn-hard-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-hard-delete:hover {
+  background: #c82333;
+}
+
+.btn-restore {
+  background: #28a745;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.btn-restore:hover {
+  background: #218838;
 }
 
 /* Пагинация */

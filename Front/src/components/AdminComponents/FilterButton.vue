@@ -97,7 +97,7 @@ const props = defineProps({
   filterType: {
     type: String,
     required: true,
-    validator: (value) => ['users', 'stations', 'powerbanks', 'orders'].includes(value)
+    validator: (value) => ['users', 'stations', 'powerbanks', 'orders', 'org-units'].includes(value)
   },
   // Список организационных единиц
   orgUnits: {
@@ -152,12 +152,19 @@ const availableStatuses = computed(() => {
         { value: 'active', label: 'Активный', class: 'active', aliases: [] },
         { value: 'user_reported_broken', label: 'Сломан', class: 'broken', aliases: [] },
         { value: 'system_error', label: 'Ошибка системы', class: 'broken', aliases: [] },
-        { value: 'written_off', label: 'Списан', class: 'inactive', aliases: [] }
+        { value: 'written_off', label: 'Списан', class: 'inactive', aliases: [] },
+        { value: 'deleted', label: 'Удалённые', class: 'deleted', aliases: [] }
       ]
     case 'orders':
       return [
         { value: 'borrow', label: 'Взято', class: 'borrowed', aliases: [] },
         { value: 'return', label: 'Возвращено', class: 'return', aliases: [] },
+        { value: 'deleted', label: 'Удалённые', class: 'deleted', aliases: [] }
+      ]
+    case 'org-units':
+      return [
+        { value: 'group', label: 'Группа', class: 'group', aliases: [] },
+        { value: 'subgroup', label: 'Подгруппа', class: 'subgroup', aliases: [] },
         { value: 'deleted', label: 'Удалённые', class: 'deleted', aliases: [] }
       ]
     default:

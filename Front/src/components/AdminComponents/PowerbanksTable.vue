@@ -55,6 +55,7 @@
             <th class="col-status">Статус</th>
             <th class="col-error">Ошибка/Причина</th>
             <th class="col-created">Создан</th>
+            <th class="col-actions">Операции</th>
           </tr>
         </thead>
         <tbody>
@@ -64,6 +65,7 @@
             class="powerbank-row"
             :class="getPowerbankRowClass(powerbank.status)"
             @click="openPowerbankModal(powerbank)"
+            style="cursor: pointer;"
           >
             <!-- ID -->
             <td class="col-id">
@@ -116,6 +118,30 @@
             <!-- Создан -->
             <td class="col-created">
               <span class="date-text">{{ formatTime(powerbank.created_at) }}</span>
+            </td>
+
+            <!-- Операции -->
+            <td class="col-actions" @click.stop>
+              <div class="actions-container">
+                <!-- Показываем кнопку восстановления для удалённых -->
+                <button 
+                  v-if="showDeletedPowerbanks"
+                  @click="handleRestore(powerbank)"
+                  class="btn-action btn-restore"
+                  title="Восстановить аккумулятор"
+                >
+                  ↺
+                </button>
+                <!-- Показываем кнопку удаления -->
+                <button 
+                  @click="handleDelete(powerbank)"
+                  class="btn-action btn-delete-action"
+                  :class="{ 'btn-hard-delete': showDeletedPowerbanks }"
+                  :title="showDeletedPowerbanks ? 'Удалить навсегда' : 'Удалить аккумулятор'"
+                >
+                  {{ showDeletedPowerbanks ? '✕' : '🗑' }}
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -341,7 +367,8 @@ const props = defineProps({
 const emit = defineEmits([
   'powerbank-clicked',
   'powerbank-updated',
-  'powerbank-deleted'
+  'powerbank-deleted',
+  'powerbank-restored'
 ])
 
 const adminStore = useAdminStore()
@@ -392,9 +419,23 @@ const allPowerbanks = computed(() => {
   return adminStore.powerbanks || []
 })
 
+// Проверка, показываем ли удалённые аккумуляторы
+const showDeletedPowerbanks = computed(() => {
+  return activeFilters.value.statuses.includes('deleted')
+})
+
 // Вычисляемые свойства
 const filteredPowerbanks = computed(() => {
   let filtered = [...allPowerbanks.value]
+  
+  // ФИЛЬТРАЦИЯ ПО УДАЛЁННЫМ/НЕУДАЛЁННЫМ АККУМУЛЯТОРАМ
+  if (showDeletedPowerbanks.value) {
+    // Показываем только удалённые аккумуляторы (is_deleted = 1)
+    filtered = filtered.filter(powerbank => powerbank.is_deleted === 1 || powerbank.is_deleted === true)
+  } else {
+    // По умолчанию показываем только НЕ удалённые аккумуляторы (is_deleted = 0 или null)
+    filtered = filtered.filter(powerbank => !powerbank.is_deleted || powerbank.is_deleted === 0)
+  }
   
   // Фильтрация по группам/подгруппам
   if (activeFilters.value.orgUnits.length > 0) {
@@ -403,11 +444,16 @@ const filteredPowerbanks = computed(() => {
     })
   }
   
-  // Фильтрация по статусу
+  // Фильтрация по статусу (кроме 'deleted')
   if (activeFilters.value.statuses.length > 0) {
-    filtered = filtered.filter(powerbank => {
-      return activeFilters.value.statuses.includes(powerbank.status)
-    })
+    // Исключаем фильтр 'deleted' из обычной фильтрации статусов
+    const statusesWithoutDeleted = activeFilters.value.statuses.filter(s => s !== 'deleted')
+    
+    if (statusesWithoutDeleted.length > 0) {
+      filtered = filtered.filter(powerbank => {
+        return statusesWithoutDeleted.includes(powerbank.status)
+      })
+    }
   }
   
   // Фильтрация по поисковому запросу
@@ -593,6 +639,59 @@ const confirmDeletePowerbank = async () => {
     alert('Ошибка удаления: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isDeleting.value = false
+  }
+}
+
+// Удаление аккумулятора (мягкое или жёсткое в зависимости от фильтра)
+const handleDelete = async (powerbank) => {
+  const powerbankId = powerbank.id
+  
+  if (showDeletedPowerbanks.value) {
+    // Жёсткое удаление для удалённых аккумуляторов
+    const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить аккумулятор #${powerbankId}?\n\nЭто действие необратимо!`
+    if (!confirm(confirmMessage)) return
+    
+    try {
+      await pythonAPI.hardDelete('powerbank', powerbankId)
+      alert('Аккумулятор удалён навсегда')
+      await adminStore.fetchPowerbanks()
+      emit('powerbank-deleted', powerbankId)
+    } catch (error) {
+      console.error('Ошибка при жёстком удалении аккумулятора:', error)
+      alert('Ошибка при удалении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  } else {
+    // Мягкое удаление для обычных аккумуляторов
+    const confirmMessage = `Вы уверены, что хотите удалить аккумулятор #${powerbankId}?`
+    if (!confirm(confirmMessage)) return
+    
+    try {
+      await pythonAPI.softDelete('powerbank', powerbankId)
+      alert('Аккумулятор успешно удалён')
+      await adminStore.fetchPowerbanks()
+      emit('powerbank-deleted', powerbankId)
+    } catch (error) {
+      console.error('Ошибка при мягком удалении аккумулятора:', error)
+      alert('Ошибка при удалении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  }
+}
+
+// Восстановление удалённого аккумулятора
+const handleRestore = async (powerbank) => {
+  const powerbankId = powerbank.id
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить аккумулятор #${powerbankId}?`
+  if (!confirm(confirmMessage)) return
+  
+  try {
+    await pythonAPI.restoreDeleted('powerbank', powerbankId)
+    alert('Аккумулятор успешно восстановлен')
+    await adminStore.fetchPowerbanks()
+    emit('powerbank-restored', powerbankId)
+  } catch (error) {
+    console.error('Ошибка при восстановлении аккумулятора:', error)
+    alert('Ошибка при восстановлении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -783,7 +882,6 @@ watch(searchQuery, () => {
 
 .powerbank-row {
   transition: background-color 0.2s ease;
-  cursor: pointer;
 }
 
 .powerbank-row:hover {
@@ -837,6 +935,11 @@ watch(searchQuery, () => {
 .col-created {
   width: 12%;
   min-width: 120px;
+}
+
+.col-actions {
+  width: 12%;
+  min-width: 130px;
 }
 
 /* Содержимое ячеек */
@@ -943,6 +1046,67 @@ watch(searchQuery, () => {
 .date-text {
   font-size: 0.9rem;
   color: #666;
+}
+
+/* Кнопки действий */
+.actions-container {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-action {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.btn-delete-action {
+  background: #ffc107;
+  color: #856404;
+}
+
+.btn-delete-action:hover {
+  background: #ff9800;
+  color: white;
+}
+
+.btn-hard-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-hard-delete:hover {
+  background: #c82333;
+}
+
+.btn-restore {
+  background: #28a745;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.btn-restore:hover {
+  background: #218838;
+}
+
+.btn-details {
+  background: #667eea;
+  color: white;
+}
+
+.btn-details:hover {
+  background: #5a6fd8;
 }
 
 /* Пагинация */
