@@ -368,8 +368,23 @@
             <button @click="$emit('restart-station', selectedStation)" class="btn-action">
               🔄 Перезагрузить
             </button>
-            <button @click="showDeleteConfirmation" class="btn-action btn-delete">
-              🗑️ Удалить
+            <!-- Показываем кнопку восстановления для удалённых -->
+            <button 
+              v-if="showDeletedStations"
+              @click="handleRestore"
+              class="btn-action btn-restore"
+              title="Восстановить станцию"
+            >
+              ↺ Восстановить
+            </button>
+            <!-- Показываем кнопку удаления -->
+            <button 
+              @click="showDeleteConfirmation" 
+              class="btn-action btn-delete"
+              :class="{ 'btn-hard-delete': showDeletedStations }"
+              :title="showDeletedStations ? 'Удалить навсегда' : 'Удалить станцию'"
+            >
+              {{ showDeletedStations ? '✕ Удалить навсегда' : '🗑️ Удалить' }}
             </button>
           </div>
         </div>
@@ -522,6 +537,11 @@ const activeFilters = ref({
   roles: []
 })
 
+// Проверка, показываем ли удалённые станции
+const showDeletedStations = computed(() => {
+  return activeFilters.value.statuses.includes('deleted')
+})
+
 // Новые переменные для модального окна
 const serverAddressData = ref({})
 const voiceVolumeData = ref({})
@@ -558,6 +578,15 @@ const isDeleting = ref(false)
 const filteredStations = computed(() => {
   let filtered = [...props.stations]
   
+  // ФИЛЬТРАЦИЯ ПО УДАЛЁННЫМ/НЕУДАЛЁННЫМ СТАНЦИЯМ
+  if (showDeletedStations.value) {
+    // Показываем только удалённые станции (is_deleted = 1)
+    filtered = filtered.filter(station => station.is_deleted === 1 || station.is_deleted === true)
+  } else {
+    // По умолчанию показываем только НЕ удалённые станции (is_deleted = 0 или null)
+    filtered = filtered.filter(station => !station.is_deleted || station.is_deleted === 0)
+  }
+  
   // Фильтрация по группам/подгруппам
   if (activeFilters.value.orgUnits.length > 0) {
     filtered = filtered.filter(station => {
@@ -565,11 +594,16 @@ const filteredStations = computed(() => {
     })
   }
   
-  // Фильтрация по статусу
+  // Фильтрация по статусу (кроме 'deleted')
   if (activeFilters.value.statuses.length > 0) {
-    filtered = filtered.filter(station => {
-      return activeFilters.value.statuses.includes(station.status)
-    })
+    // Исключаем фильтр 'deleted' из обычной фильтрации статусов
+    const statusesWithoutDeleted = activeFilters.value.statuses.filter(s => s !== 'deleted')
+    
+    if (statusesWithoutDeleted.length > 0) {
+      filtered = filtered.filter(station => {
+        return statusesWithoutDeleted.includes(station.status)
+      })
+    }
   }
   
   // Фильтрация по поисковому запросу
@@ -1108,23 +1142,58 @@ const confirmDeleteStation = async () => {
   isDeleting.value = true
   
   try {
-    // Используем pythonAPI вместо прямого fetch
-    const response = await pythonAPI.deleteStation(stationId)
-    
-    if (response.success) {
+    if (showDeletedStations.value) {
+      // Жёсткое удаление для удалённых станций
+      const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить станцию "${selectedStation.value.box_id}"?\n\nЭто действие необратимо!`
+      if (!confirm(confirmMessage)) {
+        isDeleting.value = false
+        return
+      }
+      
+      await pythonAPI.hardDelete('station', stationId)
+      alert('Станция удалена навсегда')
+      closeDeleteModal()
+      closeStationModal()
+      emit('delete-station', stationId)
+      emit('station-updated')
+    } else {
+      // Мягкое удаление для обычных станций
+      await pythonAPI.softDelete('station', stationId)
       alert('Станция успешно удалена')
       closeDeleteModal()
       closeStationModal()
-      // Эмитим событие для обновления списка станций
       emit('delete-station', stationId)
-    } else {
-      alert('Ошибка удаления станции: ' + (response.error || 'Неизвестная ошибка'))
+      emit('station-updated')
     }
   } catch (error) {
     console.error('Ошибка удаления станции:', error)
     alert('Ошибка удаления станции: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isDeleting.value = false
+  }
+}
+
+// Восстановление удалённой станции
+const handleRestore = async () => {
+  if (!selectedStation.value) return
+  
+  const stationId = selectedStation.value.station_id || selectedStation.value.id
+  if (!stationId) {
+    alert('Не удалось определить ID станции')
+    return
+  }
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить станцию "${selectedStation.value.box_id}"?`
+  if (!confirm(confirmMessage)) return
+  
+  try {
+    await pythonAPI.restoreDeleted('station', stationId)
+    alert('Станция успешно восстановлена')
+    closeStationModal()
+    emit('station-updated')
+  } catch (error) {
+    console.error('Ошибка при восстановлении станции:', error)
+    alert('Ошибка при восстановлении станции: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -2153,20 +2222,40 @@ watch(searchQuery, () => {
 
 /* Стили для кнопки удаления */
 .btn-delete {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-  color: white;
+  background: #ffc107;
+  color: #856404;
   border: none;
   transition: all 0.3s ease;
 }
 
 .btn-delete:hover {
-  background: linear-gradient(135deg, #ff5252, #e53e3e);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  background: #ff9800;
+  color: white;
 }
 
 .btn-delete:active {
   transform: translateY(0);
+}
+
+/* Стили для кнопки жёсткого удаления */
+.btn-hard-delete {
+  background: #dc3545 !important;
+  color: white !important;
+}
+
+.btn-hard-delete:hover {
+  background: #c82333 !important;
+}
+
+/* Стили для кнопки восстановления */
+.btn-restore {
+  background: #28a745;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.btn-restore:hover {
+  background: #218838;
 }
 
 /* Стили для модального окна удаления */

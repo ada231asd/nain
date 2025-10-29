@@ -340,6 +340,24 @@
             >
               ✅ Разблокировать
             </button>
+            <!-- Показываем кнопку восстановления для удалённых -->
+            <button 
+              v-if="showDeletedUsers"
+              @click="handleRestore"
+              class="btn-action btn-restore"
+              title="Восстановить пользователя"
+            >
+              ↺ Восстановить
+            </button>
+            <!-- Показываем кнопку удаления -->
+            <button 
+              @click="handleDelete"
+              class="btn-action btn-delete"
+              :class="{ 'btn-hard-delete': showDeletedUsers }"
+              :title="showDeletedUsers ? 'Удалить навсегда' : 'Удалить пользователя'"
+            >
+              {{ showDeletedUsers ? '✕ Удалить навсегда' : '🗑️ Удалить' }}
+            </button>
             <button @click="closeUserModal" class="btn-close">
               Закрыть
             </button>
@@ -440,6 +458,11 @@ const activeFilters = ref({
   roles: []
 })
 
+// Проверка, показываем ли удалённых пользователей
+const showDeletedUsers = computed(() => {
+  return activeFilters.value.statuses.includes('deleted')
+})
+
 // Состояние редактирования
 const isEditing = ref(false)
 const editForm = ref({
@@ -509,6 +532,15 @@ const getCurrentOrgUnitId = computed(() => {
 const filteredUsers = computed(() => {
   let filtered = [...props.users]
   
+  // ФИЛЬТРАЦИЯ ПО УДАЛЁННЫМ/НЕУДАЛЁННЫМ ПОЛЬЗОВАТЕЛЯМ
+  if (showDeletedUsers.value) {
+    // Показываем только удалённых пользователей (is_deleted = 1)
+    filtered = filtered.filter(user => user.is_deleted === 1 || user.is_deleted === true)
+  } else {
+    // По умолчанию показываем только НЕ удалённых пользователей (is_deleted = 0 или null)
+    filtered = filtered.filter(user => !user.is_deleted || user.is_deleted === 0)
+  }
+  
   // Фильтрация по группам/подгруппам
   if (activeFilters.value.orgUnits.length > 0) {
     filtered = filtered.filter(user => {
@@ -517,12 +549,17 @@ const filteredUsers = computed(() => {
     })
   }
   
-  // Фильтрация по статусу
+  // Фильтрация по статусу (кроме 'deleted')
   if (activeFilters.value.statuses.length > 0) {
-    filtered = filtered.filter(user => {
-      const userStatus = user.status
-      return activeFilters.value.statuses.includes(userStatus)
-    })
+    // Исключаем фильтр 'deleted' из обычной фильтрации статусов
+    const statusesWithoutDeleted = activeFilters.value.statuses.filter(s => s !== 'deleted')
+    
+    if (statusesWithoutDeleted.length > 0) {
+      filtered = filtered.filter(user => {
+        const userStatus = user.status
+        return statusesWithoutDeleted.includes(userStatus)
+      })
+    }
   }
   
   // Фильтрация по роли
@@ -1060,6 +1097,66 @@ const formatTime = (timestamp) => {
 const truncateText = (text, maxLength) => {
   if (!text || text.length <= maxLength) return text
   return text.substring(0, maxLength) + '...'
+}
+
+// Удаление пользователя (мягкое или жёсткое в зависимости от фильтра)
+const handleDelete = async () => {
+  if (!selectedUser.value) return
+  
+  const userId = selectedUser.value.user_id || selectedUser.value.id
+  if (!userId) {
+    alert('Не удалось определить ID пользователя')
+    return
+  }
+  
+  try {
+    if (showDeletedUsers.value) {
+      // Жёсткое удаление для удалённых пользователей
+      const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить пользователя "${selectedUser.value.fio}"?\n\nЭто действие необратимо!`
+      if (!confirm(confirmMessage)) return
+      
+      await pythonAPI.hardDelete('user', userId)
+      alert('Пользователь удалён навсегда')
+      closeUserModal()
+      emit('delete-user', userId)
+    } else {
+      // Мягкое удаление для обычных пользователей
+      const confirmMessage = `Вы уверены, что хотите удалить пользователя "${selectedUser.value.fio}"?`
+      if (!confirm(confirmMessage)) return
+      
+      await pythonAPI.softDelete('user', userId)
+      alert('Пользователь успешно удалён')
+      closeUserModal()
+      emit('delete-user', userId)
+    }
+  } catch (error) {
+    console.error('Ошибка при удалении пользователя:', error)
+    alert('Ошибка при удалении пользователя: ' + (error.message || 'Неизвестная ошибка'))
+  }
+}
+
+// Восстановление удалённого пользователя
+const handleRestore = async () => {
+  if (!selectedUser.value) return
+  
+  const userId = selectedUser.value.user_id || selectedUser.value.id
+  if (!userId) {
+    alert('Не удалось определить ID пользователя')
+    return
+  }
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить пользователя "${selectedUser.value.fio}"?`
+  if (!confirm(confirmMessage)) return
+  
+  try {
+    await pythonAPI.restoreDeleted('user', userId)
+    alert('Пользователь успешно восстановлен')
+    closeUserModal()
+    emit('user-updated', selectedUser.value)
+  } catch (error) {
+    console.error('Ошибка при восстановлении пользователя:', error)
+    alert('Ошибка при восстановлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
+  }
 }
 
 // Сброс страницы при изменении поиска
@@ -1919,6 +2016,38 @@ watch(currentPage, () => {
 
 .btn-cancel:hover {
   background: #c82333;
+}
+
+/* Стили для кнопки удаления */
+.btn-delete {
+  background: #ffc107;
+  color: #856404;
+}
+
+.btn-delete:hover {
+  background: #ff9800;
+  color: white;
+}
+
+/* Стили для кнопки жёсткого удаления */
+.btn-hard-delete {
+  background: #dc3545 !important;
+  color: white !important;
+}
+
+.btn-hard-delete:hover {
+  background: #c82333 !important;
+}
+
+/* Стили для кнопки восстановления */
+.btn-restore {
+  background: #28a745;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.btn-restore:hover {
+  background: #218838;
 }
 
 .btn-close {
