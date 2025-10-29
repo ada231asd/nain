@@ -87,7 +87,7 @@ class PowerbankCRUD(BaseAPI):
         """GET /api/powerbanks - Получить список powerbanks"""
         try:
             page = int(request.query.get('page', 1))
-            limit = int(request.query.get('limit', 10))
+            limit = int(request.query.get('limit', 100))
             status = request.query.get('status')
             org_unit_id = request.query.get('org_unit_id')
             
@@ -151,6 +151,7 @@ class PowerbankCRUD(BaseAPI):
                     query = f"""
                         SELECT p.id, p.org_unit_id, p.serial_number, p.soh, 
                                p.status, p.write_off_reason, p.created_at, p.power_er,
+                               p.is_deleted, p.deleted_at,
                                ou.name as org_unit_name,
                                pe.type_error as error_type
                         FROM powerbank p
@@ -195,6 +196,7 @@ class PowerbankCRUD(BaseAPI):
                     await cur.execute("""
                         SELECT p.id, p.org_unit_id, p.serial_number, p.soh, 
                                p.status, p.write_off_reason, p.created_at, p.power_er,
+                               p.is_deleted, p.deleted_at,
                                ou.name as org_unit_name,
                                pe.type_error as error_type
                         FROM powerbank p

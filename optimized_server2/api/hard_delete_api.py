@@ -212,7 +212,7 @@ class HardDeleteAPI:
             async with conn.cursor() as cur:
                 await cur.execute("""
                     SELECT role FROM user_role 
-                    WHERE user_id = %s AND role = 'service_admin' AND is_deleted = 0
+                    WHERE user_id = %s AND role = 'service_admin'
                 """, (user_id,))
                 return await cur.fetchone() is not None
 

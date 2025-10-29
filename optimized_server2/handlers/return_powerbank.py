@@ -209,16 +209,16 @@ class ReturnPowerbankHandler:
             future = return_data.get('future')
             requested_station_id = return_data.get('station_id')  # Станция, на которую был запрос
 
-            # ЗАЩИТА ОТ ДУРАКОВ: Проверяем, что пользователь возвращает в ту же станцию
-            if requested_station_id and requested_station_id != station_id:
-                error_msg = f"Пользователь {matching_user_id} попытался вернуть повербанк в станцию {station_id}, но запрос был на станцию {requested_station_id}"
-                self.logger.warning(error_msg)
-                if future and not future.done():
-                    future.set_result({
-                        "success": False,
-                        "error": "Повербанк должен быть возвращен в ту же станцию, где был сделан запрос"
-                    })
-                return {"success": False, "error": "Неправильная станция для возврата"}
+            # ЗАЩИТА ОТ ДУРАКОВ ОТКЛЮЧЕНА - пользователь может вернуть в любую станцию
+            # if requested_station_id and requested_station_id != station_id:
+            #     error_msg = f"Пользователь {matching_user_id} попытался вернуть повербанк в станцию {station_id}, но запрос был на станцию {requested_station_id}"
+            #     self.logger.warning(error_msg)
+            #     if future and not future.done():
+            #         future.set_result({
+            #             "success": False,
+            #             "error": "Повербанк должен быть возвращен в ту же станцию, где был сделан запрос"
+            #         })
+            #     return {"success": False, "error": "Неправильная станция для возврата"}
 
             # Ищем активный заказ по повербанку
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
@@ -433,7 +433,8 @@ class ReturnPowerbankHandler:
             powerbank_id = powerbank.powerbank_id
             matching_user_id = None
             error_type = None
-            wrong_station = False  # Флаг для "защиты от дураков"
+            # ЗАЩИТА ОТ ДУРАКОВ ОТКЛЮЧЕНА
+            # wrong_station = False
 
             try:
                 active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
@@ -442,56 +443,57 @@ class ReturnPowerbankHandler:
 
             if active_order and active_order.user_phone in self.pending_error_returns:
                 pending = self.pending_error_returns.get(active_order.user_phone)
-                requested_station_id = pending.get('station_id')
+                # requested_station_id = pending.get('station_id')
                 
-                # ЗАЩИТА ОТ ДУРАКОВ: Проверяем, что возврат идет в правильную станцию
-                if requested_station_id and requested_station_id != station_id:
-                    self.logger.warning(f"Пользователь {active_order.user_phone} пытается вернуть повербанк в станцию {station_id}, но запрос был на станцию {requested_station_id}. ВЫПЛЕВЫВАЕМ!")
-                    wrong_station = True
-                elif not pending or requested_station_id is None or requested_station_id == station_id:
-                    matching_user_id = active_order.user_phone
-                    error_type = pending.get('error_type') if pending else None
+                # ЗАЩИТА ОТ ДУРАКОВ ОТКЛЮЧЕНА - возврат в любую станцию
+                # if requested_station_id and requested_station_id != station_id:
+                #     self.logger.warning(f"Пользователь {active_order.user_phone} пытается вернуть повербанк в станцию {station_id}, но запрос был на станцию {requested_station_id}. ВЫПЛЕВЫВАЕМ!")
+                #     wrong_station = True
+                # elif not pending or requested_station_id is None or requested_station_id == station_id:
+                matching_user_id = active_order.user_phone
+                error_type = pending.get('error_type') if pending else None
 
-            if not matching_user_id and not wrong_station:
+            if not matching_user_id:
                 for user_phone, return_data in self.pending_error_returns.items():
-                    requested_station_id = return_data.get('station_id')
-                    if requested_station_id == station_id:
-                        matching_user_id = user_phone
-                        error_type = return_data.get('error_type')
-                        break
+                    # ЗАЩИТА ОТ ДУРАКОВ ОТКЛЮЧЕНА - берем любой ожидающий запрос
+                    # requested_station_id = return_data.get('station_id')
+                    # if requested_station_id == station_id:
+                    matching_user_id = user_phone
+                    error_type = return_data.get('error_type')
+                    break
             
-            # Если станция не та - выплевываем повербанк обратно
-            if wrong_station:
-                self.logger.warning(f"Возврат повербанка {powerbank_id} отклонен: неправильная станция. Отправляем команду на выплевывание (result=0)")
-                
-                # Уведомляем клиента об ошибке через Future
-                if active_order and active_order.user_phone in self.pending_error_returns:
-                    return_data = self.pending_error_returns.get(active_order.user_phone)
-                    future = return_data.get('future')
-                    if future and not future.done():
-                        future.set_result({
-                            "success": False,
-                            "error": "Повербанк должен быть возвращен в ту же станцию, где был сделан запрос"
-                        })
-                    # Удаляем из ожидающих
-                    del self.pending_error_returns[active_order.user_phone]
-                
-                # Отправляем TCP ответ с result=0 для выплевывания повербанка
-                response = build_return_power_bank_response(
-                    slot=slot,
-                    result=0,  # Отказ - повербанк будет выплюнут обратно
-                    terminal_id=terminal_id.encode('ascii'),
-                    level=level,
-                    voltage=voltage,
-                    current=current,
-                    temperature=temperature,
-                    status=status,
-                    soh=soh,
-                    vsn=vsn,
-                    token=connection.token
-                )
-                self.logger.info(f"Отправлен TCP ответ на выплевывание повербанка из слота {slot}")
-                return response
+            # ЗАЩИТА ОТ ДУРАКОВ ОТКЛЮЧЕНА - этот блок больше не нужен
+            # if wrong_station:
+            #     self.logger.warning(f"Возврат повербанка {powerbank_id} отклонен: неправильная станция. Отправляем команду на выплевывание (result=0)")
+            #     
+            #     # Уведомляем клиента об ошибке через Future
+            #     if active_order and active_order.user_phone in self.pending_error_returns:
+            #         return_data = self.pending_error_returns.get(active_order.user_phone)
+            #         future = return_data.get('future')
+            #         if future and not future.done():
+            #             future.set_result({
+            #                 "success": False,
+            #                 "error": "Повербанк должен быть возвращен в ту же станцию, где был сделан запрос"
+            #             })
+            #         # Удаляем из ожидающих
+            #         del self.pending_error_returns[active_order.user_phone]
+            #     
+            #     # Отправляем TCP ответ с result=0 для выплевывания повербанка
+            #     response = build_return_power_bank_response(
+            #         slot=slot,
+            #         result=0,  # Отказ - повербанк будет выплюнут обратно
+            #         terminal_id=terminal_id.encode('ascii'),
+            #         level=level,
+            #         voltage=voltage,
+            #         current=current,
+            #         temperature=temperature,
+            #         status=status,
+            #         soh=soh,
+            #         vsn=vsn,
+            #         token=connection.token
+            #     )
+            #     self.logger.info(f"Отправлен TCP ответ на выплевывание повербанка из слота {slot}")
+            #     return response
             
             if matching_user_id:
                 # Получаем user_id по телефону

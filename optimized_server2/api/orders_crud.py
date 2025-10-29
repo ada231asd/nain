@@ -104,7 +104,7 @@ class OrdersCRUD(BaseAPI):
         """GET /api/orders - Получить список заказов (монолитная структура)"""
         try:
             page = int(request.query.get('page', 1))
-            limit = int(request.query.get('limit', 10))
+            limit = int(request.query.get('limit', 100))
             status = request.query.get('status')
             user_phone = request.query.get('user_phone')
             station_box_id = request.query.get('station_box_id')

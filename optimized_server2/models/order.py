@@ -105,6 +105,7 @@ class Order:
                     powerbank_serial, org_unit_name,
                     'pending'
                 ))
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
                 order_id = cursor.lastrowid
 
@@ -159,6 +160,7 @@ class Order:
                     INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (station_id, user_id, powerbank_id, org_unit_id_value, status, current_time, completed_at_value))
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
                 order_id = cursor.lastrowid
 
@@ -234,6 +236,7 @@ class Order:
                     powerbank_serial, org_unit_name,
                     'borrow', None
                 ))
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
                 order_id = cursor.lastrowid
 
@@ -311,6 +314,7 @@ class Order:
                     powerbank_serial, org_unit_name,
                     'return'
                 ))
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
                 order_id = cursor.lastrowid
 
@@ -640,6 +644,7 @@ class Order:
                         (new_status, self.order_id)
                     )
                     self.completed_at = None
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
                 self.status = new_status
                 return True
     
@@ -682,6 +687,7 @@ class Order:
                     UPDATE orders SET status = 'borrow' 
                     WHERE id = %s
                 """, (order_id,))
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
                 
                 return cursor.rowcount > 0
     
@@ -706,6 +712,7 @@ class Order:
                         UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
                     """, (new_status, order_id))
 
+                await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
                 return cursor.rowcount > 0
     
     @classmethod

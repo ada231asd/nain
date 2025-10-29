@@ -106,7 +106,7 @@ class OrgUnitCRUD(BaseAPI):
         """GET /api/org-units - Получить список организационных единиц"""
         try:
             page = int(request.query.get('page', 1))
-            limit = int(request.query.get('limit', 10))
+            limit = int(request.query.get('limit', 100))
             unit_type = request.query.get('unit_type')
             parent_id = request.query.get('parent_id')
             
@@ -171,6 +171,7 @@ class OrgUnitCRUD(BaseAPI):
                         SELECT ou.org_unit_id, ou.parent_org_unit_id, ou.unit_type, 
                                ou.name, ou.adress, ou.logo_url, ou.created_at,
                                ou.default_powerbank_limit, ou.reminder_hours, ou.write_off_hours,
+                               ou.is_deleted, ou.deleted_at,
                                parent.name as parent_name
                         FROM org_unit ou
                         LEFT JOIN org_unit parent ON ou.parent_org_unit_id = parent.org_unit_id
@@ -214,6 +215,7 @@ class OrgUnitCRUD(BaseAPI):
                         SELECT ou.org_unit_id, ou.parent_org_unit_id, ou.unit_type, 
                                ou.name, ou.adress, ou.logo_url, ou.created_at,
                                ou.default_powerbank_limit, ou.reminder_hours, ou.write_off_hours,
+                               ou.is_deleted, ou.deleted_at,
                                parent.name as parent_name
                         FROM org_unit ou
                         LEFT JOIN org_unit parent ON ou.parent_org_unit_id = parent.org_unit_id

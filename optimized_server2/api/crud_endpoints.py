@@ -123,7 +123,7 @@ class CRUDEndpoints(BaseAPI):
         """GET /api/users - Получить список пользователей"""
         try:
             page = int(request.query.get('page', 1))
-            limit = int(request.query.get('limit', 10))
+            limit = int(request.query.get('limit', 100))
             status = request.query.get('status')
             
             offset = (page - 1) * limit
@@ -193,6 +193,8 @@ class CRUDEndpoints(BaseAPI):
                             au.created_at, 
                             au.last_login_at,
                             au.status as status,
+                            au.is_deleted, 
+                            au.deleted_at,
                             COALESCE(ur.role, 'user') as role,
                             ur.org_unit_id as parent_org_unit_id,
                             au.powerbank_limit as individual_limit,
@@ -246,6 +248,8 @@ class CRUDEndpoints(BaseAPI):
                             au.created_at, 
                             au.last_login_at,
                             au.status as status,
+                            au.is_deleted, 
+                            au.deleted_at,
                             COALESCE(ur.role, 'user') as role,
                             ur.org_unit_id as parent_org_unit_id,
                             au.powerbank_limit as individual_limit,
@@ -576,7 +580,7 @@ class CRUDEndpoints(BaseAPI):
         try:
             # Если запрашивается конкретный box_id, увеличиваем лимит до 1000 (точный поиск)
             box_id = request.query.get('box_id')
-            default_limit = 1000 if box_id else 10
+            default_limit = 1000 if box_id else 100
             
             page = int(request.query.get('page', 1))
             limit = int(request.query.get('limit', default_limit))
@@ -645,6 +649,7 @@ class CRUDEndpoints(BaseAPI):
                         SELECT s.station_id, s.org_unit_id, s.box_id, s.iccid, 
                                s.slots_declared, s.remain_num, s.last_seen, 
                                s.created_at, s.updated_at, s.status,
+                               s.is_deleted, s.deleted_at,
                                ou.name as org_unit_name
                         FROM station s
                         LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
@@ -699,6 +704,7 @@ class CRUDEndpoints(BaseAPI):
                         SELECT s.station_id, s.org_unit_id, s.box_id, s.iccid, 
                                s.slots_declared, s.remain_num, s.last_seen, 
                                s.created_at, s.updated_at, s.status,
+                               s.is_deleted, s.deleted_at,
                                ou.name as org_unit_name
                         FROM station s
                         LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
