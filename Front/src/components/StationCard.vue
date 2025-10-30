@@ -236,34 +236,41 @@ const isUserAdmin = computed(() => {
 
 // Доступно аккумуляторов для взятия (с учетом лимита пользователя)
 const availableForBorrow = computed(() => {
-  const powerbanksInStation = availablePorts.value
+  // ВАЖНО: Используем только ЗДОРОВЫЕ повербанки, не все!
+  // healthy_powerbanks_count - это повербанки которые можно взять
+  const healthyPowerbanks = props.station.healthy_powerbanks_count !== undefined 
+    ? props.station.healthy_powerbanks_count 
+    : availablePorts.value; // Fallback на все повербанки если нет данных
   
-  // Для админов лимиты не применяются - показываем все powerbank'и
+  // Для админов лимиты не применяются - показываем все ЗДОРОВЫЕ powerbank'и
   if (isUserAdmin.value) {
-    return powerbanksInStation
+    return healthyPowerbanks
   }
   
   // Получаем лимиты из store
   const availableByLimit = authStore.availableByLimit
   
-  // Если нет данных о лимитах, показываем количество powerbank'ов
+  // Если нет данных о лимитах, показываем количество ЗДОРОВЫХ powerbank'ов
   if (availableByLimit === null || availableByLimit === undefined) {
-    return powerbanksInStation
+    return healthyPowerbanks
   }
   
   // Для админов может быть "unlimited" (дополнительная проверка)
   if (availableByLimit === 'unlimited') {
-    return powerbanksInStation
+    return healthyPowerbanks
   }
   
-  // Возвращаем минимум из powerbank'ов в станции и доступного по лимиту
+  // Возвращаем минимум из ЗДОРОВЫХ powerbank'ов в станции и доступного по лимиту
+  const result = Math.min(healthyPowerbanks, availableByLimit || 0)
+  
   console.log('🔢 Расчет доступных для взятия:', {
     station: props.station.box_id,
-    powerbanksInStation,
+    healthyPowerbanks,
     availableByLimit,
-    result: Math.min(powerbanksInStation, availableByLimit || 0)
+    result
   })
-  return Math.min(powerbanksInStation, availableByLimit || 0)
+  
+  return result
 })
 
 const returnablePorts = computed(() => {
