@@ -62,6 +62,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAdminStore } from '../stores/admin'
 import { pythonAPI } from '../api/pythonApi'
+import { showError } from '../utils/notifications'
 
 const props = defineProps({
   isVisible: { type: Boolean, default: false },
@@ -125,8 +126,8 @@ const activateStation = async () => {
     emit('close')
     
   } catch (error) {
-    // Error handled with alert below
-    alert('Ошибка активации станции: ' + (error.message || 'Неизвестная ошибка'))
+    // Error handled with showError below
+    showError('Ошибка активации станции: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isLoading.value = false
   }

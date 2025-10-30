@@ -53,6 +53,7 @@
 import { computed, ref } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useAdminStore } from '../../stores/admin'
+import { showError, showWarning } from '../../utils/notifications'
 
 // Props
 const props = defineProps({
@@ -274,13 +275,13 @@ const handleLogoChange = async (event) => {
 
   // Проверяем размер файла (5MB)
   if (file.size > 5 * 1024 * 1024) {
-    alert('Размер файла не должен превышать 5MB')
+    showWarning('Размер файла не должен превышать 5MB')
     return
   }
 
   // Проверяем тип файла
   if (!file.type.startsWith('image/')) {
-    alert('Выберите файл изображения')
+    showWarning('Выберите файл изображения')
     return
   }
 
@@ -317,7 +318,7 @@ const handleLogoChange = async (event) => {
 
   } catch (error) {
     console.error('Ошибка загрузки логотипа:', error)
-    alert('Ошибка загрузки логотипа: ' + error.message)
+    showError('Ошибка загрузки логотипа: ' + error.message)
   }
 }
 </script>

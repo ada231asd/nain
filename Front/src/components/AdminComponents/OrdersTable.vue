@@ -191,6 +191,7 @@ import { ref, computed, watch } from 'vue'
 import { formatMoscowTime } from '../../utils/timeUtils'
 import { pythonAPI } from '../../api/pythonApi'
 import FilterButton from './FilterButton.vue'
+import { showSuccess, showError, showConfirm } from '../../utils/notifications'
 
 const props = defineProps({
   orders: {
@@ -241,30 +242,30 @@ const handleDelete = async (order) => {
   if (showDeletedOrders.value) {
     // Жёсткое удаление для удалённых заказов
     const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить заказ #${orderId}?\n\nЭто действие необратимо!`
-    if (!confirm(confirmMessage)) return
+    if (!await showConfirm(confirmMessage)) return
     
     try {
       await pythonAPI.hardDelete('order', orderId)
-      alert('Заказ удалён навсегда')
+      showSuccess('Заказ удалён навсегда')
       emit('order-deleted', orderId)
       emit('refresh')
     } catch (error) {
       console.error('Ошибка при жёстком удалении заказа:', error)
-      alert('Ошибка при удалении заказа: ' + (error.message || 'Неизвестная ошибка'))
+      showError('Ошибка при удалении заказа: ' + (error.message || 'Неизвестная ошибка'))
     }
   } else {
     // Мягкое удаление для обычных заказов
     const confirmMessage = `Вы уверены, что хотите удалить заказ #${orderId}?`
-    if (!confirm(confirmMessage)) return
+    if (!await showConfirm(confirmMessage)) return
     
     try {
       await pythonAPI.softDelete('order', orderId)
-      alert('Заказ успешно удалён')
+      showSuccess('Заказ успешно удалён')
       emit('order-deleted', orderId)
       emit('refresh')
     } catch (error) {
       console.error('Ошибка при мягком удалении заказа:', error)
-      alert('Ошибка при удалении заказа: ' + (error.message || 'Неизвестная ошибка'))
+      showError('Ошибка при удалении заказа: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }
@@ -274,16 +275,16 @@ const handleRestore = async (order) => {
   const orderId = order.id || order.order_id
   
   const confirmMessage = `Вы уверены, что хотите восстановить заказ #${orderId}?`
-  if (!confirm(confirmMessage)) return
+  if (!await showConfirm(confirmMessage)) return
   
   try {
     await pythonAPI.restoreDeleted('order', orderId)
-    alert('Заказ успешно восстановлен')
+    showSuccess('Заказ успешно восстановлен')
     emit('order-restored', orderId)
     emit('refresh')
   } catch (error) {
     console.error('Ошибка при восстановлении заказа:', error)
-    alert('Ошибка при восстановлении заказа: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при восстановлении заказа: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 

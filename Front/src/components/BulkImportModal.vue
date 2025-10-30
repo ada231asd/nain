@@ -285,6 +285,7 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from 'vue'
 import { pythonAPI } from '../api/pythonApi.js'
+import { showSuccess, showError, showWarning } from '../utils/notifications'
 
 const props = defineProps({
   isVisible: { type: Boolean, default: false },
@@ -346,14 +347,14 @@ const handleFileSelect = (file) => {
   // Проверка типа файла
   const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']
   if (!allowedTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
-    alert('Пожалуйста, выберите файл Excel (.xlsx или .xls)')
+    showWarning('Пожалуйста, выберите файл Excel (.xlsx или .xls)')
     return
   }
 
   // Проверка размера файла (10MB)
   const maxSize = 10 * 1024 * 1024
   if (file.size > maxSize) {
-    alert(`Файл слишком большой. Максимальный размер: ${maxSize / (1024 * 1024)}MB`)
+    showWarning(`Файл слишком большой. Максимальный размер: ${maxSize / (1024 * 1024)}MB`)
     return
   }
 
@@ -390,7 +391,7 @@ const downloadTemplate = async () => {
 
   } catch (error) {
     console.error('Ошибка скачивания шаблона:', error)
-    alert('Ошибка скачивания шаблона: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка скачивания шаблона: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isLoading.value = false
   }
@@ -410,7 +411,7 @@ const validateFile = async () => {
 
   } catch (error) {
     console.error('Ошибка валидации:', error)
-    alert('Ошибка валидации файла: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка валидации файла: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isLoading.value = false
   }
@@ -434,7 +435,7 @@ const importUsers = async () => {
     
   } catch (error) {
     console.error('Ошибка запуска импорта:', error)
-    alert('Ошибка запуска импорта: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка запуска импорта: ' + (error.message || 'Неизвестная ошибка'))
     isLoading.value = false
     currentStep.value = 1
   } finally {

@@ -44,6 +44,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
 import QRCode from 'qrcode';
+import { showSuccess, showError } from '../utils/notifications';
 
 const props = defineProps({
   show: {
@@ -85,7 +86,7 @@ const generateQRCode = async () => {
     qrCodeUrl.value = qrCodeDataURL;
   } catch (error) {
     console.error('Ошибка генерации QR-кода:', error);
-    alert('Ошибка при генерации QR-кода');
+    showError('Ошибка при генерации QR-кода');
   }
 };
 
@@ -96,7 +97,7 @@ const selectUrl = (event) => {
 const copyUrl = async () => {
   try {
     await navigator.clipboard.writeText(qrLink.value);
-    alert('Ссылка скопирована в буфер обмена');
+    showSuccess('Ссылка скопирована в буфер обмена');
   } catch (error) {
     console.error('Ошибка копирования:', error);
     // Fallback для старых браузеров
@@ -106,7 +107,7 @@ const copyUrl = async () => {
     textArea.select();
     document.execCommand('copy');
     document.body.removeChild(textArea);
-    alert('Ссылка скопирована в буфер обмена');
+    showSuccess('Ссылка скопирована в буфер обмена');
   }
 };
 

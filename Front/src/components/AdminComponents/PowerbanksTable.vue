@@ -348,6 +348,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useAdminStore } from '../../stores/admin'
 import FilterButton from './FilterButton.vue'
 import { pythonAPI } from '../../api/pythonApi'
+import { showSuccess, showError, showConfirm } from '../../utils/notifications'
 
 const props = defineProps({
   powerbanks: {
@@ -588,12 +589,12 @@ const saveChanges = async () => {
     Object.assign(selectedPowerbank.value, editForm.value)
     
     isEditing.value = false
-    alert('Изменения сохранены успешно')
+    showSuccess('Изменения сохранены успешно')
     
     emit('powerbank-updated', selectedPowerbank.value)
   } catch (error) {
     console.error('Ошибка сохранения изменений:', error)
-    alert('Ошибка сохранения: ' + error.message)
+    showError('Ошибка сохранения: ' + error.message)
   }
 }
 
@@ -606,10 +607,10 @@ const resetError = async () => {
     // Обновляем данные
     await adminStore.fetchPowerbanks()
     closePowerbankModal()
-    alert('Ошибка успешно сброшена')
+    showSuccess('Ошибка успешно сброшена')
   } catch (error) {
     console.error('Ошибка сброса ошибки:', error)
-    alert('Ошибка сброса: ' + error.message)
+    showError('Ошибка сброса: ' + error.message)
   }
 }
 
@@ -629,14 +630,14 @@ const confirmDeletePowerbank = async () => {
   try {
     await adminStore.deletePowerbank(selectedPowerbank.value.id)
     
-    alert('Аккумулятор успешно удален')
+    showSuccess('Аккумулятор успешно удален')
     closeDeleteModal()
     closePowerbankModal()
     
     emit('powerbank-deleted', selectedPowerbank.value.id)
   } catch (error) {
     console.error('Ошибка удаления аккумулятора:', error)
-    alert('Ошибка удаления: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка удаления: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isDeleting.value = false
   }
@@ -649,30 +650,30 @@ const handleDelete = async (powerbank) => {
   if (showDeletedPowerbanks.value) {
     // Жёсткое удаление для удалённых аккумуляторов
     const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить аккумулятор #${powerbankId}?\n\nЭто действие необратимо!`
-    if (!confirm(confirmMessage)) return
+    if (!await showConfirm(confirmMessage)) return
     
     try {
       await pythonAPI.hardDelete('powerbank', powerbankId)
-      alert('Аккумулятор удалён навсегда')
+      showSuccess('Аккумулятор удалён навсегда')
       await adminStore.fetchPowerbanks()
       emit('powerbank-deleted', powerbankId)
     } catch (error) {
       console.error('Ошибка при жёстком удалении аккумулятора:', error)
-      alert('Ошибка при удалении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+      showError('Ошибка при удалении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
     }
   } else {
     // Мягкое удаление для обычных аккумуляторов
     const confirmMessage = `Вы уверены, что хотите удалить аккумулятор #${powerbankId}?`
-    if (!confirm(confirmMessage)) return
+    if (!await showConfirm(confirmMessage)) return
     
     try {
       await pythonAPI.softDelete('powerbank', powerbankId)
-      alert('Аккумулятор успешно удалён')
+      showSuccess('Аккумулятор успешно удалён')
       await adminStore.fetchPowerbanks()
       emit('powerbank-deleted', powerbankId)
     } catch (error) {
       console.error('Ошибка при мягком удалении аккумулятора:', error)
-      alert('Ошибка при удалении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+      showError('Ошибка при удалении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }
@@ -682,16 +683,16 @@ const handleRestore = async (powerbank) => {
   const powerbankId = powerbank.id
   
   const confirmMessage = `Вы уверены, что хотите восстановить аккумулятор #${powerbankId}?`
-  if (!confirm(confirmMessage)) return
+  if (!await showConfirm(confirmMessage)) return
   
   try {
     await pythonAPI.restoreDeleted('powerbank', powerbankId)
-    alert('Аккумулятор успешно восстановлен')
+    showSuccess('Аккумулятор успешно восстановлен')
     await adminStore.fetchPowerbanks()
     emit('powerbank-restored', powerbankId)
   } catch (error) {
     console.error('Ошибка при восстановлении аккумулятора:', error)
-    alert('Ошибка при восстановлении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при восстановлении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 

@@ -148,6 +148,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAdminStore } from '../stores/admin'
 import EditPowerbankModal from './EditPowerbankModal.vue'
+import { showConfirm } from '../utils/notifications'
 
 const adminStore = useAdminStore()
 
@@ -295,7 +296,7 @@ const handlePowerbankSaved = () => {
 
 // Удаление аккумулятора
 const deletePowerbank = async (powerbank) => {
-  if (!confirm(`Вы уверены, что хотите удалить аккумулятор ${powerbank.serial_number}?`)) {
+  if (!await showConfirm(`Вы уверены, что хотите удалить аккумулятор ${powerbank.serial_number}?`)) {
     return
   }
 

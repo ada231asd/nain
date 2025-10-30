@@ -155,6 +155,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useAdminStore } from '../stores/admin'
+import { showSuccess, showError, showConfirm } from '../utils/notifications'
 
 const props = defineProps({
   isVisible: {
@@ -294,10 +295,10 @@ const saveChanges = async () => {
     emit('updated', props.orgUnit)
     
     // Показываем уведомление об успехе
-    alert('Группа успешно обновлена!')
+    showSuccess('Группа успешно обновлена!')
   } catch (error) {
     console.error('Ошибка при обновлении группы:', error)
-    alert('Ошибка при обновлении группы: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при обновлении группы: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isSaving.value = false
   }
@@ -309,9 +310,9 @@ const viewStations = () => {
 }
 
 // Закрытие модального окна
-const closeModal = () => {
+const closeModal = async () => {
   if (isEditing.value) {
-    if (confirm('У вас есть несохраненные изменения. Закрыть окно?')) {
+    if (await showConfirm('У вас есть несохраненные изменения. Закрыть окно?')) {
       isEditing.value = false
       emit('close')
     }

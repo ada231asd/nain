@@ -159,6 +159,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { pythonAPI } from '../api/pythonApi'
 import { formatMoscowTime, getRelativeTime } from '../utils/timeUtils'
+import { showSuccess, showError, showConfirm } from '../utils/notifications'
 
 const props = defineProps({
   stations: {
@@ -239,7 +240,7 @@ const loadStatistics = async () => {
 }
 
 const deleteReport = async (reportId) => {
-  if (!confirm('Вы уверены, что хотите удалить этот отчет?')) {
+  if (!await showConfirm('Вы уверены, что хотите удалить этот отчет?')) {
     return
   }
   
@@ -251,13 +252,13 @@ const deleteReport = async (reportId) => {
       await loadReports()
       await loadStatistics()
       
-      alert('Отчет удален успешно')
+      showSuccess('Отчет удален успешно')
     } else {
-      alert('Ошибка удаления отчета: ' + response.message)
+      showError('Ошибка удаления отчета: ' + response.message)
     }
   } catch (error) {
     console.error('Ошибка удаления отчета:', error)
-    alert('Ошибка удаления отчета: ' + error.message)
+    showError('Ошибка удаления отчета: ' + error.message)
   } finally {
     loading.value = false
   }
@@ -296,7 +297,7 @@ const clearSelection = () => {
 const deleteSelected = async () => {
   if (selectedReports.value.length === 0) return
   
-  if (!confirm(`Вы уверены, что хотите удалить ${selectedReports.value.length} выбранных отчетов?`)) {
+  if (!await showConfirm(`Вы уверены, что хотите удалить ${selectedReports.value.length} выбранных отчетов?`)) {
     return
   }
   
@@ -317,10 +318,10 @@ const deleteSelected = async () => {
     await loadReports()
     await loadStatistics()
     
-    alert('Выбранные отчеты удалены успешно')
+    showSuccess('Выбранные отчеты удалены успешно')
   } catch (error) {
     console.error('Ошибка удаления выбранных отчетов:', error)
-    alert('Ошибка удаления выбранных отчетов: ' + error.message)
+    showError('Ошибка удаления выбранных отчетов: ' + error.message)
   } finally {
     loading.value = false
   }

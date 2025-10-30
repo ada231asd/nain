@@ -119,6 +119,7 @@
 import { ref, onMounted, nextTick } from 'vue';
 import { pythonAPI } from '../../api/pythonApi';
 import QRCode from 'qrcode';
+import { showSuccess, showError, showWarning } from '../../utils/notifications';
 
 const orgUnits = ref([]);
 const selectedOrgUnit = ref('');
@@ -142,7 +143,7 @@ const loadOrgUnits = async () => {
 
 const generateInvitation = async () => {
   if (!selectedOrgUnit.value) {
-    alert('Выберите организационную единицу');
+    showWarning('Выберите организационную единицу');
     return;
   }
   
@@ -168,7 +169,7 @@ const generateInvitation = async () => {
     await loadInvitations();
   } catch (error) {
     console.error('Ошибка создания приглашения:', error);
-    alert('Не удалось создать приглашение: ' + (error.message || 'Неизвестная ошибка'));
+    showError('Не удалось создать приглашение: ' + (error.message || 'Неизвестная ошибка'));
   } finally {
     isGenerating.value = false;
   }
@@ -177,7 +178,7 @@ const generateInvitation = async () => {
 const copyLink = () => {
   if (invitationResult.value) {
     navigator.clipboard.writeText(invitationResult.value.invitation_link);
-    alert('Ссылка скопирована в буфер обмена');
+    showSuccess('Ссылка скопирована в буфер обмена');
   }
 };
 
@@ -236,7 +237,7 @@ const getInvitationLink = (token) => {
 const copyInvitationLink = (token) => {
   const link = getInvitationLink(token);
   navigator.clipboard.writeText(link);
-  alert('Ссылка скопирована в буфер обмена');
+  showSuccess('Ссылка скопирована в буфер обмена');
 };
 
 const downloadInvitationQR = async (token) => {

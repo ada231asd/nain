@@ -155,6 +155,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import BaseButton from './BaseButton.vue'
+import { showError, showConfirm } from '../utils/notifications'
 
 const props = defineProps({
   station: {
@@ -412,12 +413,12 @@ const saveNickname = async () => {
     isEditingNickname.value = false
   } catch (error) {
     console.error('Ошибка при сохранении nickname:', error)
-    alert('Ошибка при сохранении имени станции')
+    showError('Ошибка при сохранении имени станции')
   }
 }
 
 const deleteNickname = async () => {
-  if (!confirm('Удалить персональное имя станции?')) {
+  if (!await showConfirm('Удалить персональное имя станции?')) {
     return
   }
   
@@ -433,7 +434,7 @@ const deleteNickname = async () => {
     isEditingNickname.value = false
   } catch (error) {
     console.error('Ошибка при удалении nickname:', error)
-    alert('Ошибка при удалении имени станции')
+    showError('Ошибка при удалении имени станции')
   }
 }
 

@@ -118,6 +118,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useAdminStore } from '../stores/admin'
+import { showError } from '../utils/notifications'
 
 const props = defineProps({
   isVisible: {
@@ -221,7 +222,7 @@ const resetError = async () => {
     emit('saved')
     closeModal()
   } catch (error) {
-    alert('Ошибка при сбросе ошибки повербанка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при сбросе ошибки повербанка: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isResettingError.value = false
   }

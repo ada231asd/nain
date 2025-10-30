@@ -170,6 +170,7 @@ import { useStationsStore } from '../stores/stations'
 import { useAdminStore } from '../stores/admin'
 import { pythonAPI } from '../api/pythonApi'
 import BaseButton from '../components/BaseButton.vue'
+import { showSuccess, showError } from '../utils/notifications'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -288,10 +289,10 @@ const saveProfile = async () => {
     await authStore.fetchProfile()
     
     isEditing.value = false
-    alert('✅ Профиль успешно обновлен!')
+    showSuccess('Профиль успешно обновлен!')
     
   } catch (err) {
-    alert('❌ Ошибка при сохранении профиля')
+    showError('Ошибка при сохранении профиля')
   } finally {
     isLoading.value = false
   }

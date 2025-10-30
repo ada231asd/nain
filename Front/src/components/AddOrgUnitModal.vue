@@ -153,6 +153,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAdminStore } from '../stores/admin'
+import { showError, showWarning } from '../utils/notifications'
 
 const props = defineProps({
   isVisible: {
@@ -259,14 +260,14 @@ const handleSubmit = async () => {
     
     // Валидация: группа не должна иметь родительскую группу
     if (data.unit_type === 'group' && data.parent_org_unit_id) {
-      alert('Группа не может иметь родительскую группу')
+      showWarning('Группа не может иметь родительскую группу')
       isSubmitting.value = false
       return
     }
     
     // Валидация: подгруппа должна иметь родительскую группу
     if (data.unit_type === 'subgroup' && !data.parent_org_unit_id) {
-      alert('Подгруппа должна иметь родительскую группу')
+      showWarning('Подгруппа должна иметь родительскую группу')
       isSubmitting.value = false
       return
     }
@@ -297,7 +298,7 @@ const handleSubmit = async () => {
     
     closeModal()
   } catch (error) {
-    alert('Ошибка сохранения группы: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка сохранения группы: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isSubmitting.value = false
   }
@@ -309,13 +310,13 @@ const handleLogoChange = (event) => {
   if (file) {
     // Проверяем размер файла (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Размер файла не должен превышать 5MB')
+      showWarning('Размер файла не должен превышать 5MB')
       return
     }
     
     // Проверяем тип файла
     if (!file.type.startsWith('image/')) {
-      alert('Выберите файл изображения')
+      showWarning('Выберите файл изображения')
       return
     }
     
