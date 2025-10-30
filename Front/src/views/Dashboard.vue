@@ -174,6 +174,15 @@
       @close="closeErrorReportModal"
       @submit="handleErrorReportSubmit"
     />
+
+    <!-- Индикатор ожидания возврата -->
+    <div v-if="isWaitingForReturn" class="return-waiting-overlay">
+      <div class="return-waiting-content">
+        <div class="return-spinner"></div>
+        <p class="return-waiting-text">Ожидаем подтверждения возврата...</p>
+        <p class="return-waiting-hint">Пожалуйста, вставьте повербанк в станцию</p>
+      </div>
+    </div>
   </DefaultLayout>
 </template>
 
@@ -228,6 +237,7 @@ const isBorrowing = ref(false)
 const showErrorReportModal = ref(false)
 const errorReportStation = ref(null)
 const errorReportOrder = ref(null)
+const isWaitingForReturn = ref(false)
 
 // Состояние для данных группы и логотипа
 const userOrgUnit = ref(null)
@@ -638,18 +648,33 @@ const handleErrorReportSubmit = async (errorReport) => {
   try {
     console.log('Получен отчет об ошибке:', errorReport)
     
-    // Запрос уже выполнен в ErrorReportModal через pythonAPI.returnError()
-    // Здесь мы только обрабатываем результат
-    if (errorReport.return_request_success) {
-      // Сначала показываем уведомление об успехе
-      showSuccess('Возврат с ошибкой успешно обработан!\n' + (errorReport.return_message || ''))
+    // Закрываем модалку и показываем индикатор ожидания
+    closeErrorReportModal()
+    isWaitingForReturn.value = true
+    
+    // Показываем уведомление об ожидании
+    showInfo('⏳ Ожидаем вставки повербанка в станцию (до 30 секунд)...')
+    
+    // Отправляем запрос на возврат с ошибкой через Long Polling API
+    const response = await pythonAPI.returnError({
+      station_box_id: errorReport.station_box_id,
+      user_phone: errorReport.user_phone,
+      error_type_id: errorReport.error_type_id,
+      timeout_seconds: 30 // 30 секунд ожидания
+    })
+    
+    isWaitingForReturn.value = false
+    
+    if (response.success) {
+      // Успешно обработан возврат с ошибкой
+      showSuccess('✅ Возврат с ошибкой успешно обработан!\n' + (response.message || ''))
       
-      // Затем обновляем данные по станции/пользователю
+      // Обновляем данные по станции/пользователю
       try {
         const orderData = {
-          station_box_id: errorReport.station_box_id,
-          user_phone: errorReport.user_phone,
-          powerbank_serial: errorReport.powerbank_serial
+          station_box_id: response.station_box_id || errorReport.station_box_id,
+          user_phone: response.user_phone || errorReport.user_phone,
+          powerbank_serial: response.powerbank_serial || errorReport.powerbank_serial
         }
         
         // Используем правильную функцию для обновления данных после возврата
@@ -657,18 +682,15 @@ const handleErrorReportSubmit = async (errorReport) => {
       } catch (refreshErr) {
         console.warn('Ошибка обновления данных после возврата:', refreshErr)
       }
-
-      closeErrorReportModal()
     } else {
       // Произошла ошибка при возврате
-      showError('Ошибка при возврате с ошибкой: ' + (errorReport.return_error || 'Неизвестная ошибка'))
-      closeErrorReportModal()
+      showError('❌ Ошибка при возврате с ошибкой: ' + (response.error || 'Неизвестная ошибка'))
     }
     
   } catch (error) {
     console.error('Ошибка при обработке отчета об ошибке:', error)
-    showError('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
-    closeErrorReportModal()
+    isWaitingForReturn.value = false
+    showError('❌ Ошибка: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -1987,6 +2009,79 @@ onUnmounted(() => {
   color: #999;
   margin-top: 2px;
   font-family: monospace;
+}
+
+/* Оверлей ожидания возврата */
+.return-waiting-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.return-waiting-content {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.return-spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.return-waiting-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.return-waiting-hint {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+  font-style: italic;
 }
 
 </style>

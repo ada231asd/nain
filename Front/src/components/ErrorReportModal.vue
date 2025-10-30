@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isVisible" class="modal-overlay" @click="!isLoading && closeModal()">
+  <div v-if="isVisible" class="modal-overlay" @click="closeModal()">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>Сообщить об ошибке</h3>
@@ -32,41 +32,19 @@
             </div>
           </label>
         </div>
-        
-
-        <div class="additional-notes">
-          <label for="notes">Дополнительные комментарии (необязательно):</label>
-          <textarea 
-            id="notes"
-            v-model="additionalNotes"
-            placeholder="Опишите проблему подробнее..."
-            class="notes-textarea"
-            rows="3"
-          ></textarea>
-        </div>
       </div>
       
       <div class="modal-footer">
         <button 
           @click="submitErrorReport" 
           class="btn-submit"
-          :disabled="!canSubmit || isLoading"
+          :disabled="!canSubmit"
         >
-          <span v-if="isLoading" class="submitting-content">
-            <span class="spinner"></span>
-            Ожидание подтверждения...
-          </span>
-          <span v-else>Отправить</span>
+          Отправить
         </button>
-        <button @click="closeModal" class="btn-cancel" :disabled="isLoading">
+        <button @click="closeModal" class="btn-cancel">
           Отмена
         </button>
-      </div>
-      
-      <!-- Информационное сообщение о долгом ожидании -->
-      <div v-if="isLoading" class="waiting-info">
-        <p>⏳ Ожидаем вставки повербанка в станцию (до 30 секунд)...</p>
-        <p class="waiting-hint">Пожалуйста, вставьте повербанк в станцию и не закрывайте это окно.</p>
       </div>
     </div>
   </div>
@@ -84,10 +62,6 @@ const props = defineProps({
   order: {
     type: Object,
     default: null
-  },
-  isLoading: {
-    type: Boolean,
-    default: false
   }
 })
 
@@ -95,7 +69,6 @@ const emit = defineEmits(['close', 'submit'])
 
 // Состояние
 const selectedErrorType = ref(null)
-const additionalNotes = ref('')
 
 // Вычисляемые свойства
 const canSubmit = computed(() => {
@@ -160,71 +133,34 @@ onMounted(() => {
 
 // Методы
 const closeModal = () => {
-  // Не закрываем модальное окно, если идет загрузка
-  if (props.isLoading) return
-  
   selectedErrorType.value = null
-  additionalNotes.value = ''
   emit('close')
 }
 
-const submitErrorReport = async () => {
-  if (!canSubmit.value || props.isLoading) return
+const submitErrorReport = () => {
+  if (!canSubmit.value) return
   
-  try {
-    // Отправляем запрос на возврат с ошибкой через Long Polling API
-    const response = await pythonAPI.returnError({
-      station_box_id: props.order?.station_box_id,
-      user_phone: props.order?.user_phone,
-      error_type_id: selectedErrorType.value,
-      timeout_seconds: 30 // 30 секунд ожидания
-    })
-    
-    if (response.success) {
-      // Успешно обработан возврат с ошибкой
-      const errorReport = {
-        order_id: props.order?.order_id || props.order?.id,
-        powerbank_serial: response.powerbank_serial || props.order?.powerbank_serial,
-        station_box_id: response.station_box_id || props.order?.station_box_id,
-        user_phone: response.user_phone || props.order?.user_phone,
-        error_type: response.error_type || selectedErrorType.value,
-        error_name: response.error_name,
-        slot_number: response.slot_number,
-        additional_notes: additionalNotes.value,
-        timestamp: new Date().toISOString(),
-        return_request_success: true,
-        return_message: response.message
-      }
-      
-      emit('submit', errorReport)
-    } else {
-      // Ошибка при обработке возврата
-      console.error('❌ Ошибка возврата с ошибкой:', response.error)
-      emit('submit', {
-        ...props.order,
-        error_type: selectedErrorType.value,
-        additional_notes: additionalNotes.value,
-        return_request_success: false,
-        return_error: response.error
-      })
-    }
-  } catch (error) {
-    console.error('❌ Ошибка API запроса возврата с ошибкой:', error)
-    emit('submit', {
-      ...props.order,
-      error_type: selectedErrorType.value,
-      additional_notes: additionalNotes.value,
-      return_request_success: false,
-      return_error: error.message || 'Ошибка отправки запроса'
-    })
+  // Сразу отправляем данные родителю и закрываем модалку
+  const errorReport = {
+    order_id: props.order?.order_id || props.order?.id,
+    powerbank_serial: props.order?.powerbank_serial,
+    station_box_id: props.order?.station_box_id,
+    user_phone: props.order?.user_phone,
+    error_type_id: selectedErrorType.value,
+    timestamp: new Date().toISOString()
   }
+  
+  emit('submit', errorReport)
+  
+  // Закрываем модалку
+  selectedErrorType.value = null
+  emit('close')
 }
 
 // Сброс формы при открытии модального окна
 watch(() => props.isVisible, (newValue) => {
   if (newValue) {
     selectedErrorType.value = null
-    additionalNotes.value = ''
   }
 })
 </script>
@@ -372,36 +308,6 @@ watch(() => props.isVisible, (newValue) => {
   line-height: 1.4;
 }
 
-.additional-notes {
-  margin-top: 25px;
-}
-
-.additional-notes label {
-  display: block;
-  color: #333;
-  font-weight: 600;
-  margin-bottom: 10px;
-  font-size: 1rem;
-}
-
-.notes-textarea {
-  width: 100%;
-  padding: 15px;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 80px;
-  transition: border-color 0.3s ease;
-}
-
-.notes-textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -446,47 +352,6 @@ watch(() => props.isVisible, (newValue) => {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-}
-
-.submitting-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.waiting-info {
-  padding: 20px 30px;
-  background: #fff9e6;
-  border-top: 2px solid #ffd966;
-  text-align: center;
-}
-
-.waiting-info p {
-  margin: 5px 0;
-  color: #856404;
-  font-size: 1rem;
-}
-
-.waiting-hint {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  font-style: italic;
 }
 
 /* Мобильные стили */
