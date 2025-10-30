@@ -498,6 +498,7 @@ import FilterButton from './FilterButton.vue'
 import QRCode from 'qrcode'
 import { pythonAPI } from '../../api/pythonApi.js'
 import { formatMoscowTime, getRelativeTime as getRelativeTimeUtil } from '../../utils/timeUtils.js'
+import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../../utils/notifications'
 
 const props = defineProps({
   stations: {
@@ -871,17 +872,17 @@ const saveChanges = async () => {
   
   // Валидация статуса
   if (selectedStation.value.status === 'pending') {
-    alert('❌ Станция в статусе "Ожидает" не может быть изменена через редактирование. Используйте кнопку "🚀 Активировать" для активации.')
+    showWarning('Станция в статусе "Ожидает" не может быть изменена через редактирование. Используйте кнопку "🚀 Активировать" для активации.')
     return
   }
   
   if (editForm.value.status === 'active' && selectedStation.value.status !== 'active') {
-    alert('❌ Нельзя активировать станцию через редактирование. Используйте кнопку "🚀 Активировать" для ввода секретного ключа.')
+    showWarning('Нельзя активировать станцию через редактирование. Используйте кнопку "🚀 Активировать" для ввода секретного ключа.')
     return
   }
   
   if (selectedStation.value.status === 'active' && editForm.value.status === 'pending') {
-    alert('❌ Нельзя перевести активную станцию в статус "Ожидает".')
+    showWarning('Нельзя перевести активную станцию в статус "Ожидает".')
     return
   }
   
@@ -926,14 +927,14 @@ const saveChanges = async () => {
     if (editForm.value.heartbeat_interval) serverAddressData.value.heartbeat_interval = editForm.value.heartbeat_interval
     
     isEditing.value = false
-    alert('Изменения сохранены успешно')
+    showSuccess('Изменения сохранены успешно')
     
     // Обновляем список станций
     emit('station-updated', selectedStation.value)
     
   } catch (error) {
     console.error('Ошибка сохранения изменений:', error)
-    alert('Ошибка сохранения: ' + error.message)
+    showError('Ошибка сохранения: ' + error.message)
   }
 }
 
@@ -969,7 +970,7 @@ const activateStation = async () => {
       // Закрываем модальное окно активации
       closeActivationModal()
       
-      alert('Станция успешно активирована!')
+      showSuccess('Станция успешно активирована!')
       
       // Обновляем список станций
       emit('station-updated', selectedStation.value)
@@ -978,7 +979,7 @@ const activateStation = async () => {
     }
   } catch (error) {
     console.error('Ошибка активации станции:', error)
-    alert('Ошибка активации: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка активации: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isActivating.value = false
   }
@@ -1045,7 +1046,7 @@ const refreshInventory = async () => {
   const stationId = selectedStation.value?.station_id || selectedStation.value?.id
   
   if (!stationId) {
-    alert('Не удалось определить ID станции')
+    showError('Не удалось определить ID станции')
     return
   }
   
@@ -1060,15 +1061,15 @@ const refreshInventory = async () => {
     const data = await pythonAPI.getStationInventory(stationId)
     
     if (data.success) {
-      alert('Инвентарь успешно обновлен')
+      showSuccess('Инвентарь успешно обновлен')
       // Можно добавить обновление данных станции
       await loadStationData(selectedStation.value)
     } else {
-      alert('Ошибка обновления инвентаря: ' + (data.error || 'Неизвестная ошибка'))
+      showError('Ошибка обновления инвентаря: ' + (data.error || 'Неизвестная ошибка'))
     }
   } catch (error) {
     console.error('Ошибка обновления инвентаря:', error)
-    alert('Ошибка обновления инвентаря: ' + error.message)
+    showError('Ошибка обновления инвентаря: ' + error.message)
   }
 }
 
@@ -1076,7 +1077,7 @@ const refreshInventory = async () => {
 const copyQRUrl = async () => {
   try {
     await navigator.clipboard.writeText(qrLink.value)
-    alert('Ссылка скопирована в буфер обмена')
+    showSuccess('Ссылка скопирована в буфер обмена')
   } catch (error) {
     console.error('Ошибка копирования:', error)
     // Fallback для старых браузеров
@@ -1086,7 +1087,7 @@ const copyQRUrl = async () => {
     textArea.select()
     document.execCommand('copy')
     document.body.removeChild(textArea)
-    alert('Ссылка скопирована в буфер обмена')
+    showSuccess('Ссылка скопирована в буфер обмена')
   }
 }
 
@@ -1136,7 +1137,7 @@ const confirmDeleteStation = async () => {
   
   const stationId = selectedStation.value.station_id || selectedStation.value.id
   if (!stationId) {
-    alert('Не удалось определить ID станции')
+    showError('Не удалось определить ID станции')
     return
   }
   
@@ -1162,7 +1163,7 @@ const handleRestore = async () => {
   
   const stationId = selectedStation.value.station_id || selectedStation.value.id
   if (!stationId) {
-    alert('Не удалось определить ID станции')
+    showError('Не удалось определить ID станции')
     return
   }
   

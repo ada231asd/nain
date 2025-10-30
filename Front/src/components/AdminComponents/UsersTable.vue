@@ -412,6 +412,7 @@ import FilterButton from './FilterButton.vue'
 import { pythonAPI } from '../../api/pythonApi'
 import { useAuthStore } from '../../stores/auth'
 import { useAdminStore } from '../../stores/admin'
+import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../../utils/notifications'
 import QRCode from 'qrcode'
 
 const props = defineProps({
@@ -695,26 +696,26 @@ const clearSelection = () => {
   selectedUsers.value = []
 }
 
-const handleBulkAction = (action) => {
+const handleBulkAction = async (action) => {
   if (selectedUsers.value.length === 0) return
   
   const userIds = selectedUsers.value.map(u => u.user_id || u.id)
   
   switch (action) {
     case 'approve':
-      if (confirm(`Вы уверены, что хотите одобрить ${selectedUsers.value.length} пользователей?`)) {
+      if (await showConfirm(`Вы уверены, что хотите одобрить ${selectedUsers.value.length} пользователей?`, 'Одобрить', 'Отмена')) {
         emit('bulk-approve', userIds)
         clearSelection()
       }
       break
     case 'block':
-      if (confirm(`Вы уверены, что хотите заблокировать ${selectedUsers.value.length} пользователей?`)) {
+      if (await showConfirm(`Вы уверены, что хотите заблокировать ${selectedUsers.value.length} пользователей?`, 'Заблокировать', 'Отмена')) {
         emit('bulk-block', userIds)
         clearSelection()
       }
       break
     case 'delete':
-      if (confirm(`Вы уверены, что хотите удалить ${selectedUsers.value.length} пользователей? Это действие необратимо!`)) {
+      if (await showConfirm(`Вы уверены, что хотите удалить ${selectedUsers.value.length} пользователей? Это действие необратимо!`, 'Удалить', 'Отмена')) {
         emit('bulk-delete', userIds)
         clearSelection()
       }
@@ -777,7 +778,7 @@ const generateInvitation = async () => {
     const orgUnitId = getCurrentOrgUnitId.value
     
     if (!orgUnitId) {
-      alert('Не удалось определить организационную единицу. Убедитесь, что вы привязаны к организации.')
+      showError('Не удалось определить организационную единицу. Убедитесь, что вы привязаны к организации.')
       closeInvitationModal()
       return
     }
@@ -805,7 +806,7 @@ const generateInvitation = async () => {
     // QR код будет сгенерирован автоматически через watcher на invitationResult
   } catch (error) {
     console.error('Ошибка создания приглашения:', error)
-    alert('Не удалось создать приглашение: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Не удалось создать приглашение: ' + (error.message || 'Неизвестная ошибка'))
     closeInvitationModal()
   } finally {
     isGenerating.value = false
@@ -815,7 +816,7 @@ const generateInvitation = async () => {
 const copyInvitationLink = () => {
   if (invitationResult.value) {
     navigator.clipboard.writeText(invitationResult.value.invitation_link)
-    alert('Ссылка скопирована в буфер обмена')
+    showSuccess('Ссылка скопирована в буфер обмена')
   }
 }
 
@@ -998,7 +999,7 @@ const saveChanges = async () => {
     
   } catch (error) {
     console.error('Ошибка сохранения изменений:', error)
-    alert('Ошибка сохранения: ' + error.message)
+    showError('Ошибка сохранения: ' + error.message)
   }
 }
 
@@ -1106,7 +1107,7 @@ const handleDelete = async () => {
   
   const userId = selectedUser.value.user_id || selectedUser.value.id
   if (!userId) {
-    alert('Не удалось определить ID пользователя')
+    showError('Не удалось определить ID пользователя')
     return
   }
   
@@ -1130,7 +1131,7 @@ const handleRestore = async () => {
   
   const userId = selectedUser.value.user_id || selectedUser.value.id
   if (!userId) {
-    alert('Не удалось определить ID пользователя')
+    showError('Не удалось определить ID пользователя')
     return
   }
   

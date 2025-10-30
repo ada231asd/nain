@@ -857,19 +857,19 @@ const deleteOrgUnit = async (deleteData) => {
     ? `Вы уверены, что хотите НАВСЕГДА удалить группу "${orgUnitName}"?\n\nЭто действие необратимо!`
     : `Вы уверены, что хотите удалить группу "${orgUnitName || 'эту'}"?`
     
-  if (confirm(confirmMessage)) {
+  if (await showConfirm(confirmMessage, hardDelete ? 'Удалить навсегда' : 'Удалить', 'Отмена')) {
     try {
       if (hardDelete) {
         await pythonAPI.hardDelete('org_unit', orgUnitId)
-        alert('Группа удалена навсегда')
+        showSuccess('Группа удалена навсегда')
       } else {
         await pythonAPI.softDelete('org_unit', orgUnitId)
-        alert('Группа успешно удалена')
+        showSuccess('Группа успешно удалена')
       }
       await adminStore.fetchOrgUnits()
     } catch (error) {
       console.error('Ошибка при удалении группы:', error)
-      alert('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
+      showError('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }
@@ -880,14 +880,14 @@ const restoreOrgUnit = async (restoreData) => {
   const orgUnitName = restoreData.orgUnitName || ''
   
   const confirmMessage = `Вы уверены, что хотите восстановить группу "${orgUnitName}"?`
-  if (confirm(confirmMessage)) {
+  if (await showConfirm(confirmMessage, 'Восстановить', 'Отмена')) {
     try {
       await pythonAPI.restoreDeleted('org_unit', orgUnitId)
-      alert('Группа успешно восстановлена')
+      showSuccess('Группа успешно восстановлена')
       await adminStore.fetchOrgUnits()
     } catch (error) {
       console.error('Ошибка при восстановлении группы:', error)
-      alert('Ошибка при восстановлении группы: ' + (error.message || 'Неизвестная ошибка'))
+      showError('Ошибка при восстановлении группы: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }
