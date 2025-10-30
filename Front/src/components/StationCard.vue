@@ -90,6 +90,10 @@
           <span class="station-card__powerbank-label">свободно слотов:</span>
           <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ freeSlots }}</span>
         </div>
+        <div v-if="hasBrokenPowerbanks" class="station-card__powerbank-item">
+          <span class="station-card__powerbank-label">сломано:</span>
+          <span class="station-card__powerbank-value station-card__powerbank-value--broken">{{ brokenCount }}</span>
+        </div>
       </div>
       
       <div v-if="lastSeenValue" class="station-card__last-seen">
@@ -273,27 +277,49 @@ const occupiedPorts = computed(() => {
 
 // Вычисляем свободные слоты для возврата powerbank'ов (пустые слоты БЕЗ powerbank'ов)
 const freeSlots = computed(() => {
-  // remain_num = количество ПОВЕРБАНКОВ (не свободных слотов!)
-  // Свободные слоты = total - повербанков
+  // ВАЖНО: Если freePorts уже рассчитан в stores/stations.js,
+  // используем его напрямую. Иначе рассчитываем как раньше.
+  
+  // freePorts уже учитывает free_slots_for_return из API
+  // free_slots_for_return = total_slots - ВСЕ повербанки (здоровые + сломанные)
+  if (props.station.freePorts !== undefined && props.station.freePorts !== null) {
+    const result = props.station.freePorts
+    
+    console.log('🔢 Расчет свободных слотов (используем freePorts из API):', {
+      station: props.station.box_id,
+      totalSlots: props.station.totalPorts || props.station.slots_declared,
+      totalPowerbanks: props.station.total_powerbanks_count,
+      freeSlots: result,
+      healthyPowerbanks: props.station.healthy_powerbanks_count,
+      brokenPowerbanks: props.station.broken_powerbanks_count
+    })
+    
+    return result
+  }
+  
+  // Fallback для старых данных без freePorts
+  // Свободные слоты = total - ВСЕ повербанки
   const totalSlots = totalPorts.value
   const powerbanksCount = props.station.remain_num || 0
   const result = Math.max(0, totalSlots - powerbanksCount)
   
-  console.log('🔢 Расчет свободных слотов:', {
+  console.log('🔢 Расчет свободных слотов (fallback):', {
     station: props.station.box_id,
     totalSlots: totalSlots,
     powerbanksCount: powerbanksCount,
-    freeSlots: result,
-    stationData: {
-      totalPorts: props.station.totalPorts,
-      slots_declared: props.station.slots_declared,
-      freePorts: props.station.freePorts,
-      occupiedPorts: props.station.occupiedPorts,
-      remain_num: props.station.remain_num
-    }
+    freeSlots: result
   })
   
   return result
+})
+
+// Информация о сломанных повербанках
+const hasBrokenPowerbanks = computed(() => {
+  return props.station.broken_powerbanks_count > 0
+})
+
+const brokenCount = computed(() => {
+  return props.station.broken_powerbanks_count || 0
 })
 
 const getStatusText = (status) => {
@@ -755,6 +781,11 @@ onUnmounted(() => {
 
 .station-card__powerbank-value--returnable {
   background-color: var(--warning-color);
+  color: white;
+}
+
+.station-card__powerbank-value--broken {
+  background-color: var(--danger-color);
   color: white;
 }
 

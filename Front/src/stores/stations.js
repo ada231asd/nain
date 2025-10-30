@@ -96,14 +96,25 @@ export const useStationsStore = defineStore('stations', {
               
               // Формируем объект станции из данных API powerbanks и user_favorites
               if (powerbanksData && powerbanksData.success) {
-                // API возвращает: { success, available_powerbanks, count, free_slots, total_slots, station_id }
+                // API возвращает: { success, available_powerbanks, count, free_slots, total_slots, free_slots_for_return, total_powerbanks_count, healthy_powerbanks_count, broken_powerbanks_count }
                 const availablePowerbanks = powerbanksData.available_powerbanks || [];
                 
+                // Определяем total_powerbanks_count с fallback
+                const totalPowerbanksCount = powerbanksData.total_powerbanks_count !== undefined 
+                  ? powerbanksData.total_powerbanks_count 
+                  : powerbanksData.count; // Fallback на count
+                
+                const freeSlots = powerbanksData.free_slots_for_return !== undefined 
+                  ? powerbanksData.free_slots_for_return 
+                  : (powerbanksData.total_slots - totalPowerbanksCount); // Fallback расчет
+                
                 console.log('Порты станции избранного обновлены актуальными данными:', {
-                  freePorts: powerbanksData.free_slots,
-                  totalPorts: powerbanksData.total_slots,
-                  occupiedPorts: powerbanksData.count,
-                  powerbanksCount: availablePowerbanks.length
+                  totalSlots: powerbanksData.total_slots,
+                  freeSlots: freeSlots,
+                  totalPowerbanks: totalPowerbanksCount,
+                  healthyPowerbanks: powerbanksData.healthy_powerbanks_count || 0,
+                  brokenPowerbanks: powerbanksData.broken_powerbanks_count || 0,
+                  calculation: `${powerbanksData.total_slots} - ${totalPowerbanksCount} = ${freeSlots}`
                 });
                 
                 return {
@@ -116,11 +127,15 @@ export const useStationsStore = defineStore('stations', {
                   address: fav.station_address || null,
                   // Актуальные данные из API powerbanks
                   ports: availablePowerbanks,
-                  remain_num: powerbanksData.count,
+                  remain_num: totalPowerbanksCount,  // ВСЕ повербанки
                   slots_declared: fav.station_slots_declared || powerbanksData.total_slots,
-                  freePorts: powerbanksData.total_slots - powerbanksData.count,
+                  freePorts: freeSlots,  // Правильный расчет
                   totalPorts: powerbanksData.total_slots,
-                  occupiedPorts: powerbanksData.count,
+                  occupiedPorts: totalPowerbanksCount,  // ВСЕ повербанки
+                  // Детальная информация
+                  total_powerbanks_count: totalPowerbanksCount,
+                  healthy_powerbanks_count: powerbanksData.healthy_powerbanks_count || 0,
+                  broken_powerbanks_count: powerbanksData.broken_powerbanks_count || 0,
                   // Последний heartbeat из станции
                   lastSeen: fav.station_last_seen || null,
                   last_seen: fav.station_last_seen || null,
@@ -416,22 +431,61 @@ export const useStationsStore = defineStore('stations', {
         // Обновляем данные станции актуальной информацией о портах
         // ВАЖНО: Используем ТОЛЬКО данные из API powerbanks
         if (powerbanksData && powerbanksData.success) {
-          // API возвращает: { success, available_powerbanks, count, free_slots, total_slots }
+          // Логируем сырые данные из API
+          console.log('📦 Сырые данные из API для станции:', {
+            station_id: stationDetails.station_id,
+            box_id: stationDetails.box_id,
+            api_data: {
+              total_slots: powerbanksData.total_slots,
+              free_slots_for_return: powerbanksData.free_slots_for_return,
+              total_powerbanks_count: powerbanksData.total_powerbanks_count,
+              healthy_powerbanks_count: powerbanksData.healthy_powerbanks_count,
+              broken_powerbanks_count: powerbanksData.broken_powerbanks_count,
+              count: powerbanksData.count,
+              available_powerbanks_length: (powerbanksData.available_powerbanks || []).length
+            }
+          });
+          
+          // API возвращает: { success, available_powerbanks, count, free_slots, total_slots, free_slots_for_return, healthy_powerbanks_count, broken_powerbanks_count }
           const availablePowerbanks = powerbanksData.available_powerbanks || [];
           stationDetails.ports = availablePowerbanks;
           
           // Используем ТОЛЬКО актуальные данные из API powerbanks
-          // remain_num = количество ПОВЕРБАНКОВ (по протоколу!)
           stationDetails.totalPorts = powerbanksData.total_slots; // Всего слотов
-          stationDetails.remain_num = powerbanksData.count; // Количество powerbank'ов
-          stationDetails.freePorts = powerbanksData.total_slots - powerbanksData.count; // Свободные слоты = total - powerbanks
-          stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и (для обратной совместимости)
+          
+          // ВАЖНО: Используем free_slots_for_return для правильного расчета свободных слотов
+          // free_slots_for_return = total_slots - ВСЕ повербанки (здоровые + сломанные)
+          // Сломанные повербанки ТОЖЕ занимают физические слоты!
+          
+          // Определяем total_powerbanks_count с fallback
+          const totalPowerbanksCount = powerbanksData.total_powerbanks_count !== undefined 
+            ? powerbanksData.total_powerbanks_count 
+            : powerbanksData.count; // Fallback на count
+          
+          stationDetails.freePorts = powerbanksData.free_slots_for_return !== undefined 
+            ? powerbanksData.free_slots_for_return 
+            : (powerbanksData.total_slots - totalPowerbanksCount); // Fallback расчет
+          
+          // Количество повербанков для отображения
+          stationDetails.remain_num = totalPowerbanksCount; // Все повербанки
+          stationDetails.occupiedPorts = totalPowerbanksCount; // Все повербанки
+          
+          // Добавляем детальную информацию о повербанках
+          stationDetails.total_powerbanks_count = totalPowerbanksCount;
+          stationDetails.healthy_powerbanks_count = powerbanksData.healthy_powerbanks_count !== undefined 
+            ? powerbanksData.healthy_powerbanks_count 
+            : 0;
+          stationDetails.broken_powerbanks_count = powerbanksData.broken_powerbanks_count !== undefined 
+            ? powerbanksData.broken_powerbanks_count 
+            : 0;
           
           console.log('Порты станции обновлены актуальными данными:', {
-            freePorts: stationDetails.freePorts,
-            totalPorts: stationDetails.totalPorts,
-            occupiedPorts: stationDetails.occupiedPorts,
-            powerbanksCount: availablePowerbanks.length
+            totalSlots: stationDetails.totalPorts,
+            freeSlots: stationDetails.freePorts,
+            totalPowerbanks: stationDetails.total_powerbanks_count,
+            healthyPowerbanks: stationDetails.healthy_powerbanks_count,
+            brokenPowerbanks: stationDetails.broken_powerbanks_count,
+            calculation: `${stationDetails.totalPorts} - ${stationDetails.total_powerbanks_count} = ${stationDetails.freePorts}`
           });
         } else {
           // Если нет данных о powerbank'ах, используем 0 (безопаснее чем неактуальный remain_num)

@@ -48,21 +48,57 @@ class BorrowPowerbankAPI:
             # Получаем повербанки в станции
             powerbanks = await StationPowerbank.get_station_powerbanks(self.db_pool, station_id)
             
+            from utils.centralized_logger import get_logger
+            logger = get_logger('borrow_powerbank_api')
+            logger.info(f"📊 Станция {station_id}: Найдено записей в station_powerbank: {len(powerbanks)}")
+            
             result = []
+            total_powerbanks_count = 0    # Счетчик ВСЕХ повербанков (для расчета свободных слотов)
+            healthy_powerbanks_count = 0  # Счетчик здоровых повербанков (можно взять)
+            broken_powerbanks_count = 0   # Счетчик сломанных повербанков
+            
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
-                # Пропускаем удаленные повербанки
-                if not powerbank or powerbank.is_deleted:
+                
+                # Логируем каждый повербанк для отладки
+                logger.debug(f"  Слот {sp.slot_number}: powerbank_id={sp.powerbank_id}, "
+                           f"found={powerbank is not None}, "
+                           f"is_deleted={powerbank.is_deleted if powerbank else 'N/A'}, "
+                           f"status={powerbank.status if powerbank else 'N/A'}")
+                
+                # Пропускаем ТОЛЬКО если повербанк вообще не найден в БД
+                if not powerbank:
+                    logger.warning(f"  ⚠️ Слот {sp.slot_number}: Повербанк {sp.powerbank_id} не найден в БД!")
                     continue
+                
+                # ВАЖНО: Учитываем ВСЕ повербанки, даже удаленные и сломанные!
+                # Они физически находятся в станции и занимают слоты
+                total_powerbanks_count += 1
+                
+                # Проверяем, сломан ли повербанк по статусу или удален
+                is_broken_status = powerbank.status in ['system_error', 'user_reported_broken', 'written_off']
+                is_deleted = powerbank.is_deleted == 1
+                # Проверяем наличие ошибок в параметрах слота
+                has_slot_errors = self._check_powerbank_errors(sp)
+                
+                # Повербанк считается сломанным, если:
+                # - у него проблемный статус
+                # - есть ошибки слота
+                # - он помечен как удаленный
+                is_broken = is_broken_status or has_slot_errors or is_deleted
+                
+                if is_broken:
+                    broken_powerbanks_count += 1
+                else:
+                    healthy_powerbanks_count += 1
                     
-                if powerbank and (include_all or powerbank.status == 'active'):
+                # В список available_powerbanks добавляем только неудаленные и active
+                # (удаленные учитываются в счетчиках, но не выдаются пользователям)
+                if not is_deleted and (include_all or powerbank.status == 'active'):
                     # Проверяем, что повербанк не находится в активном заказе
                     existing_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                     if existing_order:
                         continue  # Пропускаем повербанки в активных заказах
-                    
-                    # Проверяем наличие ошибок в статусе
-                    has_errors = self._check_powerbank_errors(sp)
                     
                     result.append({
                         "slot_number": sp.slot_number,
@@ -72,7 +108,9 @@ class BorrowPowerbankAPI:
                         "voltage": sp.voltage,
                         "temperature": sp.temperature,
                         "soh": powerbank.soh,
-                        "has_errors": has_errors,
+                        "has_errors": has_slot_errors,
+                        "is_broken": is_broken,
+                        "powerbank_status": powerbank.status,
                         "last_update": sp.last_update.isoformat() if sp.last_update else None
                     })
             
@@ -104,6 +142,17 @@ class BorrowPowerbankAPI:
                     # В случае ошибки подсчёта лимита не блокируем ответ
                     available_to_user = min(available_total, available_to_user)
 
+            # ВАЖНО: Свободные слоты для возврата = total_slots - ВСЕ_повербанки
+            # Сломанные повербанки ТОЖЕ занимают слоты!
+            free_slots_for_return = max(0, station.slots_declared - total_powerbanks_count)
+            
+            # Логирование для отладки
+            from utils.centralized_logger import get_logger
+            logger = get_logger('borrow_powerbank_api')
+            logger.info(f"Станция {station_id}: slots={station.slots_declared}, "
+                       f"total_pb={total_powerbanks_count} (healthy={healthy_powerbanks_count}, broken={broken_powerbanks_count}), "
+                       f"free_slots={free_slots_for_return}, remain_num={station.remain_num}")
+
             return {
                 "success": True,
                 "station_id": station_id,
@@ -113,9 +162,15 @@ class BorrowPowerbankAPI:
                 "available_to_user": available_to_user,
                 # Информация о лимите пользователя (для прозрачности на фронте)
                 "user_limit": user_limit_info,
-                # Свободные слоты станции (как есть по БД)
+                # Свободные слоты станции (старое значение для обратной совместимости)
                 "free_slots": station.remain_num,
                 "total_slots": station.slots_declared,
+                # Свободные слоты для возврата (правильный расчет с учетом всех повербанков)
+                "free_slots_for_return": free_slots_for_return,
+                # Количество всех, здоровых и сломанных повербанков
+                "total_powerbanks_count": total_powerbanks_count,
+                "healthy_powerbanks_count": healthy_powerbanks_count,
+                "broken_powerbanks_count": broken_powerbanks_count,
                 "include_all": include_all
             }
             
