@@ -168,16 +168,38 @@ export const refreshStationWithPowerbanks = async (stationId) => {
     // Обновляем данные станции актуальной информацией о портах
     // ВАЖНО: Используем ТОЛЬКО данные из API powerbanks
     if (powerbanksData && powerbanksData.success) {
-      // API возвращает: { success, available_powerbanks, count, free_slots, total_slots }
+      // API возвращает: { success, available_powerbanks, count, free_slots, total_slots, free_slots_for_return, healthy_powerbanks_count, broken_powerbanks_count }
       const availablePowerbanks = powerbanksData.available_powerbanks || [];
       stationDetails.ports = availablePowerbanks;
       
       // Используем ТОЛЬКО актуальные данные из API powerbanks
-      // remain_num = количество ПОВЕРБАНКОВ (по протоколу!)
       stationDetails.totalPorts = powerbanksData.total_slots; // Всего слотов
-      stationDetails.remain_num = powerbanksData.count; // Количество powerbank'ов
-      stationDetails.freePorts = powerbanksData.total_slots - powerbanksData.count; // Свободные слоты = total - powerbanks
-      stationDetails.occupiedPorts = powerbanksData.count; // Powerbank'и (для обратной совместимости)
+      
+      // ВАЖНО: Используем free_slots_for_return для правильного расчета свободных слотов
+      // free_slots_for_return = total_slots - ВСЕ повербанки (здоровые + сломанные)
+      // Сломанные повербанки ТОЖЕ занимают физические слоты!
+      
+      // Определяем total_powerbanks_count с fallback
+      const totalPowerbanksCount = powerbanksData.total_powerbanks_count !== undefined 
+        ? powerbanksData.total_powerbanks_count 
+        : powerbanksData.count; // Fallback на count
+      
+      stationDetails.freePorts = powerbanksData.free_slots_for_return !== undefined 
+        ? powerbanksData.free_slots_for_return 
+        : (powerbanksData.total_slots - totalPowerbanksCount); // Fallback расчет
+      
+      // Количество повербанков для отображения
+      stationDetails.remain_num = totalPowerbanksCount; // Все повербанки
+      stationDetails.occupiedPorts = totalPowerbanksCount; // Все повербанки
+      
+      // Добавляем детальную информацию о повербанках
+      stationDetails.total_powerbanks_count = totalPowerbanksCount;
+      stationDetails.healthy_powerbanks_count = powerbanksData.healthy_powerbanks_count !== undefined 
+        ? powerbanksData.healthy_powerbanks_count 
+        : 0;
+      stationDetails.broken_powerbanks_count = powerbanksData.broken_powerbanks_count !== undefined 
+        ? powerbanksData.broken_powerbanks_count 
+        : 0;
     } else {
       // Если нет данных об аккумуляторах, используем 0 (безопаснее чем неактуальный remain_num)
       const totalSlots = stationDetails.slots_declared || 20

@@ -1,0 +1,54 @@
+2025-10-30 16:39:02 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-10-30 16:39:15 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:15 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:15 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:15 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:15 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:15 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:15 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:15 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:15 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:15 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:15 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:15 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 819 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:15 - websocket - INFO - 🔌 Новое WebSocket подключение
+2025-10-30 16:39:15 - websocket - INFO - 🔑 WebSocket: токен расшифрован, user_id=33
+2025-10-30 16:39:15 - websocket - INFO - 📝 Регистрируем пользователя 33 в WebSocket менеджере
+2025-10-30 16:39:15 - user_notifications - INFO - ✅ Пользователь 33 подключен к WebSocket. Всего подключений: 1
+2025-10-30 16:39:15 - websocket - INFO - ✅ WebSocket: пользователь 33 успешно подключен и слушает сообщения
+2025-10-30 16:39:15 - websocket - INFO - 🔍 WebSocket состояние перед циклом: closed=False, close_code=None
+2025-10-30 16:39:16 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:16 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:16 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:16 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:16 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:16 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 1200 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:16 - borrow_powerbank_api - INFO - 📊 Станция 17: Найдено записей в station_powerbank: 1
+2025-10-30 16:39:16 - borrow_powerbank_api - INFO - Станция 17: slots=8, total_pb=1 (healthy=1, broken=0), free_slots=7, remain_num=1
+2025-10-30 16:39:16 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:16 +0300] "GET /api/borrow/stations/17/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:16 - borrow_powerbank_api - INFO - 📊 Станция 16: Найдено записей в station_powerbank: 3
+2025-10-30 16:39:16 - borrow_powerbank_api - INFO - Станция 16: slots=4, total_pb=3 (healthy=3, broken=0), free_slots=1, remain_num=3
+2025-10-30 16:39:16 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:16 +0300] "GET /api/borrow/stations/16/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:22 - queryinventoryapi - INFO - Администратор 33 запросил инвентарь станции.
+2025-10-30 16:39:22 - queryinventoryhandler - ERROR - Соединение со станцией DCHEY02504000019 (ID: 17) неактивно для запроса инвентаря.
+2025-10-30 16:39:22 - queryinventoryapi - ERROR - Администратор 33: Ошибка отправки запроса инвентаря на станцию 17: Станция не подключена или соединение неактивно.
+2025-10-30 16:39:22 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:22 +0300] "POST /api/query-inventory HTTP/1.1" 500 676 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:23 - queryinventoryapi - INFO - Администратор 33 запросил текущий инвентарь станции 17 из кэша.
+2025-10-30 16:39:23 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:23 +0300] "GET /api/query-inventory/station/17 HTTP/1.1" 404 523 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:23 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:23 +0300] "GET /api/station-powerbanks?station_id=17 HTTP/1.1" 200 746 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:33 - queryinventoryapi - INFO - Администратор 33 запросил инвентарь станции.
+2025-10-30 16:39:33 - queryinventoryhandler - ERROR - Соединение со станцией DCHEY02504000018 (ID: 16) неактивно для запроса инвентаря.
+2025-10-30 16:39:33 - queryinventoryapi - ERROR - Администратор 33: Ошибка отправки запроса инвентаря на станцию 16: Станция не подключена или соединение неактивно.
+2025-10-30 16:39:33 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:33 +0300] "POST /api/query-inventory HTTP/1.1" 500 676 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:34 - queryinventoryapi - INFO - Администратор 33 запросил текущий инвентарь станции 16 из кэша.
+2025-10-30 16:39:34 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:34 +0300] "GET /api/query-inventory/station/16 HTTP/1.1" 404 523 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:34 - aiohttp.access - INFO - 127.0.0.1 [30/Oct/2025:16:39:34 +0300] "GET /api/station-powerbanks?station_id=16 HTTP/1.1" 200 1411 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
+2025-10-30 16:39:55 - server - INFO - Остановка серверов...
+2025-10-30 16:39:55 - server - INFO - Деактивация всех станций...
+2025-10-30 16:39:55 - server - INFO - Активных станций не найдено
+2025-10-30 16:39:55 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-30 16:39:55 - server - INFO - Активных станций в БД не найдено
+2025-10-30 16:39:55 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-30 16:39:55 - http_server - INFO - Остановка HTTP сервера...
+2025-10-30 16:39:55 - server - INFO - Логгеры закрыты
+2025-10-30 16:39:55 - server - INFO - Остановка серверов...
+2025-10-30 16:39:55 - server - INFO - Деактивация всех станций...
+2025-10-30 16:39:55 - server - INFO - Активных станций не найдено
+2025-10-30 16:39:55 - server - INFO - Деактивация всех активных станций в БД...
+2025-10-30 16:39:55 - server - WARNING - Пул соединений с БД уже закрыт
+2025-10-30 16:39:55 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-10-30 16:39:55 - http_server - INFO - Остановка HTTP сервера...
+2025-10-30 16:39:55 - server - INFO - Логгеры закрыты
+2025-10-30 16:39:55 - websocket - INFO - 🔚 Закрываем WebSocket для пользователя 33
+2025-10-30 16:39:55 - user_notifications - INFO - ❌ Пользователь 33 отключен от WebSocket. Осталось подключений: 0
