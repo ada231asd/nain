@@ -54,8 +54,11 @@
                 @mousedown="selectSearchResult(station)"
               >
                 <div class="search-item-main">
-                  <div class="search-item-title">
-                    {{ station.box_id || station.station_box_id || 'Без ID' }}
+                  <div class="search-item-title" :class="{ 'highlighted-nickname': isNicknameMatch(station) }">
+                    {{ station.nickname || station.nik || station.box_id || station.station_box_id || 'Без ID' }}
+                  </div>
+                  <div v-if="station.nickname || station.nik" class="search-item-box-id">
+                    {{ station.box_id || station.station_box_id }}
                   </div>
                   <div class="search-item-subtitle" :class="{ 'highlighted-address': isAddressMatch(station) }">
                     {{ station.address || station.station_address || 'Адрес не указан' }}
@@ -1314,6 +1317,16 @@ const isAddressMatch = (station) => {
   return address.toLowerCase().includes(query)
 }
 
+// Проверяем, является ли совпадение по нику
+const isNicknameMatch = (station) => {
+  if (!searchQuery.value) return false
+  
+  const query = searchQuery.value.trim().toLowerCase()
+  const nickname = station.nickname || station.nik || ''
+  
+  return nickname.toLowerCase().includes(query)
+}
+
 const getAvailablePorts = (station) => {
   return station.freePorts || 0
 }
@@ -1911,6 +1924,24 @@ onUnmounted(() => {
   padding: 2px 6px;
   border-radius: 4px;
   display: inline-block;
+}
+
+/* Подсветка ника в результатах поиска */
+.search-item-title.highlighted-nickname {
+  color: #667eea;
+  font-weight: 700;
+  background: rgba(102, 126, 234, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Box ID под ником в результатах поиска */
+.search-item-box-id {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 2px;
+  font-family: monospace;
 }
 
 </style>

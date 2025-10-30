@@ -474,9 +474,15 @@ export const useStationsStore = defineStore('stations', {
       }
 
       try {
-        // Сначала ищем среди избранных станций (там есть адреса)
+        // Сначала ищем среди избранных станций (там есть адреса и ники)
         const favoriteResults = this.favoriteStations.filter(station => {
           const normalizedQuery = searchQuery.trim().toLowerCase();
+          
+          // Поиск по нику (приоритетный поиск)
+          const nickname = station.nickname || station.nik || '';
+          if (nickname && nickname.toLowerCase().includes(normalizedQuery)) {
+            return true;
+          }
           
           // Поиск по адресу в избранных станциях
           const address = station.address || '';
