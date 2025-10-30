@@ -38,6 +38,8 @@ export const useAuthStore = defineStore('auth', {
         await this.fetchUserLimits();
 
         // Подключаемся к WebSocket для получения уведомлений
+        console.log('🔌 [AUTH] Логин успешен, подключаемся к WebSocket')
+        console.log('🔑 [AUTH] User ID:', response.user?.user_id)
         websocketNotificationService.connect(response.token);
 
         return response;

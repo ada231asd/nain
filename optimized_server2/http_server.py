@@ -330,10 +330,13 @@ class HTTPServer:
         user_id = None
         logger = get_logger('websocket')
         
+        logger.info("🔌 Новое WebSocket подключение")
+        
         try:
             # Получаем токен из query параметров
             token = request.query.get('token')
             if not token:
+                logger.warning("❌ WebSocket: токен не предоставлен")
                 await ws.send_json({'error': 'Missing token'})
                 await ws.close()
                 return ws
@@ -342,38 +345,48 @@ class HTTPServer:
             try:
                 payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
                 user_id = payload.get('user_id')
+                logger.info(f"🔑 WebSocket: токен расшифрован, user_id={user_id}")
+                
                 if not user_id:
+                    logger.warning("❌ WebSocket: user_id не найден в токене")
                     await ws.send_json({'error': 'Invalid token'})
                     await ws.close()
                     return ws
             except jwt.ExpiredSignatureError:
+                logger.warning("❌ WebSocket: токен истёк")
                 await ws.send_json({'error': 'Token expired'})
                 await ws.close()
                 return ws
-            except jwt.InvalidTokenError:
+            except jwt.InvalidTokenError as e:
+                logger.warning(f"❌ WebSocket: неверный токен - {e}")
                 await ws.send_json({'error': 'Invalid token'})
                 await ws.close()
                 return ws
             
             # Регистрируем пользователя
+            logger.info(f"📝 Регистрируем пользователя {user_id} в WebSocket менеджере")
             await user_notification_manager.register_user(user_id, ws)
             await ws.send_json({
                 'type': 'connected',
                 'message': 'WebSocket connected successfully'
             })
             
+            logger.info(f"✅ WebSocket: пользователь {user_id} успешно подключен и слушает сообщения")
+            
             # Слушаем сообщения от клиента
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
                     if msg.data == 'ping':
                         await ws.send_json({'type': 'pong'})
+                        logger.debug(f"🏓 Ping/Pong от пользователя {user_id}")
                 elif msg.type == web.WSMsgType.ERROR:
-                    logger.error(f'WebSocket error for user {user_id}: {ws.exception()}')
+                    logger.error(f'❌ WebSocket error for user {user_id}: {ws.exception()}')
         
         except Exception as e:
-            logger.error(f'WebSocket error for user {user_id}: {e}')
+            logger.error(f'❌ WebSocket критическая ошибка для пользователя {user_id}: {e}', exc_info=True)
         finally:
             if user_id:
+                logger.info(f"🔚 Закрываем WebSocket для пользователя {user_id}")
                 user_notification_manager.unregister_user(user_id)
         
         return ws

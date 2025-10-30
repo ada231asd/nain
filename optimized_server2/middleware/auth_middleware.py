@@ -59,7 +59,8 @@ class AuthMiddleware:
                 '/api/auth/register',
                 '/api/auth/login',
                 '/api/invitations/register',
-                '/api/logos/'  # Логотипы должны быть доступны без авторизации
+                '/api/logos/',  # Логотипы должны быть доступны без авторизации
+                '/api/ws/notifications'  # WebSocket - авторизация через query параметр
             ]
             
             # Проверяем, является ли путь публичным

@@ -21,15 +21,16 @@ class UserNotificationManager:
             old_ws = self.user_connections[user_id]
             if not old_ws.closed:
                 await old_ws.close()
+                self.logger.info(f"Закрыто старое WebSocket соединение для пользователя {user_id}")
         
         self.user_connections[user_id] = ws
-        self.logger.info(f"Пользователь {user_id} подключен к WebSocket")
+        self.logger.info(f"✅ Пользователь {user_id} подключен к WebSocket. Всего подключений: {len(self.user_connections)}")
     
     def unregister_user(self, user_id: int):
         """Удаляет WebSocket соединение пользователя"""
         if user_id in self.user_connections:
             del self.user_connections[user_id]
-            self.logger.info(f"Пользователь {user_id} отключен от WebSocket")
+            self.logger.info(f"❌ Пользователь {user_id} отключен от WebSocket. Осталось подключений: {len(self.user_connections)}")
     
     async def send_notification(self, user_id: int, notification_type: str, data: Dict[str, Any]) -> bool:
         """Отправляет уведомление пользователю"""

@@ -79,12 +79,13 @@ class WebSocketNotificationService {
       }
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket: Ошибка', error)
+        console.error('❌ WebSocket: Ошибка подключения', error)
+        console.error('WebSocket: Попытка подключения к:', url)
         this.isConnecting = false
       }
 
       this.ws.onclose = (event) => {
-        console.log('WebSocket: Отключен', event.code, event.reason)
+        console.log(`❌ WebSocket: Отключен (код: ${event.code}, причина: ${event.reason || 'не указана'})`)
         this.isConnecting = false
         this.stopPing()
         

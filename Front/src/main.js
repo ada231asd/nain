@@ -17,16 +17,20 @@ const authStore = useAuthStore()
 authStore.initializeAuth().then(() => {
   // Подключаемся к WebSocket если пользователь авторизован
   if (authStore.token) {
-    console.log('Подключаемся к WebSocket для уведомлений')
+    console.log('🔌 [MAIN] Пользователь авторизован, подключаемся к WebSocket')
+    console.log('🔑 [MAIN] Токен найден:', authStore.token.substring(0, 20) + '...')
     websocketNotificationService.connect(authStore.token)
     
     // Запрашиваем разрешение на браузерные уведомления
     websocketNotificationService.requestNotificationPermission()
+  } else {
+    console.log('❌ [MAIN] Токен не найден, WebSocket не подключается')
   }
   
   // Монтируем приложение после инициализации авторизации
   app.mount('#app')
-}).catch(() => {
+}).catch((error) => {
+  console.error('❌ [MAIN] Ошибка инициализации:', error)
   // Даже при ошибке монтируем приложение
   app.mount('#app')
 })
