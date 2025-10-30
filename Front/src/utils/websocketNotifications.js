@@ -92,8 +92,18 @@ class WebSocketNotificationService {
         this.isConnecting = false
         this.stopPing()
         
+        // Код 1000 означает нормальное закрытие, но если это не запрошено нами, переподключаемся
+        // Код 1001 - сервер ушел
+        // Код 1006 - соединение разорвано аномально
+        const shouldReconnect = this.shouldReconnect && (
+          event.code === 1000 ||  // Нормальное закрытие (но не запрошенное нами)
+          event.code === 1001 ||  // Going Away
+          event.code === 1006 ||  // Abnormal Closure
+          event.code === 1011     // Server Error
+        )
+        
         // Автоматическое переподключение
-        if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++
           console.log(`WebSocket: Переподключение через ${this.reconnectDelay / 1000}с (попытка ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
           

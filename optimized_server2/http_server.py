@@ -324,7 +324,10 @@ class HTTPServer:
     
     async def handle_user_notifications_ws(self, request: web.Request):
         """Обработчик WebSocket для уведомлений пользователей"""
-        ws = web.WebSocketResponse()
+        ws = web.WebSocketResponse(
+            heartbeat=30.0,  # Отправляем heartbeat каждые 30 секунд
+            timeout=300.0    # Таймаут 5 минут
+        )
         await ws.prepare(request)
         
         user_id = None
@@ -372,6 +375,7 @@ class HTTPServer:
             })
             
             logger.info(f"✅ WebSocket: пользователь {user_id} успешно подключен и слушает сообщения")
+            logger.info(f"🔍 WebSocket состояние перед циклом: closed={ws.closed}, close_code={ws.close_code}")
             
             # Слушаем сообщения от клиента
             async for msg in ws:
@@ -379,8 +383,21 @@ class HTTPServer:
                     if msg.data == 'ping':
                         await ws.send_json({'type': 'pong'})
                         logger.debug(f"🏓 Ping/Pong от пользователя {user_id}")
+                    else:
+                        logger.debug(f"📨 Получено текстовое сообщение от {user_id}: {msg.data}")
                 elif msg.type == web.WSMsgType.ERROR:
                     logger.error(f'❌ WebSocket error for user {user_id}: {ws.exception()}')
+                    break
+                elif msg.type == web.WSMsgType.CLOSE:
+                    logger.info(f"🔚 Клиент {user_id} закрыл соединение")
+                    break
+                elif msg.type == web.WSMsgType.CLOSED:
+                    logger.info(f"🔚 Соединение с {user_id} уже закрыто")
+                    break
+                else:
+                    logger.debug(f"❓ Неизвестный тип сообщения от {user_id}: {msg.type}")
+            
+            logger.info(f"🔄 WebSocket: цикл завершен для {user_id}, состояние: closed={ws.closed}, close_code={ws.close_code}")
         
         except Exception as e:
             logger.error(f'❌ WebSocket критическая ошибка для пользователя {user_id}: {e}', exc_info=True)
