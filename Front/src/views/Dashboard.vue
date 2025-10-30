@@ -82,7 +82,7 @@
         </div>
         
         <div v-if="favoriteStations.length === 0" class="empty-state">
-          <p>У вас пока нет избранных станций</p>
+          <p>У Вас пока нет избранных станций</p>
           <p class="empty-state-hint">Чтобы добавить станцию, нажмите "Найти станцию"</p>
         </div>
         
@@ -1746,8 +1746,25 @@ onUnmounted(() => {
     width: 100%;
   }
 
+  .search-section {
+    margin-left: 0;
+    margin-right: 0px;
+  }
+
   .search-input-wrapper {
     flex-direction: column;
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .search-dropdown {
+    left: 0;
+    right: 0;
+    width: 100%;
   }
 }
 

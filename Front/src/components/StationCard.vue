@@ -132,7 +132,7 @@
         size="small"
         @click="$emit('adminClick', station)"
       >
-        Управление банками
+        Управление аккумуляторами
       </BaseButton>
 
       <BaseButton
