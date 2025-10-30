@@ -189,7 +189,7 @@ import StationCard from '../components/StationCard.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import ErrorReportModal from '../components/ErrorReportModal.vue'
 import { pythonAPI } from '../api/pythonApi'
-import { refreshAllDataAfterBorrow } from '../utils/dataSync'
+import { refreshAllDataAfterBorrow, refreshAllDataAfterReturn } from '../utils/dataSync'
 import { formatMoscowTime } from '../utils/timeUtils'
 import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../utils/notifications'
 
@@ -362,6 +362,23 @@ const refreshAllDataAfterBorrowLocal = async (stationId, userId) => {
   }
 }
 
+// Централизованное обновление всех данных после возврата аккумулятора
+const refreshAllDataAfterReturnLocal = async (orderData) => {
+  try {
+    console.log('🔄 Начинаем обновление данных после возврата аккумулятора...')
+    // Создаем пустую функцию загрузки заказов, так как в Dashboard.vue нет истории заказов
+    const loadUserOrders = async () => {
+      // В Dashboard нет истории заказов, просто обновляем избранные станции
+      await refreshFavorites()
+    }
+    await refreshAllDataAfterReturn(orderData, user.value, loadUserOrders)
+    console.log('✅ Обновление данных после возврата завершено')
+  } catch (error) {
+    console.error('❌ Ошибка при обновлении данных после возврата:', error)
+    throw error // Пробрасываем ошибку дальше
+  }
+}
+
 // Обновление данных после действий (упрощенная версия)
 const refreshAfterAction = async () => {
   try {
@@ -476,14 +493,14 @@ const handleTakeBattery = async (station) => {
     if (response && response.success) {
       console.log('✅ Сервер подтвердил успешную выдачу:', response.message)
       
-      // Централизованное обновление данных после взятия аккумулятора
+      // Сначала показываем успешное сообщение
+      showSuccess(response.message)
+      
+      // Затем выполняем централизованное обновление данных после взятия аккумулятора
       console.log('🔄 Обновляем данные...')
       await refreshAllDataAfterBorrowLocal(stationId, userId)
       didRefresh = true
       console.log('✅ Данные обновлены')
-      
-      // Показываем успешное сообщение
-      showSuccess(response.message)
     } else {
       console.error('❌ Сервер вернул ошибку:', response)
       showError('Ошибка: ' + (response?.error || 'Неизвестная ошибка сервера'))
@@ -518,9 +535,12 @@ const handleTakeBattery = async (station) => {
       try {
         const confirmed = await confirmBorrowAfterNetworkError(stationId, userId)
         if (confirmed) {
+          // Сначала показываем успешное сообщение
+          showSuccess('Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
+          
+          // Затем обновляем данные
           await refreshAllDataAfterBorrowLocal(stationId, userId)
           didRefresh = true
-          showSuccess('Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
           return
         }
       } catch (confirmErr) {
@@ -621,17 +641,21 @@ const handleErrorReportSubmit = async (errorReport) => {
     // Запрос уже выполнен в ErrorReportModal через pythonAPI.returnError()
     // Здесь мы только обрабатываем результат
     if (errorReport.return_request_success) {
+      // Сначала показываем уведомление об успехе
       showSuccess('Возврат с ошибкой успешно обработан!\n' + (errorReport.return_message || ''))
       
-      // Обновляем данные по станции/пользователю
+      // Затем обновляем данные по станции/пользователю
       try {
-        const stationId = errorReport.station_id
-        const userId = errorReport.user_id
-        if (stationId && userId) {
-          await refreshAllDataAfterBorrowLocal(stationId, userId)
+        const orderData = {
+          station_box_id: errorReport.station_box_id,
+          user_phone: errorReport.user_phone,
+          powerbank_serial: errorReport.powerbank_serial
         }
+        
+        // Используем правильную функцию для обновления данных после возврата
+        await refreshAllDataAfterReturnLocal(orderData)
       } catch (refreshErr) {
-        console.warn('Ошибка обновления данных:', refreshErr)
+        console.warn('Ошибка обновления данных после возврата:', refreshErr)
       }
 
       closeErrorReportModal()
@@ -906,9 +930,10 @@ const borrowPowerbank = async (powerbank) => {
     const result = await pythonAPI.requestBorrowPowerbank(requestData)
 
     if (result && result.success) {
+      // Сначала показываем успешное сообщение
       showSuccess('Повербанк успешно выдан!')
       
-      // Централизованное обновление данных после выдачи аккумулятора
+      // Затем выполняем централизованное обновление данных после выдачи аккумулятора
       const stationId = selectedStation.value.station_id || selectedStation.value.id
       await refreshAllDataAfterBorrowLocal(stationId, userId)
       
@@ -949,9 +974,11 @@ const forceEjectPowerbank = async (powerbank) => {
     }
 
     await pythonAPI.forceEjectPowerbank(requestData)
+    
+    // Сначала показываем успешное сообщение
     showSuccess('Повербанк принудительно извлечен!')
 
-    // Централизованное обновление данных после принудительного извлечения
+    // Затем выполняем централизованное обновление данных после принудительного извлечения
     const stationId = selectedStation.value.station_id || selectedStation.value.id
     await refreshAllDataAfterBorrowLocal(stationId, userId)
 

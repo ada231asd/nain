@@ -1,5 +1,7 @@
 // WebSocket сервис для получения уведомлений от сервера
 import { API_CONFIG } from '../api/config'
+import { refreshAllDataAfterReturn, refreshAllDataAfterBorrow } from './dataSync'
+import { useAuthStore } from '../stores/auth'
 
 class WebSocketNotificationService {
   constructor() {
@@ -135,6 +137,10 @@ class WebSocketNotificationService {
         this.handlePowerbankReturned(message.data)
         break
 
+      case 'powerbank_borrowed':
+        this.handlePowerbankBorrowed(message.data)
+        break
+
       case 'pong':
         // Ответ на ping
         break
@@ -147,7 +153,7 @@ class WebSocketNotificationService {
   /**
    * Обработка уведомления о возврате powerbank
    */
-  handlePowerbankReturned(data) {
+  async handlePowerbankReturned(data) {
     console.log('🔋 Powerbank возвращен:', data)
     
     // Показываем уведомление пользователю
@@ -157,6 +163,80 @@ class WebSocketNotificationService {
       type: 'success',
       data: data
     })
+    
+    // Обновляем данные после возврата powerbank
+    try {
+      const authStore = useAuthStore()
+      const user = authStore.user
+      
+      // Формируем данные заказа для обновления
+      const orderData = {
+        station_box_id: data.station_box_id || data.box_id,
+        user_phone: data.user_phone || user?.phone_e164,
+        powerbank_serial: data.powerbank_serial || data.serial
+      }
+      
+      // Callback для обновления данных (в зависимости от того, откуда вызывается)
+      const loadUserOrders = async () => {
+        // Если есть метод для загрузки заказов пользователя в store
+        const stationsStore = await import('../stores/stations').then(m => m.useStationsStore())
+        if (stationsStore && typeof stationsStore.fetchFavoriteStations === 'function') {
+          await stationsStore.fetchFavoriteStations(user?.user_id)
+        }
+      }
+      
+      console.log('🔄 WebSocket: Обновляем данные после возврата powerbank...')
+      await refreshAllDataAfterReturn(orderData, user, loadUserOrders)
+      console.log('✅ WebSocket: Данные обновлены после возврата powerbank')
+      
+    } catch (error) {
+      console.error('❌ WebSocket: Ошибка обновления данных после возврата powerbank:', error)
+    }
+  }
+
+  /**
+   * Обработка уведомления о выдаче powerbank
+   */
+  async handlePowerbankBorrowed(data) {
+    console.log('🔋 Powerbank выдан:', data)
+    
+    // Показываем уведомление пользователю
+    this.showNotification({
+      title: data.title || 'Powerbank выдан!',
+      message: data.alert || 'Заказ успешно создан.',
+      type: 'success',
+      data: data
+    })
+    
+    // Обновляем данные после выдачи powerbank
+    try {
+      const authStore = useAuthStore()
+      const user = authStore.user
+      
+      // Получаем station_id из данных уведомления
+      const stationId = data.station_id
+      const userId = data.user_id || user?.user_id
+      
+      if (!stationId || !userId) {
+        console.warn('⚠️ WebSocket: Недостаточно данных для обновления (station_id или user_id отсутствуют)')
+        return
+      }
+      
+      // Callback для обновления избранных станций
+      const refreshFavorites = async () => {
+        const stationsStore = await import('../stores/stations').then(m => m.useStationsStore())
+        if (stationsStore && typeof stationsStore.fetchFavoriteStations === 'function') {
+          await stationsStore.fetchFavoriteStations(userId)
+        }
+      }
+      
+      console.log('🔄 WebSocket: Обновляем данные после выдачи powerbank...')
+      await refreshAllDataAfterBorrow(stationId, userId, user, refreshFavorites)
+      console.log('✅ WebSocket: Данные обновлены после выдачи powerbank')
+      
+    } catch (error) {
+      console.error('❌ WebSocket: Ошибка обновления данных после выдачи powerbank:', error)
+    }
   }
 
   /**
