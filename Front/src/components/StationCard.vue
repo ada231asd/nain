@@ -90,7 +90,7 @@
           <span class="station-card__powerbank-label">свободно слотов:</span>
           <span class="station-card__powerbank-value station-card__powerbank-value--returnable">{{ freeSlots }}</span>
         </div>
-        <div v-if="hasBrokenPowerbanks" class="station-card__powerbank-item">
+        <div v-if="hasBrokenPowerbanks && isUserAdmin" class="station-card__powerbank-item">
           <span class="station-card__powerbank-label">сломано:</span>
           <span class="station-card__powerbank-value station-card__powerbank-value--broken">{{ brokenCount }}</span>
         </div>
