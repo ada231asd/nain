@@ -34,7 +34,7 @@ class UserNotificationManager:
     async def send_notification(self, user_id: int, notification_type: str, data: Dict[str, Any]) -> bool:
         """Отправляет уведомление пользователю"""
         if user_id not in self.user_connections:
-            self.logger.warning(f"Пользователь {user_id} не подключен к WebSocket")
+            self.logger.debug(f"Пользователь {user_id} не подключен к WebSocket")
             return False
         
         ws = self.user_connections[user_id]

@@ -119,13 +119,16 @@ class NormalReturnPowerbankHandler:
                 if user_id:
                     try:
                         from utils.user_notification_manager import user_notification_manager
-                        await user_notification_manager.send_powerbank_return_notification(
+                        notification_sent = await user_notification_manager.send_powerbank_return_notification(
                             user_id=user_id,
                             order_id=active_order.order_id,
                             powerbank_serial=powerbank.serial_number,
                             message='Спасибо за возврат! Заказ успешно закрыт.'
                         )
-                        self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
+                        if notification_sent:
+                            self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
+                        else:
+                            self.logger.info(f"Пользователь {user_id} не подключен к WebSocket, уведомление не отправлено")
                     except Exception as e:
                         self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
             else:
@@ -296,13 +299,16 @@ class NormalReturnPowerbankHandler:
                 if user_id:
                     try:
                         from utils.user_notification_manager import user_notification_manager
-                        await user_notification_manager.send_powerbank_return_notification(
+                        notification_sent = await user_notification_manager.send_powerbank_return_notification(
                             user_id=user_id,
                             order_id=active_order.order_id,
                             powerbank_serial=powerbank.serial_number,
                             message='Спасибо за возврат! Заказ успешно закрыт.'
                         )
-                        self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
+                        if notification_sent:
+                            self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
+                        else:
+                            self.logger.info(f"Пользователь {user_id} не подключен к WebSocket, уведомление не отправлено")
                     except Exception as e:
                         self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
                 

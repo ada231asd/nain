@@ -38,10 +38,20 @@ class WebSocketNotificationService {
     try {
       // Получаем базовый URL и преобразуем в WebSocket URL
       const baseURL = API_CONFIG.baseURL || 'http://localhost:8000/api'
-      const wsURL = baseURL
-        .replace('http://', 'ws://')
-        .replace('https://', 'wss://')
-        .replace('/api', '') // убираем /api из пути
+      
+      let wsURL
+      if (baseURL.startsWith('http://') || baseURL.startsWith('https://')) {
+        // Абсолютный URL - преобразуем протокол
+        wsURL = baseURL
+          .replace('http://', 'ws://')
+          .replace('https://', 'wss://')
+          .replace('/api', '') // убираем /api из пути
+      } else {
+        // Относительный URL - используем текущий хост
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const host = window.location.host
+        wsURL = `${protocol}//${host}`
+      }
       
       const url = `${wsURL}/api/ws/notifications?token=${token}`
       
