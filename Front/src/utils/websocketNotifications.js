@@ -1,7 +1,5 @@
 // WebSocket сервис для получения уведомлений от сервера
 import { API_CONFIG } from '../api/config'
-import { refreshAllDataAfterReturn, refreshAllDataAfterBorrow } from './dataSync'
-import { useAuthStore } from '../stores/auth'
 
 class WebSocketNotificationService {
   constructor() {
@@ -12,6 +10,10 @@ class WebSocketNotificationService {
     this.isConnecting = false
     this.shouldReconnect = true
     this.pingInterval = null
+    this.idleTimeout = null
+    this.idleTimeoutDuration = 3600000 // 60 минут неактивности (временно увеличено для production)
+    this.lastActivityTime = null
+    this.token = null // Сохраняем токен для переподключения
   }
 
   /**
@@ -23,6 +25,9 @@ class WebSocketNotificationService {
       console.warn('WebSocket: Токен не предоставлен')
       return
     }
+    
+    // Сохраняем токен для переподключения
+    this.token = token
 
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       console.log('WebSocket: Уже подключен или подключается')
@@ -67,15 +72,22 @@ class WebSocketNotificationService {
         console.log('✅ WebSocket: Подключен')
         this.isConnecting = false
         this.reconnectAttempts = 0
-        
+        this.updateActivity()
+          
         // Запускаем периодический ping
         this.startPing()
+        
+        // Запускаем отслеживание неактивности
+        this.startIdleMonitoring()
       }
 
       this.ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data)
           console.log('WebSocket: Получено сообщение', message)
+          
+          // Обновляем время последней активности
+          this.updateActivity()
           
           this.handleMessage(message)
         } catch (error) {
@@ -93,11 +105,19 @@ class WebSocketNotificationService {
         console.log(`❌ WebSocket: Отключен (код: ${event.code}, причина: ${event.reason || 'не указана'})`)
         this.isConnecting = false
         this.stopPing()
+        this.stopIdleMonitoring()
+        
+        // Если закрытие по таймауту неактивности (код 1000 с нашей причиной)
+        if (event.code === 1000 && event.reason === 'idle_timeout') {
+          console.log('⏰ WebSocket: Закрыт по таймауту неактивности')
+          // Не переподключаемся сразу, ждем следующего события
+          return
+        }
         
         // Код 1000 означает нормальное закрытие, но если это не запрошено нами, переподключаемся
         // Код 1001 - сервер ушел
         // Код 1006 - соединение разорвано аномально
-        const shouldReconnect = this.shouldReconnect && (
+        const shouldReconnectNow = this.shouldReconnect && (
           event.code === 1000 ||  // Нормальное закрытие (но не запрошенное нами)
           event.code === 1001 ||  // Going Away
           event.code === 1006 ||  // Abnormal Closure
@@ -105,13 +125,13 @@ class WebSocketNotificationService {
         )
         
         // Автоматическое переподключение
-        if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (shouldReconnectNow && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++
           console.log(`WebSocket: Переподключение через ${this.reconnectDelay / 1000}с (попытка ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
           
           setTimeout(() => {
-            if (this.shouldReconnect) {
-              this.connect(token)
+            if (this.shouldReconnect && this.token) {
+              this.connect(this.token)
             }
           }, this.reconnectDelay)
         } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -137,10 +157,6 @@ class WebSocketNotificationService {
         this.handlePowerbankReturned(message.data)
         break
 
-      case 'powerbank_borrowed':
-        this.handlePowerbankBorrowed(message.data)
-        break
-
       case 'pong':
         // Ответ на ping
         break
@@ -153,8 +169,11 @@ class WebSocketNotificationService {
   /**
    * Обработка уведомления о возврате powerbank
    */
-  async handlePowerbankReturned(data) {
+  handlePowerbankReturned(data) {
     console.log('🔋 Powerbank возвращен:', data)
+    
+    // Обновляем активность при получении важного уведомления
+    this.updateActivity()
     
     // Показываем уведомление пользователю
     this.showNotification({
@@ -163,80 +182,6 @@ class WebSocketNotificationService {
       type: 'success',
       data: data
     })
-    
-    // Обновляем данные после возврата powerbank
-    try {
-      const authStore = useAuthStore()
-      const user = authStore.user
-      
-      // Формируем данные заказа для обновления
-      const orderData = {
-        station_box_id: data.station_box_id || data.box_id,
-        user_phone: data.user_phone || user?.phone_e164,
-        powerbank_serial: data.powerbank_serial || data.serial
-      }
-      
-      // Callback для обновления данных (в зависимости от того, откуда вызывается)
-      const loadUserOrders = async () => {
-        // Если есть метод для загрузки заказов пользователя в store
-        const stationsStore = await import('../stores/stations').then(m => m.useStationsStore())
-        if (stationsStore && typeof stationsStore.fetchFavoriteStations === 'function') {
-          await stationsStore.fetchFavoriteStations(user?.user_id)
-        }
-      }
-      
-      console.log('🔄 WebSocket: Обновляем данные после возврата powerbank...')
-      await refreshAllDataAfterReturn(orderData, user, loadUserOrders)
-      console.log('✅ WebSocket: Данные обновлены после возврата powerbank')
-      
-    } catch (error) {
-      console.error('❌ WebSocket: Ошибка обновления данных после возврата powerbank:', error)
-    }
-  }
-
-  /**
-   * Обработка уведомления о выдаче powerbank
-   */
-  async handlePowerbankBorrowed(data) {
-    console.log('🔋 Powerbank выдан:', data)
-    
-    // Показываем уведомление пользователю
-    this.showNotification({
-      title: data.title || 'Powerbank выдан!',
-      message: data.alert || 'Заказ успешно создан.',
-      type: 'success',
-      data: data
-    })
-    
-    // Обновляем данные после выдачи powerbank
-    try {
-      const authStore = useAuthStore()
-      const user = authStore.user
-      
-      // Получаем station_id из данных уведомления
-      const stationId = data.station_id
-      const userId = data.user_id || user?.user_id
-      
-      if (!stationId || !userId) {
-        console.warn('⚠️ WebSocket: Недостаточно данных для обновления (station_id или user_id отсутствуют)')
-        return
-      }
-      
-      // Callback для обновления избранных станций
-      const refreshFavorites = async () => {
-        const stationsStore = await import('../stores/stations').then(m => m.useStationsStore())
-        if (stationsStore && typeof stationsStore.fetchFavoriteStations === 'function') {
-          await stationsStore.fetchFavoriteStations(userId)
-        }
-      }
-      
-      console.log('🔄 WebSocket: Обновляем данные после выдачи powerbank...')
-      await refreshAllDataAfterBorrow(stationId, userId, user, refreshFavorites)
-      console.log('✅ WebSocket: Данные обновлены после выдачи powerbank')
-      
-    } catch (error) {
-      console.error('❌ WebSocket: Ошибка обновления данных после выдачи powerbank:', error)
-    }
   }
 
   /**
@@ -358,6 +303,66 @@ class WebSocketNotificationService {
   }
 
   /**
+   * Обновить время последней активности
+   */
+  updateActivity() {
+    this.lastActivityTime = Date.now()
+  }
+
+  /**
+   * Запустить отслеживание неактивности
+   */
+  startIdleMonitoring() {
+    this.stopIdleMonitoring()
+    
+    this.idleTimeout = setInterval(() => {
+      if (!this.lastActivityTime) return
+      
+      const idleTime = Date.now() - this.lastActivityTime
+      
+      if (idleTime >= this.idleTimeoutDuration) {
+        console.log(`⏰ WebSocket: Неактивность ${Math.round(idleTime / 1000)}с, закрываем соединение`)
+        this.closeByIdleTimeout()
+      }
+    }, 10000) // проверяем каждые 10 секунд
+  }
+
+  /**
+   * Остановить отслеживание неактивности
+   */
+  stopIdleMonitoring() {
+    if (this.idleTimeout) {
+      clearInterval(this.idleTimeout)
+      this.idleTimeout = null
+    }
+  }
+
+  /**
+   * Закрыть соединение по таймауту неактивности
+   */
+  closeByIdleTimeout() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.shouldReconnect = false // Временно отключаем переподключение
+      this.ws.close(1000, 'idle_timeout')
+      this.shouldReconnect = true // Включаем обратно
+      console.log('💤 WebSocket: Соединение закрыто из-за неактивности, будет переподключено при необходимости')
+    }
+  }
+
+  /**
+   * Переподключиться если не подключен
+   */
+  reconnectIfNeeded() {
+    if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+      if (this.token) {
+        console.log('🔄 WebSocket: Переподключение после неактивности')
+        this.reconnectAttempts = 0 // Сбрасываем счетчик попыток
+        this.connect(this.token)
+      }
+    }
+  }
+
+  /**
    * Запустить периодический ping
    */
   startPing() {
@@ -366,6 +371,7 @@ class WebSocketNotificationService {
     this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send('ping')
+        this.updateActivity() // Ping тоже считается активностью
       }
     }, 30000) // каждые 30 секунд
   }
@@ -386,12 +392,14 @@ class WebSocketNotificationService {
   disconnect() {
     this.shouldReconnect = false
     this.stopPing()
+    this.stopIdleMonitoring()
     
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
     
+    this.token = null
     console.log('WebSocket: Отключен вручную')
   }
 
