@@ -463,10 +463,6 @@ class BorrowPowerbankAPI:
             inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
             await inventory_handler.send_inventory_request(station_id)
             
-            from utils.centralized_logger import get_logger
-            logger = get_logger('borrow_powerbank_api')
-            logger.info(f"Запрос инвентаря отправлен перед операцией выдачи на станцию {station_id}")
-            
         except Exception as e:
             from utils.centralized_logger import get_logger
             logger = get_logger('borrow_powerbank_api')

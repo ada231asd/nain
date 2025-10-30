@@ -26,7 +26,6 @@ class UserPowerbankAPI:
     @jwt_middleware
     async def get_available_powerbanks(self, request: web.Request):
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил список доступных повербанков")
 
         try:
         # Получаем информацию о лимитах пользователя
@@ -88,8 +87,6 @@ class UserPowerbankAPI:
                             "status": powerbank.status,
                             "access_reason": access_reason
                         })
-
-            self.logger.info(f"Пользователь {user_id}: лимит={user_limit_display}, уже взято={current_borrowed}, доступно={len(available_powerbanks)}")
 
             return json_ok({
                 "available_powerbanks": available_powerbanks,
@@ -174,7 +171,6 @@ class UserPowerbankAPI:
         GET /api/user/orders
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил свои заказы")
 
         try:
             # Используем новый метод для получения расширенных данных
@@ -196,7 +192,6 @@ class UserPowerbankAPI:
         POST /api/user/powerbanks/borrow
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил выдачу повербанка")
 
         try:
             data = await request.json()
@@ -227,8 +222,6 @@ class UserPowerbankAPI:
             # ВЫБИРАЕМ ПЕРВЫЙ ДОСТУПНЫЙ ПОВЕРБАНК ИЗ СТАНЦИИ
             selected_powerbank = station_available_powerbanks[0]
             powerbank_id = selected_powerbank['powerbank_id']
-            
-            self.logger.info(f"Автоматически выбран повербанк {powerbank_id} для пользователя {user_id}")
 
             # Проверяем права доступа пользователя к станции
             from utils.org_unit_utils import can_user_access_station, log_access_denied_event
@@ -309,8 +302,6 @@ class UserPowerbankAPI:
             if borrow_result["success"]:
                 # Станция подтвердила выдачу
                 await Order.confirm_borrow(self.db_pool, order.order_id)
-                
-                self.logger.info(f"Пользователь {user_id} успешно взял повербанк {powerbank_id} со станции {station_id}")
 
                 # Получаем обновленную информацию о лимитах
                 updated_limit_info = await get_user_limit_info(self.db_pool, user_id)
@@ -342,7 +333,6 @@ class UserPowerbankAPI:
         POST /api/user/powerbanks/return
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил ручной возврат повербанка")
 
         try:
             data = await request.json()
@@ -380,7 +370,6 @@ class UserPowerbankAPI:
             result = await return_handler.start_manual_return_process(station_id, user_id, order_id)
 
             if result.get('success'):
-                self.logger.info(f"Пользователь {user_id} успешно вернул повербанк {order.powerbank_id} на станцию {station_id}")
                 return json_ok({
                     "message": result.get('message', 'Повербанк успешно возвращен'),
                     "order_id": order.order_id,
@@ -401,7 +390,6 @@ class UserPowerbankAPI:
         GET /api/user/stations
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил список станций")
 
         try:
             # Получаем только активные станции
@@ -433,14 +421,11 @@ class UserPowerbankAPI:
         GET /api/user/stations/availability
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил доступные слоты станций")
 
         try:
             # Получаем информацию о лимитах пользователя
             from utils.order_utils import get_user_limit_info
             limit_info = await get_user_limit_info(self.db_pool, user_id)
-            
-            self.logger.info(f"Информация о лимитах пользователя {user_id}: {limit_info}")
             
             # Определяем текущий лимит пользователя
             user_limit = limit_info.get('effective_limit')
@@ -449,7 +434,6 @@ class UserPowerbankAPI:
             
             # Для админов (role_exempt) лимиты не применяются
             if limit_type == 'role_exempt':
-                self.logger.info(f"Пользователь {user_id} - администратор, лимиты не применяются")
                 # Для админов не ограничиваем количество
                 user_limit_for_response = "unlimited"
                 available_by_limit_for_response = "unlimited"
@@ -529,7 +513,6 @@ class UserPowerbankAPI:
         GET /api/user/profile
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Пользователь {user_id} запросил свой профиль")
 
         try:
             user = await User.get_by_id(self.db_pool, user_id)
@@ -580,9 +563,6 @@ class UserPowerbankAPI:
             if not user_id:
                 return json_fail("Не указан ID пользователя", status=400)
 
-
-            self.logger.info(f"Пользователь {user_id} запросил возврат повербанка с поломкой: {error_type}")
-
             # Проверяем, что станция существует
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
@@ -631,15 +611,11 @@ class UserPowerbankAPI:
 
             # Валидируем ID типа ошибки
             try:
-                self.logger.info(f"Получен error_type_id: {error_type_id}, тип: {type(error_type_id)}")
                 error_type_id = int(error_type_id)
                 if error_type_id <= 0:
                     return json_fail("ID типа ошибки должен быть положительным числом", status=400)
-                self.logger.info(f"error_type_id после конвертации: {error_type_id}")
             except (ValueError, TypeError):
                 return json_fail("Неверный формат ID типа ошибки", status=400)
-
-            self.logger.info(f"Пользователь {user_phone} запросил возврат повербанка с ошибкой на станцию {station_box_id}: ID={error_type_id}")
 
             # Получаем station_id по box_id
             station = await Station.get_by_box_id(self.db_pool, station_box_id)

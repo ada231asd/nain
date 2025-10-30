@@ -52,8 +52,10 @@ NOTIFICATION_CONFIG = {
         "use_tls": True,
         "username": "v.bazarov142@mail.ru",
         "password": "aj3wqoCmWQbJFtRQdp8V",
-        "from_email": "v.bazarov142@mail.ru",
+        "from_email": "noreply@zarayd.ru",  # No-reply адрес для отправки
+        "from_name": "ЗАРЯД",  # Имя отправителя
         "app_name": "ЗАРЯД",
+        
         "max_retries": int(os.getenv("SMTP_MAX_RETRIES", "2"))  # Количество повторных попыток
     },
     "sms": {

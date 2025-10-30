@@ -293,9 +293,23 @@ class ReturnPowerbankHandler:
             user_obj = await User.get_by_id(self.db_pool, effective_user_id)
             user_phone = user_obj.phone_e164 if user_obj else None
             
+            # Отправляем WebSocket уведомление о возврате
+            try:
+                from utils.user_notification_manager import user_notification_manager
+                await user_notification_manager.send_powerbank_return_notification(
+                    user_id=effective_user_id,
+                    order_id=active_order.order_id,
+                    powerbank_serial=powerbank.serial_number,
+                    message='Спасибо за возврат! Заказ успешно закрыт.'
+                )
+                self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {effective_user_id}")
+            except Exception as e:
+                self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
+            
             result = {
                 "success": True,
-                "message": "Повербанк успешно возвращен с ошибкой",
+                "message": "Спасибо за возврат! Заказ закрыт.",
+                "notification": "Спасибо за возврат! Заказ успешно закрыт.",
                 "user_id": effective_user_id,
                 "user_phone": user_phone,
                 "powerbank_id": powerbank_id,
@@ -399,8 +413,6 @@ class ReturnPowerbankHandler:
             temperature = parsed_data.get('Temperature', 0)
             status = parsed_data.get('Status', 0)
             soh = parsed_data.get('SOH', 0)
-            
-            self.logger.info(f"Получен запрос на возврат повербанка: слот {slot}, terminal_id {terminal_id}")
 
             # Версия протокола (VSN) берём из пакета
             vsn = parsed_data.get('VSN', 1)

@@ -34,7 +34,6 @@ class InventoryManager:
             if connection.writer and not connection.writer.is_closing():
                 connection.writer.write(inventory_request)
                 await connection.writer.drain()
-                logger = get_logger('inventory_manager'); logger.info(f"Запрос инвентаря отправлен станции {station_id}")
                 
                 # Ждем ответ
                 await asyncio.sleep(0.5)
@@ -63,7 +62,6 @@ class InventoryManager:
                 return
             
             slots = inventory_data.get("Slots", [])
-            logger = get_logger('inventory_manager'); logger.info(f"Обрабатываем инвентарь станции {station_id}: {len(slots)} слотов")
             
             # Синхронизируем данные с базой
             await self._sync_inventory_with_database(station_id, slots)
@@ -96,8 +94,6 @@ class InventoryManager:
                 voltage = slot_data.get('Voltage')
                 temperature = slot_data.get('Temperature')
                 status = slot_data.get('Status', {})
-
-                logger.info(f"InventoryManager: Слот {slot_number}, TerminalID='{terminal_id}', Level={level}, Voltage={voltage}")
 
                 has_powerbank = status.get('InsertionSwitch', 0) == 1
 
@@ -141,7 +137,6 @@ class InventoryManager:
                                 target_by_slot[slot_number]['temperature']
                             )
                             changes_applied += 1
-                            logger.info(f"Обновлен слот {slot_number}: pb {existing.powerbank_id} -> {powerbank_id}, lvl={target_by_slot[slot_number]['level']}, volt={target_by_slot[slot_number]['voltage']}, temp={target_by_slot[slot_number]['temperature']}")
                     else:
                         await StationPowerbank.add_powerbank(
                             self.db_pool,
@@ -153,7 +148,6 @@ class InventoryManager:
                             target_by_slot[slot_number]['temperature']
                         )
                         changes_applied += 1
-                        logger.info(f"Добавлен слот {slot_number}: pb {powerbank_id}")
 
             removed = 0
             for slot_number, existing in current_by_slot.items():
@@ -161,9 +155,6 @@ class InventoryManager:
                     deleted = await StationPowerbank.remove_powerbank(self.db_pool, station_id, slot_number)
                     if deleted:
                         removed += 1
-                        logger.info(f"Удален слот {slot_number}: pb {existing.powerbank_id}")
-
-            logger.info(f"Синхронизация инвентаря {station_id}: изменений={changes_applied}, удалено={removed}, без изменений={unchanged}")
 
         except Exception as e:
             logger = get_logger('inventory_manager')

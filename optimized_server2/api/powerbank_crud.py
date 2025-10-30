@@ -473,11 +473,6 @@ class PowerbankCRUD(BaseAPI):
                         WHERE id = %s
                     """, (powerbank_id,))
                     
-                    # Логируем сброс ошибки
-                    from utils.centralized_logger import get_logger
-                    logger = get_logger('powerbank_crud')
-                    logger.info(f"Ошибка аккумулятора {powerbank['serial_number']} (ID: {powerbank_id}) сброшена, статус изменен на 'active'")
-                    
                     return web.json_response({
                         "success": True,
                         "message": "Ошибка повербанка успешно сброшена",

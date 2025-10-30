@@ -44,8 +44,6 @@ class QueryInventoryHandler:
             connection.writer.write(inventory_request_packet)
             await connection.writer.drain()
 
-            self.logger.info(f"Запрос инвентаря отправлен на станцию {station.box_id} (ID: {station_id})")
-
             return {
                 "success": True,
                 "message": f"Запрос инвентаря отправлен на станцию {station.box_id}."
@@ -131,12 +129,6 @@ class QueryInventoryHandler:
                 'inventory': inventory_data,
                 'last_update': get_moscow_time().isoformat()
             }
-            
-            
-            # Логируем получение ответа в файл
-            self.logger.info(f"Получен ответ на запрос инвентаря от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Слотов: {response.get('SlotsNum', 0)}, Свободно: {response.get('RemainNum', 0)}, "
-                           f"Повербанков: {len(response.get('Slots', []))}")
             
             # Проверяем и извлекаем несовместимые повербанки после обработки инвентаря
             await self._check_and_extract_incompatible_powerbanks(connection.station_id)

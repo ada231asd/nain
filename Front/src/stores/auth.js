@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { pythonAPI } from '../api/pythonApi';
+import websocketNotificationService from '../utils/websocketNotifications';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -35,6 +36,9 @@ export const useAuthStore = defineStore('auth', {
 
         // Загружаем лимиты пользователя сразу после логина
         await this.fetchUserLimits();
+
+        // Подключаемся к WebSocket для получения уведомлений
+        websocketNotificationService.connect(response.token);
 
         return response;
       } catch (error) {
@@ -96,6 +100,9 @@ export const useAuthStore = defineStore('auth', {
     },
     async logout() {
       try {
+        // Отключаемся от WebSocket
+        websocketNotificationService.disconnect();
+        
         // Для JWT токенов logout происходит на клиенте
         // Просто очищаем токен и пользователя
         this.token = null;
@@ -112,6 +119,8 @@ export const useAuthStore = defineStore('auth', {
         }
       } catch (error) {
         // В любом случае очищаем состояние
+        websocketNotificationService.disconnect();
+        
         this.token = null;
         this.user = null;
         this.userLimits = null;

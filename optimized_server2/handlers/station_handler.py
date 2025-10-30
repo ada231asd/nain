@@ -40,8 +40,6 @@ class StationHandler:
                 print(f"Пакет в hex: {data.hex()}")
                 return None
             
-            logger = get_logger('station_handler'); logger.info(f"Обработан Login пакет: BoxID={packet['BoxID']}")
-            
             # Получаем или создаем станцию
             station, secret_key = await Station.get_or_create(
                 self.db_pool, 
@@ -106,7 +104,6 @@ class StationHandler:
             # Автоматически запрашиваем ICCID после успешного логина
             await self._request_iccid_after_login(connection)
             
-            logger = get_logger('station_handler'); logger.info(f"Станция {station.box_id} успешно авторизована и обновлена в БД")
             return response
             
         except Exception as e:
@@ -181,7 +178,6 @@ class StationHandler:
             # Проверяем, есть ли уже ICCID у станции
             station = await Station.get_by_id(self.db_pool, connection.station_id)
             if station and station.iccid:
-                logger = get_logger('station_handler'); logger.info(f"ICCID уже есть у станции {connection.box_id}: {station.iccid}")
                 return
             
             # Создаем запрос ICCID

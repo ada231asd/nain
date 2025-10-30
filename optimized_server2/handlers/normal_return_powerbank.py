@@ -55,8 +55,6 @@ class NormalReturnPowerbankHandler:
         Обрабатывает вставку повербанка в станцию (обычный возврат без ошибки)
         """
         try:
-            self.logger.info(f"Обработка обычного возврата повербанка {powerbank_id} в станцию {station_id}, слот {slot_number}")
-            
             # Получаем повербанк
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
             if not powerbank:
@@ -89,23 +87,21 @@ class NormalReturnPowerbankHandler:
                     reason = await get_compatibility_reason(
                         self.db_pool, powerbank.org_unit_id, station.org_unit_id
                     )
-                    self.logger.info(f"Проверка совместимости групп пройдена: {reason}")
 
             # Проверяем, есть ли активный заказ на выдачу для этого повербанка
-            self.logger.info(f"Поиск активного заказа для повербанка с serial_number: {powerbank.serial_number}")
             active_order = await Order.get_active_borrow_order(self.db_pool, powerbank.serial_number)
             
             if active_order:
-                self.logger.info(f"Найден активный заказ {active_order.order_id} для повербанка {powerbank_id}, статус до обновления: {active_order.status}, completed_at: {active_order.completed_at}")
-                
                 # Закрываем активный заказ
                 await active_order.update_status(self.db_pool, 'return')
-                self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id}, новый статус: return, completed_at установлен")
                 
-                # Получаем user_id по телефону для логирования
+                # Получаем user_id по телефону
                 async with self.db_pool.acquire() as conn:
                     async with conn.cursor() as cur:
-                        await cur.execute("SELECT user_id FROM app_user WHERE phone_e164 = %s", (active_order.user_phone,))
+                        await cur.execute(
+                            "SELECT user_id FROM app_user WHERE phone_e164 = %s", 
+                            (active_order.user_phone,)
+                        )
                         user_result = await cur.fetchone()
                         user_id = user_result[0] if user_result else None
                 
@@ -118,6 +114,20 @@ class NormalReturnPowerbankHandler:
                     entity_id=active_order.order_id,
                     description='Обычный возврат повербанка'
                 )
+                
+                # Отправляем WebSocket уведомление о возврате
+                if user_id:
+                    try:
+                        from utils.user_notification_manager import user_notification_manager
+                        await user_notification_manager.send_powerbank_return_notification(
+                            user_id=user_id,
+                            order_id=active_order.order_id,
+                            powerbank_serial=powerbank.serial_number,
+                            message='Спасибо за возврат! Заказ успешно закрыт.'
+                        )
+                        self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
+                    except Exception as e:
+                        self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
             else:
                 self.logger.warning(f"НЕ НАЙДЕН активный заказ для повербанка {powerbank_id} (serial: {powerbank.serial_number}). Проверьте есть ли заказ со статусом 'borrow' и completed_at = NULL")
 
@@ -133,19 +143,17 @@ class NormalReturnPowerbankHandler:
             # При возврате повербанков становится больше → remain_num увеличивается
             new_remain_num = int(station.remain_num) + 1
             await station.update_remain_num(self.db_pool, new_remain_num)
-            self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
 
             result = {
                 "success": True,
-                "message": "Повербанк успешно возвращен",
+                "message": "Спасибо за возврат! Заказ закрыт.",
+                "notification": "Спасибо за возврат! Заказ успешно закрыт.",
                 "powerbank_id": powerbank_id,
                 "station_id": station_id,
                 "slot_number": slot_number,
                 "order_closed": active_order is not None,
                 "order_id": active_order.order_id if active_order else None
             }
-
-            self.logger.info(f"Обычный возврат повербанка {powerbank_id} успешно обработан")
             
             # Отправляем запрос инвентаризации в фоне без логирования
             asyncio.create_task(self._send_inventory_request_silently(station_id))
@@ -179,9 +187,6 @@ class NormalReturnPowerbankHandler:
             temperature = parsed_data.get('Temperature', 0)
             status = parsed_data.get('Status', 0)
             soh = parsed_data.get('SOH', 0)
-            
-            self.logger.info(f"Получен запрос на обычный возврат повербанка: слот {slot}, terminal_id {terminal_id}")
-
             
             vsn = parsed_data.get('VSN', 1)
             
@@ -267,10 +272,13 @@ class NormalReturnPowerbankHandler:
                 await active_order.update_status(self.db_pool, 'return')
                 self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id} (обнаружен в инвентаре)")
                 
-                # Получаем user_id по телефону для логирования
+                # Получаем user_id по телефону
                 async with self.db_pool.acquire() as conn:
                     async with conn.cursor() as cur:
-                        await cur.execute("SELECT user_id FROM app_user WHERE phone_e164 = %s", (active_order.user_phone,))
+                        await cur.execute(
+                            "SELECT user_id FROM app_user WHERE phone_e164 = %s", 
+                            (active_order.user_phone,)
+                        )
                         user_result = await cur.fetchone()
                         user_id = user_result[0] if user_result else None
                 
@@ -284,9 +292,24 @@ class NormalReturnPowerbankHandler:
                     description='Возврат повербанка (обнаружен в инвентаре)'
                 )
                 
+                # Отправляем WebSocket уведомление о возврате
+                if user_id:
+                    try:
+                        from utils.user_notification_manager import user_notification_manager
+                        await user_notification_manager.send_powerbank_return_notification(
+                            user_id=user_id,
+                            order_id=active_order.order_id,
+                            powerbank_serial=powerbank.serial_number,
+                            message='Спасибо за возврат! Заказ успешно закрыт.'
+                        )
+                        self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
+                    except Exception as e:
+                        self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
+                
                 return {
                     "success": True,
-                    "message": "Заказ закрыт (повербанк обнаружен в инвентаре)",
+                    "message": "Спасибо за возврат! Заказ закрыт.",
+                    "notification": "Спасибо за возврат! Заказ успешно закрыт.",
                     "order_id": active_order.order_id,
                     "user_phone": active_order.user_phone
                 }

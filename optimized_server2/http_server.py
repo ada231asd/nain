@@ -35,6 +35,9 @@ from api.invitation_storage_api import InvitationStorageAPI
 from api.soft_delete_api import SoftDeleteAPI
 from api.hard_delete_api import HardDeleteAPI
 from middleware.auth_middleware import AuthMiddleware
+from utils.user_notification_manager import user_notification_manager
+import jwt
+from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM
 
 
 
@@ -200,6 +203,9 @@ class HTTPServer:
         # Регистрируем маршруты
         self._setup_routes(app, connection_manager)
         
+        # Сохраняем notification manager в app для доступа из роутов
+        app['user_notification_manager'] = user_notification_manager
+        
         return app
     
     def _setup_routes(self, app: Application, connection_manager):
@@ -312,7 +318,65 @@ class HTTPServer:
         os.makedirs(uploads_path, exist_ok=True)
         app.router.add_static('/logos/', uploads_path, show_index=False)
         
+        # WebSocket для уведомлений пользователей
+        app.router.add_get('/api/ws/notifications', self.handle_user_notifications_ws)
         
+    
+    async def handle_user_notifications_ws(self, request: web.Request):
+        """Обработчик WebSocket для уведомлений пользователей"""
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        
+        user_id = None
+        logger = get_logger('websocket')
+        
+        try:
+            # Получаем токен из query параметров
+            token = request.query.get('token')
+            if not token:
+                await ws.send_json({'error': 'Missing token'})
+                await ws.close()
+                return ws
+            
+            # Проверяем токен
+            try:
+                payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+                user_id = payload.get('user_id')
+                if not user_id:
+                    await ws.send_json({'error': 'Invalid token'})
+                    await ws.close()
+                    return ws
+            except jwt.ExpiredSignatureError:
+                await ws.send_json({'error': 'Token expired'})
+                await ws.close()
+                return ws
+            except jwt.InvalidTokenError:
+                await ws.send_json({'error': 'Invalid token'})
+                await ws.close()
+                return ws
+            
+            # Регистрируем пользователя
+            await user_notification_manager.register_user(user_id, ws)
+            await ws.send_json({
+                'type': 'connected',
+                'message': 'WebSocket connected successfully'
+            })
+            
+            # Слушаем сообщения от клиента
+            async for msg in ws:
+                if msg.type == web.WSMsgType.TEXT:
+                    if msg.data == 'ping':
+                        await ws.send_json({'type': 'pong'})
+                elif msg.type == web.WSMsgType.ERROR:
+                    logger.error(f'WebSocket error for user {user_id}: {ws.exception()}')
+        
+        except Exception as e:
+            logger.error(f'WebSocket error for user {user_id}: {e}')
+        finally:
+            if user_id:
+                user_notification_manager.unregister_user(user_id)
+        
+        return ws
     
     async def start_server(self):
         """Запускает HTTP сервер"""

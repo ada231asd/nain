@@ -165,7 +165,6 @@ class EjectPowerbankHandler:
                 return
             
             station_org_unit_id = station_info['org_unit_id']
-            self.logger.info(f"Проверяем совместимость повербанков в станции {station_id} (группа: {station_org_unit_id})")
             
             for sp in station_powerbanks:
                 # Получаем информацию о повербанке

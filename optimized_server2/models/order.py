@@ -629,22 +629,16 @@ class Order:
     
     async def update_status(self, db_pool, new_status: str) -> bool:
         """Обновляет статус заказа. Для 'return' устанавливает completed_at."""
-        from utils.centralized_logger import get_logger
-        logger = get_logger('order_model')
-        
         current_time = get_moscow_time()
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 if new_status == 'return':
-                    logger.info(f"Обновление заказа {self.order_id}: статус -> 'return', completed_at -> {current_time}")
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = %s WHERE id = %s",
                         (new_status, current_time, self.order_id)
                     )
                     self.completed_at = current_time
-                    logger.info(f"Заказ {self.order_id} обновлен в БД: status='{new_status}', completed_at={current_time}")
                 else:  # Для 'borrow' и других статусов
-                    logger.info(f"Обновление заказа {self.order_id}: статус -> '{new_status}', completed_at -> NULL")
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s",
                         (new_status, self.order_id)
@@ -652,7 +646,6 @@ class Order:
                     self.completed_at = None
                 await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
                 self.status = new_status
-                logger.info(f"Заказ {self.order_id}: транзакция завершена, новый статус сохранен в БД")
                 return True
     
     @classmethod
@@ -755,11 +748,33 @@ class Order:
     
     @classmethod
     async def get_extended_by_id(cls, db_pool, order_id: int) -> Optional[Dict[str, Any]]:
-        """Получить расширенные данные заказа по ID из представления v_orders_extended"""
+        """Получить расширенные данные заказа по ID напрямую из таблицы orders с JOIN"""
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute("""
-                    SELECT * FROM v_orders_extended WHERE id = %s
+                    SELECT 
+                        o.id,
+                        pb.serial_number AS powerbank_serial,
+                        o.status,
+                        o.timestamp,
+                        o.completed_at,
+                        COALESCE(uf.nik, s.box_id) AS station_display_name,
+                        s.box_id AS station_box_id,
+                        ou.name AS org_unit_name,
+                        ou.adress AS org_unit_address,
+                        u.fio AS user_fio,
+                        u.phone_e164 AS user_phone,
+                        o.user_id,
+                        o.station_id,
+                        o.org_unit_id,
+                        o.powerbank_id
+                    FROM orders o
+                    LEFT JOIN station s ON o.station_id = s.station_id
+                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
+                    LEFT JOIN app_user u ON o.user_id = u.user_id
+                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
+                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
+                    WHERE o.id = %s
                 """, (order_id,))
                 
                 result = await cur.fetchone()
@@ -767,13 +782,34 @@ class Order:
     
     @classmethod
     async def get_extended_by_user_id(cls, db_pool, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
-        """Получить расширенные данные заказов пользователя из представления v_orders_extended"""
+        """Получить расширенные данные заказов пользователя напрямую из таблицы orders с JOIN"""
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute("""
-                    SELECT * FROM v_orders_extended 
-                    WHERE user_id = %s 
-                    ORDER BY timestamp DESC 
+                    SELECT 
+                        o.id,
+                        pb.serial_number AS powerbank_serial,
+                        o.status,
+                        o.timestamp,
+                        o.completed_at,
+                        COALESCE(uf.nik, s.box_id) AS station_display_name,
+                        s.box_id AS station_box_id,
+                        ou.name AS org_unit_name,
+                        ou.adress AS org_unit_address,
+                        u.fio AS user_fio,
+                        u.phone_e164 AS user_phone,
+                        o.user_id,
+                        o.station_id,
+                        o.org_unit_id,
+                        o.powerbank_id
+                    FROM orders o
+                    LEFT JOIN station s ON o.station_id = s.station_id
+                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
+                    LEFT JOIN app_user u ON o.user_id = u.user_id
+                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
+                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
+                    WHERE o.user_id = %s
+                    ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
                 """, (user_id, limit, offset))
                 
@@ -782,13 +818,34 @@ class Order:
     
     @classmethod
     async def get_extended_by_station_id(cls, db_pool, station_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
-        """Получить расширенные данные заказов станции из представления v_orders_extended"""
+        """Получить расширенные данные заказов станции напрямую из таблицы orders с JOIN"""
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute("""
-                    SELECT * FROM v_orders_extended 
-                    WHERE station_id = %s 
-                    ORDER BY timestamp DESC 
+                    SELECT 
+                        o.id,
+                        pb.serial_number AS powerbank_serial,
+                        o.status,
+                        o.timestamp,
+                        o.completed_at,
+                        COALESCE(uf.nik, s.box_id) AS station_display_name,
+                        s.box_id AS station_box_id,
+                        ou.name AS org_unit_name,
+                        ou.adress AS org_unit_address,
+                        u.fio AS user_fio,
+                        u.phone_e164 AS user_phone,
+                        o.user_id,
+                        o.station_id,
+                        o.org_unit_id,
+                        o.powerbank_id
+                    FROM orders o
+                    LEFT JOIN station s ON o.station_id = s.station_id
+                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
+                    LEFT JOIN app_user u ON o.user_id = u.user_id
+                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
+                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
+                    WHERE o.station_id = %s
+                    ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
                 """, (station_id, limit, offset))
                 
@@ -797,13 +854,34 @@ class Order:
     
     @classmethod
     async def get_extended_by_status(cls, db_pool, status: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
-        """Получить расширенные данные заказов по статусу из представления v_orders_extended"""
+        """Получить расширенные данные заказов по статусу напрямую из таблицы orders с JOIN"""
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute("""
-                    SELECT * FROM v_orders_extended 
-                    WHERE status = %s 
-                    ORDER BY timestamp DESC 
+                    SELECT 
+                        o.id,
+                        pb.serial_number AS powerbank_serial,
+                        o.status,
+                        o.timestamp,
+                        o.completed_at,
+                        COALESCE(uf.nik, s.box_id) AS station_display_name,
+                        s.box_id AS station_box_id,
+                        ou.name AS org_unit_name,
+                        ou.adress AS org_unit_address,
+                        u.fio AS user_fio,
+                        u.phone_e164 AS user_phone,
+                        o.user_id,
+                        o.station_id,
+                        o.org_unit_id,
+                        o.powerbank_id
+                    FROM orders o
+                    LEFT JOIN station s ON o.station_id = s.station_id
+                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
+                    LEFT JOIN app_user u ON o.user_id = u.user_id
+                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
+                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
+                    WHERE o.status = %s
+                    ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
                 """, (status, limit, offset))
                 
@@ -812,32 +890,32 @@ class Order:
     
     @classmethod
     async def search_extended_orders(cls, db_pool, filters: Dict[str, Any], limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """Поиск заказов с расширенными данными по фильтрам"""
+        """Поиск заказов с расширенными данными по фильтрам напрямую из таблицы orders с JOIN"""
         where_conditions = []
         params = []
         
         if 'status' in filters and filters['status']:
-            where_conditions.append("status = %s")
+            where_conditions.append("o.status = %s")
             params.append(filters['status'])
         
         if 'user_id' in filters and filters['user_id']:
-            where_conditions.append("user_id = %s")
+            where_conditions.append("o.user_id = %s")
             params.append(int(filters['user_id']))
         
         if 'station_id' in filters and filters['station_id']:
-            where_conditions.append("station_id = %s")
+            where_conditions.append("o.station_id = %s")
             params.append(int(filters['station_id']))
         
         if 'org_unit_id' in filters and filters['org_unit_id']:
-            where_conditions.append("org_unit_id = %s")
+            where_conditions.append("o.org_unit_id = %s")
             params.append(int(filters['org_unit_id']))
         
         if 'date_from' in filters and filters['date_from']:
-            where_conditions.append("timestamp >= %s")
+            where_conditions.append("o.timestamp >= %s")
             params.append(filters['date_from'])
         
         if 'date_to' in filters and filters['date_to']:
-            where_conditions.append("timestamp <= %s")
+            where_conditions.append("o.timestamp <= %s")
             params.append(filters['date_to'])
         
         where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
@@ -845,15 +923,36 @@ class Order:
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 # Получаем общее количество
-                count_query = f"SELECT COUNT(*) as total FROM v_orders_extended {where_clause}"
+                count_query = f"SELECT COUNT(*) as total FROM orders o {where_clause}"
                 await cur.execute(count_query, params)
                 total = (await cur.fetchone())['total']
                 
-                # Получаем данные
+                # Получаем данные с JOIN
                 query = f"""
-                    SELECT * FROM v_orders_extended
+                    SELECT 
+                        o.id,
+                        pb.serial_number AS powerbank_serial,
+                        o.status,
+                        o.timestamp,
+                        o.completed_at,
+                        COALESCE(uf.nik, s.box_id) AS station_display_name,
+                        s.box_id AS station_box_id,
+                        ou.name AS org_unit_name,
+                        ou.adress AS org_unit_address,
+                        u.fio AS user_fio,
+                        u.phone_e164 AS user_phone,
+                        o.user_id,
+                        o.station_id,
+                        o.org_unit_id,
+                        o.powerbank_id
+                    FROM orders o
+                    LEFT JOIN station s ON o.station_id = s.station_id
+                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
+                    LEFT JOIN app_user u ON o.user_id = u.user_id
+                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
+                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
                     {where_clause}
-                    ORDER BY timestamp DESC
+                    ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
                 """
                 await cur.execute(query, params + [limit, offset])
