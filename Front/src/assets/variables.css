@@ -257,6 +257,32 @@
   outline: none;
 }
 
+/* iOS specific fixes */
+/* Prevent iOS zoom on input focus and double-tap zoom */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="url"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* Prevent double-tap zoom on buttons and other clickable elements */
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
 /* Print styles */
 @media print {
   * {

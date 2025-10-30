@@ -82,14 +82,36 @@ input, textarea, select, button {
   line-height: inherit;
 }
 
+/* Fix iOS zoom on input focus - ensure minimum 16px font size */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+input[type="url"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+textarea,
+select {
+  font-size: 16px !important;
+}
+
 /* Mobile-first responsive design */
 @media (max-width: 768px) {
+  /* Keep html font-size at 16px to prevent iOS zoom on inputs */
   html {
-    font-size: 14px;
+    font-size: 16px;
   }
   
   .container {
     padding: 0 16px;
+  }
+  
+  /* Adjust body text if needed, but keep inputs at 16px */
+  body {
+    font-size: 14px;
   }
 }
 
