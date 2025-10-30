@@ -209,6 +209,7 @@ const emit = defineEmits([
   'add-org-unit',
   'edit',
   'delete',
+  'restore',
   'view-stations',
   'view-details',
   'org-unit-clicked',
@@ -329,53 +330,17 @@ const visiblePages = computed(() => {
 const handleDelete = async (orgUnit) => {
   const orgUnitId = orgUnit.org_unit_id
   
-  if (showDeletedOrgUnits.value) {
-    // Жёсткое удаление для удалённых групп
-    const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить группу "${orgUnit.name}"?\n\nЭто действие необратимо!`
-    if (!confirm(confirmMessage)) return
-    
-    try {
-      await pythonAPI.hardDelete('org_unit', orgUnitId)
-      alert('Группа удалена навсегда')
-      await adminStore.fetchOrgUnits()
-      emit('org-unit-deleted', orgUnitId)
-    } catch (error) {
-      console.error('Ошибка при жёстком удалении группы:', error)
-      alert('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
-    }
-  } else {
-    // Мягкое удаление для обычных групп
-    const confirmMessage = `Вы уверены, что хотите удалить группу "${orgUnit.name}"?`
-    if (!confirm(confirmMessage)) return
-    
-    try {
-      await pythonAPI.softDelete('org_unit', orgUnitId)
-      alert('Группа успешно удалена')
-      await adminStore.fetchOrgUnits()
-      emit('org-unit-deleted', orgUnitId)
-    } catch (error) {
-      console.error('Ошибка при мягком удалении группы:', error)
-      alert('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
-    }
-  }
+  // Просто эмитим событие с флагом типа удаления
+  // Сам запрос на удаление будет делаться в AdminPanel
+  emit('delete', { orgUnitId, hardDelete: showDeletedOrgUnits.value, orgUnitName: orgUnit.name })
 }
 
 // Восстановление удалённой группы
 const handleRestore = async (orgUnit) => {
   const orgUnitId = orgUnit.org_unit_id
   
-  const confirmMessage = `Вы уверены, что хотите восстановить группу "${orgUnit.name}"?`
-  if (!confirm(confirmMessage)) return
-  
-  try {
-    await pythonAPI.restoreDeleted('org_unit', orgUnitId)
-    alert('Группа успешно восстановлена')
-    await adminStore.fetchOrgUnits()
-    emit('org-unit-restored', orgUnitId)
-  } catch (error) {
-    console.error('Ошибка при восстановлении группы:', error)
-    alert('Ошибка при восстановлении группы: ' + (error.message || 'Неизвестная ошибка'))
-  }
+  // Просто эмитим событие, запрос будет делаться в AdminPanel
+  emit('restore', { orgUnitId, orgUnitName: orgUnit.name })
 }
 
 // Открытие модального окна

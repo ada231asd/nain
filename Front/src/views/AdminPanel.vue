@@ -24,6 +24,7 @@
                 @block-user="blockUser"
                 @unblock-user="unblockUser"
                 @delete-user="deleteUser"
+                @restore-user="restoreUser"
                 @bulk-approve="bulkApproveUsers"
                 @bulk-block="bulkBlockUsers"
                 @bulk-delete="bulkDeleteUsers"
@@ -38,7 +39,8 @@
                 @add-station="() => { showAddStationModal = true }"
                 @view-powerbanks="openPowerbanks"
                 @restart-station="restartStation"
-                @delete-station="(station) => deleteStation(station.station_id || station.id)"
+                @delete-station="deleteStation"
+                @restore-station="restoreStation"
                 @station-updated="refreshAfterAction"
               />
             </div>
@@ -58,6 +60,7 @@
                 @add-org-unit="() => { editingOrgUnit = null; showAddOrgUnitModal = true }"
                 @edit="editOrgUnit"
                 @delete="deleteOrgUnit"
+                @restore="restoreOrgUnit"
                 @view-stations="viewOrgUnitStations"
                 @view-details="viewOrgUnitDetails"
               />
@@ -241,6 +244,7 @@ import { useAdminStore } from '../stores/admin'
 import { useAuthStore } from '../stores/auth'
 import { pythonAPI } from '../api/pythonApi'
 import { formatMoscowTime } from '../utils/timeUtils'
+import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../utils/notifications'
 
 
 
@@ -346,13 +350,28 @@ const formatTime = (timestamp) => formatMoscowTime(timestamp, {
 })
 
 // User management methods
-const deleteUser = async (userId) => {
-  if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+const deleteUser = async (deleteData) => {
+  // deleteData может быть объектом { userId, hardDelete, userName } или просто userId (для обратной совместимости)
+  const userId = typeof deleteData === 'object' ? deleteData.userId : deleteData
+  const hardDelete = typeof deleteData === 'object' ? deleteData.hardDelete : false
+  const userName = typeof deleteData === 'object' ? deleteData.userName : ''
+  
+  const confirmMessage = hardDelete 
+    ? `Вы уверены, что хотите НАВСЕГДА удалить пользователя "${userName}"?\n\nЭто действие необратимо!`
+    : `Вы уверены, что хотите удалить пользователя "${userName || 'этого'}"?`
+    
+  if (await showConfirm(confirmMessage, hardDelete ? 'Удалить навсегда' : 'Удалить', 'Отмена')) {
     try {
-      await adminStore.deleteUser(userId)
+      await adminStore.deleteUser(userId, hardDelete)
+      if (hardDelete) {
+        showSuccess('Пользователь удалён навсегда')
+      } else {
+        showSuccess('Пользователь успешно удалён')
+      }
       await refreshAfterAction()
     } catch (error) {
       console.error('Ошибка при удалении пользователя:', error)
+      showError('Ошибка при удалении пользователя: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }
@@ -387,6 +406,24 @@ const unblockUser = async (user) => {
   }
 }
 
+const restoreUser = async (restoreData) => {
+  // restoreData = { userId, userName }
+  const userId = restoreData.userId
+  const userName = restoreData.userName || ''
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить пользователя "${userName}"?`
+  if (await showConfirm(confirmMessage, 'Восстановить', 'Отмена')) {
+    try {
+      await adminStore.restoreUser(userId)
+      showSuccess('Пользователь успешно восстановлен')
+      await refreshAfterAction()
+    } catch (error) {
+      console.error('Ошибка при восстановлении пользователя:', error)
+      showError('Ошибка при восстановлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  }
+}
+
 // Bulk user operations
 const bulkApproveUsers = async (userIds) => {
   try {
@@ -396,7 +433,7 @@ const bulkApproveUsers = async (userIds) => {
     await refreshAfterAction()
   } catch (error) {
     console.error('Ошибка при массовом одобрении пользователей:', error)
-    alert('Ошибка при одобрении пользователей: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при одобрении пользователей: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -408,7 +445,7 @@ const bulkBlockUsers = async (userIds) => {
     await refreshAfterAction()
   } catch (error) {
     console.error('Ошибка при массовой блокировке пользователей:', error)
-    alert('Ошибка при блокировке пользователей: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при блокировке пользователей: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -420,18 +457,52 @@ const bulkDeleteUsers = async (userIds) => {
     await refreshAfterAction()
   } catch (error) {
     console.error('Ошибка при массовом удалении пользователей:', error)
-    alert('Ошибка при удалении пользователей: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при удалении пользователей: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
-const deleteStation = async (stationId) => {
-  if (confirm('Вы уверены, что хотите удалить эту станцию?')) {
+const deleteStation = async (deleteData) => {
+  // deleteData может быть объектом { stationId, hardDelete, stationName } или просто stationId (для обратной совместимости)
+  const stationId = typeof deleteData === 'object' ? deleteData.stationId : deleteData
+  const hardDelete = typeof deleteData === 'object' ? deleteData.hardDelete : false
+  const stationName = typeof deleteData === 'object' ? deleteData.stationName : ''
+  
+  const confirmMessage = hardDelete 
+    ? `Вы уверены, что хотите НАВСЕГДА удалить станцию "${stationName}"?\n\nЭто действие необратимо!`
+    : `Вы уверены, что хотите удалить станцию "${stationName || 'эту'}"?`
+    
+  if (await showConfirm(confirmMessage, hardDelete ? 'Удалить навсегда' : 'Удалить', 'Отмена')) {
     try {
-      await adminStore.deleteStation(stationId)
+      await adminStore.deleteStation(stationId, hardDelete)
+      if (hardDelete) {
+        showSuccess('Станция удалена навсегда')
+      } else {
+        showSuccess('Станция успешно удалена')
+      }
       // Автоматическое обновление данных
       await refreshAfterAction()
     } catch (error) {
+      console.error('Ошибка при удалении станции:', error)
+      showError('Ошибка при удалении станции: ' + (error.message || 'Неизвестная ошибка'))
       // Ошибки синхронизации с сервером обрабатываются в сторе; UI остаётся консистентным
+    }
+  }
+}
+
+const restoreStation = async (restoreData) => {
+  // restoreData = { stationId, stationName }
+  const stationId = restoreData.stationId
+  const stationName = restoreData.stationName || ''
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить станцию "${stationName}"?`
+  if (await showConfirm(confirmMessage, 'Восстановить', 'Отмена')) {
+    try {
+      await adminStore.restoreStation(stationId)
+      showSuccess('Станция успешно восстановлена')
+      await refreshAfterAction()
+    } catch (error) {
+      console.error('Ошибка при восстановлении станции:', error)
+      showError('Ошибка при восстановлении станции: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }
@@ -514,7 +585,7 @@ const handleUserUpdated = async (user) => {
     await refreshAfterAction()
   } catch (error) {
     console.error('Ошибка при обновлении пользователя:', error)
-    alert('Ошибка при обновлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при обновлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -623,18 +694,18 @@ const closePowerbanks = () => {
 const restartStation = async (station) => {
   const stationId = station.station_id || station.id
   if (!stationId) {
-    alert('Не удалось определить ID станции')
+    showError('Не удалось определить ID станции')
     return
   }
 
   const confirmMessage = `Вы уверены, что хотите перезагрузить станцию "${station.box_id || 'N/A'}"?`
-  if (!confirm(confirmMessage)) return
+  if (!await showConfirm(confirmMessage, 'Перезагрузить', 'Отмена')) return
 
   try {
     const result = await pythonAPI.restartCabinet({ station_id: stationId })
     
     if (result && result.message) {
-      alert(`Команда перезагрузки отправлена: ${result.message}`)
+      showSuccess(`Команда перезагрузки отправлена: ${result.message}`)
       if (result.station_box_id) {
         console.log('Station Box ID:', result.station_box_id)
       }
@@ -642,11 +713,11 @@ const restartStation = async (station) => {
         console.log('Packet HEX:', result.packet_hex)
       }
     } else {
-      alert('Команда перезагрузки отправлена')
+      showSuccess('Команда перезагрузки отправлена')
     }
   } catch (error) {
     console.error('Ошибка при перезагрузке станции:', error)
-    alert('Ошибка при перезагрузке станции: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при перезагрузке станции: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -663,7 +734,7 @@ const borrowPowerbank = async (powerbank) => {
     const userId = authStore.user?.id || authStore.user?.user_id
 
     if (!userId) {
-      alert('Не удалось определить пользователя')
+      showError('Не удалось определить пользователя')
       return
     }
 
@@ -698,14 +769,14 @@ const forceEjectPowerbank = async (powerbank) => {
   if (!selectedStation.value || isBorrowing.value) return
 
   const confirmMessage = `Вы уверены, что хотите принудительно извлечь повербанк из слота ${powerbank.slot_number}?`
-  if (!confirm(confirmMessage)) return
+  if (!await showConfirm(confirmMessage, 'Извлечь', 'Отмена')) return
 
   isBorrowing.value = true
   try {
     const userId = authStore.user?.id || authStore.user?.user_id
 
     if (!userId) {
-      alert('Не удалось определить пользователя')
+      showError('Не удалось определить пользователя')
       return
     }
 
@@ -776,12 +847,47 @@ const editOrgUnit = (orgUnit) => {
   showOrgUnitDetailsModal.value = true
 }
 
-const deleteOrgUnit = async (orgUnitId) => {
-  if (confirm('Вы уверены, что хотите удалить эту группу?')) {
+const deleteOrgUnit = async (deleteData) => {
+  // deleteData может быть объектом { orgUnitId, hardDelete, orgUnitName } или просто orgUnitId (для обратной совместимости)
+  const orgUnitId = typeof deleteData === 'object' ? deleteData.orgUnitId : deleteData
+  const hardDelete = typeof deleteData === 'object' ? deleteData.hardDelete : false
+  const orgUnitName = typeof deleteData === 'object' ? deleteData.orgUnitName : ''
+  
+  const confirmMessage = hardDelete 
+    ? `Вы уверены, что хотите НАВСЕГДА удалить группу "${orgUnitName}"?\n\nЭто действие необратимо!`
+    : `Вы уверены, что хотите удалить группу "${orgUnitName || 'эту'}"?`
+    
+  if (confirm(confirmMessage)) {
     try {
-      await adminStore.deleteOrgUnit(orgUnitId)
+      if (hardDelete) {
+        await pythonAPI.hardDelete('org_unit', orgUnitId)
+        alert('Группа удалена навсегда')
+      } else {
+        await pythonAPI.softDelete('org_unit', orgUnitId)
+        alert('Группа успешно удалена')
+      }
+      await adminStore.fetchOrgUnits()
     } catch (error) {
-      // Error handled silently
+      console.error('Ошибка при удалении группы:', error)
+      alert('Ошибка при удалении группы: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  }
+}
+
+const restoreOrgUnit = async (restoreData) => {
+  // restoreData = { orgUnitId, orgUnitName }
+  const orgUnitId = restoreData.orgUnitId
+  const orgUnitName = restoreData.orgUnitName || ''
+  
+  const confirmMessage = `Вы уверены, что хотите восстановить группу "${orgUnitName}"?`
+  if (confirm(confirmMessage)) {
+    try {
+      await pythonAPI.restoreDeleted('org_unit', orgUnitId)
+      alert('Группа успешно восстановлена')
+      await adminStore.fetchOrgUnits()
+    } catch (error) {
+      console.error('Ошибка при восстановлении группы:', error)
+      alert('Ошибка при восстановлении группы: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 }

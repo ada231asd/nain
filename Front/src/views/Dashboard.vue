@@ -191,6 +191,7 @@ import ErrorReportModal from '../components/ErrorReportModal.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow } from '../utils/dataSync'
 import { formatMoscowTime } from '../utils/timeUtils'
+import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../utils/notifications'
 
 const router = useRouter()
 const route = useRoute()
@@ -482,10 +483,10 @@ const handleTakeBattery = async (station) => {
       console.log('✅ Данные обновлены')
       
       // Показываем успешное сообщение
-      alert(`✅ ${response.message}`)
+      showSuccess(response.message)
     } else {
       console.error('❌ Сервер вернул ошибку:', response)
-      alert('❌ Ошибка: ' + (response?.error || 'Неизвестная ошибка сервера'))
+      showError('Ошибка: ' + (response?.error || 'Неизвестная ошибка сервера'))
     }
     
   } catch (error) {
@@ -501,7 +502,7 @@ const handleTakeBattery = async (station) => {
     
     // Специальная обработка ошибок доступа
     if (error.status === 403 || (readableMessage && readableMessage.includes('недоступна вашему подразделению'))) {
-      alert('❌ Доступ запрещен: ' + (readableMessage || 'Эта станция недоступна вашему подразделению'))
+      showError('Доступ запрещен: ' + (readableMessage || 'Эта станция недоступна вашему подразделению'))
       return
     }
 
@@ -519,7 +520,7 @@ const handleTakeBattery = async (station) => {
         if (confirmed) {
           await refreshAllDataAfterBorrowLocal(stationId, userId)
           didRefresh = true
-          alert('✅ Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
+          showSuccess('Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
           return
         }
       } catch (confirmErr) {
@@ -528,9 +529,9 @@ const handleTakeBattery = async (station) => {
     }
 
     if (error.status === 400 && readableMessage) {
-      alert('❌ Ошибка: ' + readableMessage)
+      showError('Ошибка: ' + readableMessage)
     } else {
-      alert('❌ Ошибка при запросе аккумулятора: ' + (readableMessage || 'Неизвестная ошибка'))
+      showError('Ошибка при запросе аккумулятора: ' + (readableMessage || 'Неизвестная ошибка'))
     }
   } finally {
     // Даже если сервер вернул 4xx/5xx, синхронизируем данные — станция могла
@@ -577,13 +578,13 @@ const handleReturnWithError = async (station) => {
     
     if (!stationBoxId) {
       console.error('Отсутствует box_id станции:', station)
-      alert(`Ошибка: У станции отсутствует box_id.\nID станции: ${station.station_id || station.id}`)
+      showError(`Ошибка: У станции отсутствует box_id.\nID станции: ${station.station_id || station.id}`)
       return
     }
     
     if (!userPhone) {
       console.error('Отсутствует телефон пользователя')
-      alert('Ошибка: Не удалось получить телефон пользователя')
+      showError('Ошибка: Не удалось получить телефон пользователя')
       return
     }
     
@@ -603,7 +604,7 @@ const handleReturnWithError = async (station) => {
     
   } catch (error) {
     console.error('Ошибка при возврате с ошибкой:', error)
-    alert('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -620,7 +621,7 @@ const handleErrorReportSubmit = async (errorReport) => {
     // Запрос уже выполнен в ErrorReportModal через pythonAPI.returnError()
     // Здесь мы только обрабатываем результат
     if (errorReport.return_request_success) {
-      alert('✅ Возврат с ошибкой успешно обработан!\n' + (errorReport.return_message || ''))
+      showSuccess('Возврат с ошибкой успешно обработан!\n' + (errorReport.return_message || ''))
       
       // Обновляем данные по станции/пользователю
       try {
@@ -636,13 +637,13 @@ const handleErrorReportSubmit = async (errorReport) => {
       closeErrorReportModal()
     } else {
       // Произошла ошибка при возврате
-      alert('❌ Ошибка при возврате с ошибкой: ' + (errorReport.return_error || 'Неизвестная ошибка'))
+      showError('Ошибка при возврате с ошибкой: ' + (errorReport.return_error || 'Неизвестная ошибка'))
       closeErrorReportModal()
     }
     
   } catch (error) {
     console.error('Ошибка при обработке отчета об ошибке:', error)
-    alert('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка: ' + (error.message || 'Неизвестная ошибка'))
     closeErrorReportModal()
   }
 }
@@ -660,7 +661,7 @@ const handleNicknameChanged = async ({ station, nickname, action }) => {
     
     if (!userId || !stationId || !favoriteId) {
       console.error('Недостаточно данных для изменения nickname:', { userId, stationId, favoriteId })
-      alert('Ошибка: недостаточно данных для изменения имени станции')
+      showError('Ошибка: недостаточно данных для изменения имени станции')
       return
     }
     
@@ -672,7 +673,7 @@ const handleNicknameChanged = async ({ station, nickname, action }) => {
       if (typeof stationsStore.setStationNickname !== 'function') {
         console.error('stationsStore.setStationNickname не является функцией!')
         console.error('Доступные методы:', Object.keys(stationsStore))
-        alert('Ошибка: метод setStationNickname недоступен. Перезагрузите страницу.')
+        showError('Ошибка: метод setStationNickname недоступен. Перезагрузите страницу.')
         return
       }
       
@@ -694,7 +695,7 @@ const handleNicknameChanged = async ({ station, nickname, action }) => {
       if (typeof stationsStore.deleteStationNickname !== 'function') {
         console.error('stationsStore.deleteStationNickname не является функцией!')
         console.error('Доступные методы:', Object.keys(stationsStore))
-        alert('Ошибка: метод deleteStationNickname недоступен. Перезагрузите страницу.')
+        showError('Ошибка: метод deleteStationNickname недоступен. Перезагрузите страницу.')
         return
       }
       
@@ -711,7 +712,7 @@ const handleNicknameChanged = async ({ station, nickname, action }) => {
     }
   } catch (error) {
     console.error('Ошибка при изменении nickname:', error)
-    alert('Ошибка при изменении имени станции: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при изменении имени станции: ' + (error.message || 'Неизвестная ошибка'))
   }
 }
 
@@ -853,8 +854,23 @@ const handleAdminStationClick = async (station) => {
     const stationId = station.station_id || station.id
     if (!stationId) return
     
-    const res = await pythonAPI.getStationPowerbanks(stationId)
-    selectedStationPowerbanks.value = Array.isArray(res?.available_powerbanks) ? res.available_powerbanks : []
+    // 1) Тригерим запрос инвентаря на сервер (обновление показаний)
+    try { await pythonAPI.queryInventory(stationId) } catch {}
+    
+    // 2) Получаем инвентарь из кэша соединения (в нём есть terminal_id, soh и ошибки)
+    let inv = null
+    try {
+      inv = await pythonAPI.getStationInventory(stationId)
+    } catch {}
+    
+    if (inv && Array.isArray(inv.inventory)) {
+      selectedStationPowerbanks.value = inv.inventory
+    } else {
+      // Фолбэк: детальный список из station_powerbank (включает паверbanки с ошибками)
+      const res = await pythonAPI.getStationPowerbanksDetailed({ station_id: stationId })
+      selectedStationPowerbanks.value = Array.isArray(res?.data) ? res.data : []
+    }
+    
     showPowerbanksModal.value = true
   } catch (error) {
     console.error('Ошибка при загрузке банков станции:', error)
@@ -877,7 +893,7 @@ const borrowPowerbank = async (powerbank) => {
     const userId = user.value?.id || user.value?.user_id
 
     if (!userId) {
-      alert('Не удалось определить пользователя')
+      showError('Не удалось определить пользователя')
       return
     }
 
@@ -890,21 +906,22 @@ const borrowPowerbank = async (powerbank) => {
     const result = await pythonAPI.requestBorrowPowerbank(requestData)
 
     if (result && result.success) {
-      alert('Повербанк успешно выдан!')
+      showSuccess('Повербанк успешно выдан!')
       
       // Централизованное обновление данных после выдачи аккумулятора
       const stationId = selectedStation.value.station_id || selectedStation.value.id
       await refreshAllDataAfterBorrowLocal(stationId, userId)
       
-      // Обновляем список повербанков в модальном окне
-      const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
-      selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
+      // Обновляем список повербанков в модальном окне (через инвентарь)
+      try { await pythonAPI.queryInventory(stationId) } catch {}
+      const inv = await pythonAPI.getStationInventory(stationId)
+      selectedStationPowerbanks.value = Array.isArray(inv?.inventory) ? inv.inventory : []
     } else {
-      alert('❌ Ошибка при выдаче повербанка: ' + (result?.error || 'Неизвестная ошибка сервера'))
+      showError('Ошибка при выдаче повербанка: ' + (result?.error || 'Неизвестная ошибка сервера'))
     }
   } catch (error) {
     console.error('Ошибка при выдаче повербанка:', error)
-    alert('Ошибка при выдаче повербанка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при выдаче повербанка: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isBorrowing.value = false
   }
@@ -914,14 +931,14 @@ const forceEjectPowerbank = async (powerbank) => {
   if (!selectedStation.value || isBorrowing.value) return
 
   const confirmMessage = `Вы уверены, что хотите принудительно извлечь повербанк из слота ${powerbank.slot_number}?`
-  if (!confirm(confirmMessage)) return
+  if (!await showConfirm(confirmMessage)) return
 
   isBorrowing.value = true
   try {
     const userId = user.value?.id || user.value?.user_id
 
     if (!userId) {
-      alert('Не удалось определить пользователя')
+      showError('Не удалось определить пользователя')
       return
     }
 
@@ -932,19 +949,20 @@ const forceEjectPowerbank = async (powerbank) => {
     }
 
     await pythonAPI.forceEjectPowerbank(requestData)
-    alert('Повербанк принудительно извлечен!')
+    showSuccess('Повербанк принудительно извлечен!')
 
     // Централизованное обновление данных после принудительного извлечения
     const stationId = selectedStation.value.station_id || selectedStation.value.id
     await refreshAllDataAfterBorrowLocal(stationId, userId)
 
-    // Обновляем список повербанков в модальном окне
-    const updatedResult = await pythonAPI.getStationPowerbanks(stationId)
-    selectedStationPowerbanks.value = Array.isArray(updatedResult?.available_powerbanks) ? updatedResult.available_powerbanks : []
+    // Обновляем список повербанков в модальном окне (через инвентарь)
+    try { await pythonAPI.queryInventory(stationId) } catch {}
+    const inv = await pythonAPI.getStationInventory(stationId)
+    selectedStationPowerbanks.value = Array.isArray(inv?.inventory) ? inv.inventory : []
 
   } catch (error) {
     console.error('Ошибка при принудительном извлечении повербанка:', error)
-    alert('Ошибка при принудительном извлечении повербанка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при принудительном извлечении повербанка: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isBorrowing.value = false
   }

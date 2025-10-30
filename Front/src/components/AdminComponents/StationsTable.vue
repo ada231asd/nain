@@ -519,6 +519,7 @@ const emit = defineEmits([
   'view-powerbanks', 
   'restart-station',
   'delete-station',
+  'restore-station',
   'station-clicked',
   'station-updated'
 ])
@@ -1139,38 +1140,20 @@ const confirmDeleteStation = async () => {
     return
   }
   
-  isDeleting.value = true
-  
-  try {
-    if (showDeletedStations.value) {
-      // Жёсткое удаление для удалённых станций
-      const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить станцию "${selectedStation.value.box_id}"?\n\nЭто действие необратимо!`
-      if (!confirm(confirmMessage)) {
-        isDeleting.value = false
-        return
-      }
-      
-      await pythonAPI.hardDelete('station', stationId)
-      alert('Станция удалена навсегда')
-      closeDeleteModal()
-      closeStationModal()
-      emit('delete-station', stationId)
-      emit('station-updated')
-    } else {
-      // Мягкое удаление для обычных станций
-      await pythonAPI.softDelete('station', stationId)
-      alert('Станция успешно удалена')
-      closeDeleteModal()
-      closeStationModal()
-      emit('delete-station', stationId)
-      emit('station-updated')
-    }
-  } catch (error) {
-    console.error('Ошибка удаления станции:', error)
-    alert('Ошибка удаления станции: ' + (error.message || 'Неизвестная ошибка'))
-  } finally {
-    isDeleting.value = false
+  // Сохраняем данные до закрытия модального окна
+  const deleteData = {
+    stationId,
+    hardDelete: showDeletedStations.value,
+    stationName: selectedStation.value.box_id
   }
+  
+  // Закрываем модальные окна
+  closeDeleteModal()
+  closeStationModal()
+  
+  // Эмитим события с сохранёнными данными
+  emit('delete-station', deleteData)
+  emit('station-updated')
 }
 
 // Восстановление удалённой станции
@@ -1183,18 +1166,18 @@ const handleRestore = async () => {
     return
   }
   
-  const confirmMessage = `Вы уверены, что хотите восстановить станцию "${selectedStation.value.box_id}"?`
-  if (!confirm(confirmMessage)) return
-  
-  try {
-    await pythonAPI.restoreDeleted('station', stationId)
-    alert('Станция успешно восстановлена')
-    closeStationModal()
-    emit('station-updated')
-  } catch (error) {
-    console.error('Ошибка при восстановлении станции:', error)
-    alert('Ошибка при восстановлении станции: ' + (error.message || 'Неизвестная ошибка'))
+  // Сохраняем данные до закрытия модального окна
+  const restoreData = {
+    stationId,
+    stationName: selectedStation.value.box_id
   }
+  
+  // Закрываем модальное окно
+  closeStationModal()
+  
+  // Эмитим события с сохранёнными данными
+  emit('restore-station', restoreData)
+  emit('station-updated')
 }
 
 // Сброс страницы при изменении поиска

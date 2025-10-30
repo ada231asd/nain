@@ -438,6 +438,7 @@ const emit = defineEmits([
   'block-user',
   'unblock-user',
   'delete-user',
+  'restore-user',
   'user-clicked',
   'user-updated',
   'bulk-approve',
@@ -1109,30 +1110,18 @@ const handleDelete = async () => {
     return
   }
   
-  try {
-    if (showDeletedUsers.value) {
-      // Жёсткое удаление для удалённых пользователей
-      const confirmMessage = `Вы уверены, что хотите НАВСЕГДА удалить пользователя "${selectedUser.value.fio}"?\n\nЭто действие необратимо!`
-      if (!confirm(confirmMessage)) return
-      
-      await pythonAPI.hardDelete('user', userId)
-      alert('Пользователь удалён навсегда')
-      closeUserModal()
-      emit('delete-user', userId)
-    } else {
-      // Мягкое удаление для обычных пользователей
-      const confirmMessage = `Вы уверены, что хотите удалить пользователя "${selectedUser.value.fio}"?`
-      if (!confirm(confirmMessage)) return
-      
-      await pythonAPI.softDelete('user', userId)
-      alert('Пользователь успешно удалён')
-      closeUserModal()
-      emit('delete-user', userId)
-    }
-  } catch (error) {
-    console.error('Ошибка при удалении пользователя:', error)
-    alert('Ошибка при удалении пользователя: ' + (error.message || 'Неизвестная ошибка'))
+  // Сохраняем данные до закрытия модального окна
+  const deleteData = {
+    userId,
+    hardDelete: showDeletedUsers.value,
+    userName: selectedUser.value.fio
   }
+  
+  // Закрываем модальное окно
+  closeUserModal()
+  
+  // Эмитим событие с сохранёнными данными
+  emit('delete-user', deleteData)
 }
 
 // Восстановление удалённого пользователя
@@ -1145,18 +1134,17 @@ const handleRestore = async () => {
     return
   }
   
-  const confirmMessage = `Вы уверены, что хотите восстановить пользователя "${selectedUser.value.fio}"?`
-  if (!confirm(confirmMessage)) return
-  
-  try {
-    await pythonAPI.restoreDeleted('user', userId)
-    alert('Пользователь успешно восстановлен')
-    closeUserModal()
-    emit('user-updated', selectedUser.value)
-  } catch (error) {
-    console.error('Ошибка при восстановлении пользователя:', error)
-    alert('Ошибка при восстановлении пользователя: ' + (error.message || 'Неизвестная ошибка'))
+  // Сохраняем данные до закрытия модального окна
+  const restoreData = {
+    userId,
+    userName: selectedUser.value.fio
   }
+  
+  // Закрываем модальное окно
+  closeUserModal()
+  
+  // Эмитим событие с сохранёнными данными
+  emit('restore-user', restoreData)
 }
 
 // Сброс страницы при изменении поиска
