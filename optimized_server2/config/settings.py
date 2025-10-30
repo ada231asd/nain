@@ -52,7 +52,7 @@ NOTIFICATION_CONFIG = {
         "use_tls": True,
         "username": "v.bazarov142@mail.ru",
         "password": "aj3wqoCmWQbJFtRQdp8V",
-        "from_email": "noreply@zarayd.ru",  # No-reply адрес для отправки
+        "from_email": "v.bazarov142@mail.ru",  # Используем реальный email для отправки
         "from_name": "ЗАРЯД",  # Имя отправителя
         "app_name": "ЗАРЯД",
         

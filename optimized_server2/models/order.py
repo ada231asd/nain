@@ -785,33 +785,42 @@ class Order:
         """Получить расширенные данные заказов пользователя напрямую из таблицы orders с JOIN"""
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
+                # Сначала получаем phone пользователя по user_id
+                await cur.execute("SELECT phone_e164 FROM app_user WHERE user_id = %s", (user_id,))
+                user = await cur.fetchone()
+                if not user:
+                    return []
+                
+                user_phone = user['phone_e164']
+                
+                # Теперь получаем заказы по phone
                 await cur.execute("""
                     SELECT 
                         o.id,
-                        pb.serial_number AS powerbank_serial,
+                        o.powerbank_serial,
                         o.status,
                         o.timestamp,
                         o.completed_at,
-                        COALESCE(uf.nik, s.box_id) AS station_display_name,
-                        s.box_id AS station_box_id,
-                        ou.name AS org_unit_name,
-                        ou.adress AS org_unit_address,
-                        u.fio AS user_fio,
-                        u.phone_e164 AS user_phone,
-                        o.user_id,
-                        o.station_id,
-                        o.org_unit_id,
-                        o.powerbank_id
+                        COALESCE(uf.nik, o.station_box_id) AS station_display_name,
+                        o.station_box_id,
+                        o.org_unit_name,
+                        s.org_unit_id,
+                        COALESCE(ou.adress, '') AS org_unit_address,
+                        o.user_fio,
+                        o.user_phone,
+                        u.user_id,
+                        s.station_id,
+                        pb.id AS powerbank_id
                     FROM orders o
-                    LEFT JOIN station s ON o.station_id = s.station_id
-                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
-                    LEFT JOIN app_user u ON o.user_id = u.user_id
-                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
-                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
-                    WHERE o.user_id = %s
+                    LEFT JOIN app_user u ON o.user_phone = u.phone_e164
+                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
+                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
+                    WHERE o.user_phone = %s AND o.is_deleted = 0
                     ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
-                """, (user_id, limit, offset))
+                """, (user_phone, limit, offset))
                 
                 results = await cur.fetchall()
                 return results
@@ -821,33 +830,41 @@ class Order:
         """Получить расширенные данные заказов станции напрямую из таблицы orders с JOIN"""
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
+                # Получаем box_id по station_id
+                await cur.execute("SELECT box_id FROM station WHERE station_id = %s", (station_id,))
+                station = await cur.fetchone()
+                if not station:
+                    return []
+                
+                station_box_id = station['box_id']
+                
                 await cur.execute("""
                     SELECT 
                         o.id,
-                        pb.serial_number AS powerbank_serial,
+                        o.powerbank_serial,
                         o.status,
                         o.timestamp,
                         o.completed_at,
-                        COALESCE(uf.nik, s.box_id) AS station_display_name,
-                        s.box_id AS station_box_id,
-                        ou.name AS org_unit_name,
-                        ou.adress AS org_unit_address,
-                        u.fio AS user_fio,
-                        u.phone_e164 AS user_phone,
-                        o.user_id,
-                        o.station_id,
-                        o.org_unit_id,
-                        o.powerbank_id
+                        COALESCE(uf.nik, o.station_box_id) AS station_display_name,
+                        o.station_box_id,
+                        o.org_unit_name,
+                        s.org_unit_id,
+                        COALESCE(ou.adress, '') AS org_unit_address,
+                        o.user_fio,
+                        o.user_phone,
+                        u.user_id,
+                        s.station_id,
+                        pb.id AS powerbank_id
                     FROM orders o
-                    LEFT JOIN station s ON o.station_id = s.station_id
-                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
-                    LEFT JOIN app_user u ON o.user_id = u.user_id
-                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
-                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
-                    WHERE o.station_id = %s
+                    LEFT JOIN app_user u ON o.user_phone = u.phone_e164
+                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
+                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
+                    WHERE o.station_box_id = %s AND o.is_deleted = 0
                     ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
-                """, (station_id, limit, offset))
+                """, (station_box_id, limit, offset))
                 
                 results = await cur.fetchall()
                 return results
@@ -860,27 +877,27 @@ class Order:
                 await cur.execute("""
                     SELECT 
                         o.id,
-                        pb.serial_number AS powerbank_serial,
+                        o.powerbank_serial,
                         o.status,
                         o.timestamp,
                         o.completed_at,
-                        COALESCE(uf.nik, s.box_id) AS station_display_name,
-                        s.box_id AS station_box_id,
-                        ou.name AS org_unit_name,
-                        ou.adress AS org_unit_address,
-                        u.fio AS user_fio,
-                        u.phone_e164 AS user_phone,
-                        o.user_id,
-                        o.station_id,
-                        o.org_unit_id,
-                        o.powerbank_id
+                        COALESCE(uf.nik, o.station_box_id) AS station_display_name,
+                        o.station_box_id,
+                        o.org_unit_name,
+                        s.org_unit_id,
+                        COALESCE(ou.adress, '') AS org_unit_address,
+                        o.user_fio,
+                        o.user_phone,
+                        u.user_id,
+                        s.station_id,
+                        pb.id AS powerbank_id
                     FROM orders o
-                    LEFT JOIN station s ON o.station_id = s.station_id
-                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
-                    LEFT JOIN app_user u ON o.user_id = u.user_id
-                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
-                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
-                    WHERE o.status = %s
+                    LEFT JOIN app_user u ON o.user_phone = u.phone_e164
+                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
+                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
+                    WHERE o.status = %s AND o.is_deleted = 0
                     ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
                 """, (status, limit, offset))
@@ -891,7 +908,7 @@ class Order:
     @classmethod
     async def search_extended_orders(cls, db_pool, filters: Dict[str, Any], limit: int = 50, offset: int = 0) -> Dict[str, Any]:
         """Поиск заказов с расширенными данными по фильтрам напрямую из таблицы orders с JOIN"""
-        where_conditions = []
+        where_conditions = ["o.is_deleted = 0"]
         params = []
         
         if 'status' in filters and filters['status']:
@@ -899,15 +916,15 @@ class Order:
             params.append(filters['status'])
         
         if 'user_id' in filters and filters['user_id']:
-            where_conditions.append("o.user_id = %s")
+            where_conditions.append("u.user_id = %s")
             params.append(int(filters['user_id']))
         
         if 'station_id' in filters and filters['station_id']:
-            where_conditions.append("o.station_id = %s")
+            where_conditions.append("s.station_id = %s")
             params.append(int(filters['station_id']))
         
         if 'org_unit_id' in filters and filters['org_unit_id']:
-            where_conditions.append("o.org_unit_id = %s")
+            where_conditions.append("s.org_unit_id = %s")
             params.append(int(filters['org_unit_id']))
         
         if 'date_from' in filters and filters['date_from']:
@@ -918,12 +935,18 @@ class Order:
             where_conditions.append("o.timestamp <= %s")
             params.append(filters['date_to'])
         
-        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        where_clause = "WHERE " + " AND ".join(where_conditions)
         
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
-                # Получаем общее количество
-                count_query = f"SELECT COUNT(*) as total FROM orders o {where_clause}"
+                # Получаем общее количество с JOIN для корректного подсчета
+                count_query = f"""
+                    SELECT COUNT(*) as total 
+                    FROM orders o
+                    LEFT JOIN app_user u ON o.user_phone = u.phone_e164
+                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    {where_clause}
+                """
                 await cur.execute(count_query, params)
                 total = (await cur.fetchone())['total']
                 
@@ -931,26 +954,26 @@ class Order:
                 query = f"""
                     SELECT 
                         o.id,
-                        pb.serial_number AS powerbank_serial,
+                        o.powerbank_serial,
                         o.status,
                         o.timestamp,
                         o.completed_at,
-                        COALESCE(uf.nik, s.box_id) AS station_display_name,
-                        s.box_id AS station_box_id,
-                        ou.name AS org_unit_name,
-                        ou.adress AS org_unit_address,
-                        u.fio AS user_fio,
-                        u.phone_e164 AS user_phone,
-                        o.user_id,
-                        o.station_id,
-                        o.org_unit_id,
-                        o.powerbank_id
+                        COALESCE(uf.nik, o.station_box_id) AS station_display_name,
+                        o.station_box_id,
+                        o.org_unit_name,
+                        s.org_unit_id,
+                        COALESCE(ou.adress, '') AS org_unit_address,
+                        o.user_fio,
+                        o.user_phone,
+                        u.user_id,
+                        s.station_id,
+                        pb.id AS powerbank_id
                     FROM orders o
-                    LEFT JOIN station s ON o.station_id = s.station_id
-                    LEFT JOIN org_unit ou ON o.org_unit_id = ou.org_unit_id
-                    LEFT JOIN app_user u ON o.user_id = u.user_id
-                    LEFT JOIN powerbank pb ON o.powerbank_id = pb.id
-                    LEFT JOIN user_favorites uf ON o.user_id = uf.user_id AND o.station_id = uf.station_id
+                    LEFT JOIN app_user u ON o.user_phone = u.phone_e164
+                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
+                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
                     {where_clause}
                     ORDER BY o.timestamp DESC
                     LIMIT %s OFFSET %s
