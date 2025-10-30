@@ -14,6 +14,8 @@ class WebSocketNotificationService {
     this.idleTimeoutDuration = 3600000 // 60 минут неактивности (временно увеличено для production)
     this.lastActivityTime = null
     this.token = null // Сохраняем токен для переподключения
+    this.dataUpdateCallbacks = [] // Колбэки для обновления данных
+    this.setupPageVisibilityHandling() // Обработка видимости страницы для мобильных
   }
 
   /**
@@ -180,6 +182,13 @@ class WebSocketNotificationService {
       title: data.title || 'Спасибо за возврат!',
       message: data.alert || 'Заказ успешно закрыт.',
       type: 'success',
+      data: data
+    })
+    
+    // КРИТИЧНО: Триггерим обновление данных во всех подписанных компонентах
+    this.triggerDataUpdate({
+      type: 'powerbank_returned',
+      stationId: data.station_id,
       data: data
     })
   }
@@ -413,6 +422,118 @@ class WebSocketNotificationService {
       return permission === 'granted'
     }
     return Notification.permission === 'granted'
+  }
+
+  /**
+   * Зарегистрировать колбэк для обновления данных
+   * @param {Function} callback - Функция, которая будет вызвана при обновлении данных
+   * @returns {Function} Функция для отмены регистрации колбэка
+   */
+  onDataUpdate(callback) {
+    if (typeof callback !== 'function') {
+      console.warn('WebSocket: Колбэк должен быть функцией')
+      return () => {}
+    }
+    
+    this.dataUpdateCallbacks.push(callback)
+    console.log(`WebSocket: Зарегистрирован колбэк обновления данных (всего: ${this.dataUpdateCallbacks.length})`)
+    
+    // Возвращаем функцию для отмены регистрации
+    return () => {
+      const index = this.dataUpdateCallbacks.indexOf(callback)
+      if (index > -1) {
+        this.dataUpdateCallbacks.splice(index, 1)
+        console.log(`WebSocket: Колбэк удален (осталось: ${this.dataUpdateCallbacks.length})`)
+      }
+    }
+  }
+
+  /**
+   * Триггерить обновление данных во всех подписанных компонентах
+   * @param {Object} updateInfo - Информация об обновлении
+   */
+  triggerDataUpdate(updateInfo) {
+    console.log('🔄 WebSocket: Триггерим обновление данных:', updateInfo)
+    console.log(`🔄 WebSocket: Количество колбэков: ${this.dataUpdateCallbacks.length}`)
+    
+    this.dataUpdateCallbacks.forEach((callback, index) => {
+      try {
+        callback(updateInfo)
+        console.log(`✅ WebSocket: Колбэк ${index + 1} выполнен успешно`)
+      } catch (error) {
+        console.error(`❌ WebSocket: Ошибка в колбэке ${index + 1}:`, error)
+      }
+    })
+  }
+
+  /**
+   * Настройка обработки видимости страницы (Page Visibility API)
+   * Особенно важно для мобильных устройств
+   */
+  setupPageVisibilityHandling() {
+    if (typeof document === 'undefined') return
+
+    // Обработка изменения видимости страницы
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        console.log('📱 Страница скрыта (пользователь переключился или свернул приложение)')
+        // Страница скрыта - можно приостановить некоторые операции
+      } else {
+        console.log('📱 Страница видима (пользователь вернулся)')
+        // Страница снова видима - переподключаемся если нужно и обновляем данные
+        this.handlePageVisible()
+      }
+    })
+
+    // Для iOS Safari - дополнительная обработка событий
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        console.log('📱 Страница восстановлена из bfcache (iOS)')
+        this.handlePageVisible()
+      }
+    })
+
+    // Обработка фокуса окна (дополнительная страховка)
+    window.addEventListener('focus', () => {
+      console.log('📱 Окно получило фокус')
+      this.handlePageVisible()
+    })
+
+    // Обработка сетевых событий (особенно важно для мобильных)
+    window.addEventListener('online', () => {
+      console.log('📱 Сеть восстановлена')
+      // Переподключаемся и обновляем данные
+      setTimeout(() => {
+        this.reconnectIfNeeded()
+        this.triggerDataUpdate({
+          type: 'network_restored',
+          reason: 'connection_online'
+        })
+      }, 1000) // Небольшая задержка для стабилизации соединения
+    })
+
+    window.addEventListener('offline', () => {
+      console.log('📱 Сеть потеряна')
+    })
+
+    console.log('📱 Page Visibility API и сетевые события настроены')
+  }
+
+  /**
+   * Обработка возвращения пользователя на страницу
+   */
+  handlePageVisible() {
+    // Обновляем активность
+    this.updateActivity()
+
+    // Переподключаемся к WebSocket если отключены
+    this.reconnectIfNeeded()
+
+    // Триггерим обновление данных во всех компонентах
+    this.triggerDataUpdate({
+      type: 'page_visible',
+      reason: 'user_returned'
+    })
   }
 }
 

@@ -201,6 +201,7 @@ import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow, refreshAllDataAfterReturn } from '../utils/dataSync'
 import { formatMoscowTime } from '../utils/timeUtils'
 import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../utils/notifications'
+import websocketNotificationService from '../utils/websocketNotifications'
 
 const router = useRouter()
 const route = useRoute()
@@ -248,6 +249,9 @@ const isLoadingOrgUnit = ref(true) // Изначально true, чтобы по
 const autoRefreshInterval = ref(null)
 const autoRefreshEnabled = ref(false) // Отключаем автоматическое обновление по таймеру
 const refreshInterval = 30000 // 30 секунд
+
+// WebSocket обновления
+const wsUnsubscribe = ref(null)
 
 // Вычисляемые свойства
 const user = computed(() => auth.user)
@@ -1466,9 +1470,49 @@ onMounted(async () => {
       await loadUserOrgUnit()
     }
     
+    // 🔔 Подписываемся на обновления от WebSocket (для мобильных устройств)
+    wsUnsubscribe.value = websocketNotificationService.onDataUpdate(async (updateInfo) => {
+      console.log('📱 Dashboard: Получено обновление от WebSocket:', updateInfo)
+      
+      try {
+        if (updateInfo.type === 'powerbank_returned') {
+          // Обновляем данные после возврата powerbank
+          console.log('📱 Dashboard: Обновляем данные после возврата powerbank')
+          
+          // Закрываем индикатор ожидания возврата
+          isWaitingForReturn.value = false
+          
+          // Обновляем избранные станции
+          await stationsStore.fetchFavoriteStations(user.value?.user_id)
+          
+          // Обновляем лимиты пользователя
+          await auth.fetchUserLimits()
+          
+          showSuccess('Powerbank успешно возвращен! Данные обновлены.')
+        } else if (updateInfo.type === 'page_visible') {
+          // Пользователь вернулся на страницу - обновляем все данные
+          console.log('📱 Dashboard: Пользователь вернулся на страницу, обновляем данные')
+          
+          await stationsStore.fetchFavoriteStations(user.value?.user_id)
+          await auth.fetchUserLimits()
+        } else if (updateInfo.type === 'network_restored') {
+          // Сеть восстановлена - обновляем все данные
+          console.log('📱 Dashboard: Сеть восстановлена, обновляем данные')
+          
+          await stationsStore.fetchFavoriteStations(user.value?.user_id)
+          await auth.fetchUserLimits()
+          
+          showInfo('Соединение восстановлено. Данные обновлены.')
+        }
+      } catch (error) {
+        console.error('❌ Dashboard: Ошибка при обновлении данных:', error)
+      }
+    })
+    
+    console.log('✅ Dashboard: Подписка на WebSocket обновления создана')
     
     // Не запускаем автоматическое обновление по таймеру
-    // Обновление происходит только после действий
+    // Обновление происходит только после действий и WebSocket уведомлений
   } catch (err) {
     console.error('Ошибка при загрузке избранного:', err)
   }
@@ -1481,6 +1525,12 @@ onUnmounted(() => {
   
   // Останавливаем автоматическое обновление
   stopAutoRefresh()
+  
+  // 🔔 Отписываемся от WebSocket обновлений
+  if (wsUnsubscribe.value) {
+    wsUnsubscribe.value()
+    console.log('✅ Dashboard: Отписка от WebSocket обновлений выполнена')
+  }
   
 })
 </script>
