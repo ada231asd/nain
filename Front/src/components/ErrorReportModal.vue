@@ -47,9 +47,6 @@
       </div>
       
       <div class="modal-footer">
-        <button @click="closeModal" class="btn-cancel" :disabled="isLoading">
-          Отмена
-        </button>
         <button 
           @click="submitErrorReport" 
           class="btn-submit"
@@ -60,6 +57,9 @@
             Ожидание подтверждения...
           </span>
           <span v-else>Отправить</span>
+        </button>
+        <button @click="closeModal" class="btn-cancel" :disabled="isLoading">
+          Отмена
         </button>
       </div>
       
