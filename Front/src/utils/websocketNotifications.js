@@ -37,7 +37,7 @@ class WebSocketNotificationService {
 
     try {
       // Получаем базовый URL и преобразуем в WebSocket URL
-      const baseURL = API_CONFIG.baseURL || 'http://localhost:8000/api'
+      const baseURL = API_CONFIG.baseURL || '/api'
       
       let wsURL
       if (baseURL.startsWith('http://') || baseURL.startsWith('https://')) {
@@ -45,9 +45,9 @@ class WebSocketNotificationService {
         wsURL = baseURL
           .replace('http://', 'ws://')
           .replace('https://', 'wss://')
-          .replace('/api', '') // убираем /api из пути
+          .replace(/\/api\/?$/, '') // убираем /api из конца пути
       } else {
-        // Относительный URL - используем текущий хост
+        // Относительный URL - используем текущий хост (для работы через Vite proxy)
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
         const host = window.location.host
         wsURL = `${protocol}//${host}`
@@ -56,6 +56,9 @@ class WebSocketNotificationService {
       const url = `${wsURL}/api/ws/notifications?token=${token}`
       
       console.log('WebSocket: Подключаемся к', url)
+      console.log('WebSocket: Базовый URL:', baseURL)
+      console.log('WebSocket: Протокол:', window.location.protocol)
+      console.log('WebSocket: Хост:', window.location.host)
       this.ws = new WebSocket(url)
 
       this.ws.onopen = () => {
