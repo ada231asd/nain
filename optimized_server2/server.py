@@ -158,7 +158,7 @@ class OptimizedServer:
                         SELECT ssk.key_value 
                         FROM station_secret_key ssk
                         JOIN station s ON ssk.station_id = s.station_id
-                        WHERE s.box_id = %s
+                        WHERE s.box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci
                     """, (box_id,))
                     result = await cur.fetchone()
                     return result[0] if result else None

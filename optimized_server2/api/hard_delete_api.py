@@ -116,11 +116,18 @@ class HardDeleteAPI:
             # Удаляем старые записи
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    query = f"""
-                        DELETE FROM `{table}` 
-                        WHERE is_deleted = 1 
-                        AND deleted_at < %s
-                    """
+                    # Для powerbank используем power_er = 5, для остальных - только по deleted_at
+                    if table == 'powerbank':
+                        query = f"""
+                            DELETE FROM `{table}` 
+                            WHERE power_er = 5 AND status = 'system_error'
+                            AND deleted_at < %s
+                        """
+                    else:
+                        query = f"""
+                            DELETE FROM `{table}` 
+                            WHERE deleted_at < %s
+                        """
                     await cur.execute(query, (cutoff_date,))
                     await conn.commit()
                     
@@ -175,21 +182,33 @@ class HardDeleteAPI:
             # Получаем кандидатов на удаление
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    query = f"""
-                        SELECT * FROM `{table}` 
-                        WHERE is_deleted = 1 
-                        AND deleted_at < %s
-                        LIMIT 100
-                    """
+                    # Для powerbank используем power_er = 5, для остальных - только по deleted_at
+                    if table == 'powerbank':
+                        query = f"""
+                            SELECT * FROM `{table}` 
+                            WHERE power_er = 5 AND status = 'system_error'
+                            AND deleted_at < %s
+                            LIMIT 100
+                        """
+                        count_query = f"""
+                            SELECT COUNT(*) as count FROM `{table}` 
+                            WHERE power_er = 5 AND status = 'system_error'
+                            AND deleted_at < %s
+                        """
+                    else:
+                        query = f"""
+                            SELECT * FROM `{table}` 
+                            WHERE deleted_at < %s
+                            LIMIT 100
+                        """
+                        count_query = f"""
+                            SELECT COUNT(*) as count FROM `{table}` 
+                            WHERE deleted_at < %s
+                        """
                     await cur.execute(query, (cutoff_date,))
                     candidates = await cur.fetchall()
                     
                     # Подсчитываем общее количество
-                    count_query = f"""
-                        SELECT COUNT(*) as count FROM `{table}` 
-                        WHERE is_deleted = 1 
-                        AND deleted_at < %s
-                    """
                     await cur.execute(count_query, (cutoff_date,))
                     total = (await cur.fetchone())['count']
             

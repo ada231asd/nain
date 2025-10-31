@@ -92,6 +92,7 @@ class SoftDeleteMixin:
     async def hard_delete(db_pool, table: str, record_id: int, id_field: str = 'id') -> bool:
         """
         Физическое удаление записи из таблицы (использовать с осторожностью!)
+        Для powerbank проверяет power_er = 5 и status = 'system_error' вместо is_deleted
         
         Args:
             db_pool: Пул соединений с БД
@@ -105,6 +106,24 @@ class SoftDeleteMixin:
         try:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
+                    # Для powerbank проверяем существование и статус
+                    if table == 'powerbank':
+                        # Сначала проверяем, существует ли повербанк вообще
+                        await cur.execute(
+                            f"SELECT id, power_er, status FROM `{table}` WHERE {id_field} = %s",
+                            (record_id,)
+                        )
+                        powerbank = await cur.fetchone()
+                        if not powerbank:
+                            logger.warning(f"Повербанк {record_id} не найден в базе данных")
+                            return False
+                        
+                        # Если повербанк существует, но не помечен как удаленный - предупреждаем, но все равно удаляем
+                        power_er = powerbank[1] if len(powerbank) > 1 else None
+                        status = powerbank[2] if len(powerbank) > 2 else None
+                        if power_er != 5 or status != 'system_error':
+                            logger.warning(f"Повербанк {record_id} не помечен как удаленный (power_er={power_er}, status={status}), но будет физически удален")
+                    
                     # Для станций сначала удаляем связанные записи
                     if table == 'station':
                         # Удаляем секретный ключ станции
@@ -184,7 +203,11 @@ class SoftDeleteMixin:
         try:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    query = f"SELECT COUNT(*) FROM `{table}` WHERE is_deleted = 1"
+                    # Для powerbank используем power_er = 5, для остальных - is_deleted = 1
+                    if table == 'powerbank':
+                        query = f"SELECT COUNT(*) FROM `{table}` WHERE power_er = 5 AND status = 'system_error'"
+                    else:
+                        query = f"SELECT COUNT(*) FROM `{table}` WHERE is_deleted = 1"
                     await cur.execute(query)
                     result = await cur.fetchone()
                     return result[0] if result else 0
@@ -272,22 +295,37 @@ async def soft_delete_station(db_pool, station_id: int) -> bool:
 async def soft_delete_powerbank(db_pool, powerbank_id: int) -> bool:
     """
     Мягкое удаление повербанка
-    При удалении также меняет статус на 'unknown'
+    При удалении устанавливает power_er = 5 и status = 'system_error'
     """
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
+                # Сначала проверяем существование повербанка
+                await cur.execute("SELECT id, power_er, status FROM `powerbank` WHERE id = %s", (powerbank_id,))
+                powerbank = await cur.fetchone()
+                
+                if not powerbank:
+                    logger.warning(f"Повербанк {powerbank_id} не найден в базе данных")
+                    return False
+                
+                # Если уже удален - возвращаем True (уже помечен как удаленный)
+                power_er = powerbank[1] if len(powerbank) > 1 else None
+                status = powerbank[2] if len(powerbank) > 2 else None
+                if power_er == 5 and status == 'system_error':
+                    logger.info(f"Повербанк {powerbank_id} уже помечен как удаленный")
+                    return True
+                
                 query = """
                     UPDATE `powerbank` 
-                    SET is_deleted = 1, deleted_at = %s, status = 'unknown'
-                    WHERE id = %s AND is_deleted = 0
+                    SET power_er = 5, status = 'system_error', deleted_at = %s
+                    WHERE id = %s
                 """
                 await cur.execute(query, (datetime.now(), powerbank_id))
                 await conn.commit()
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Повербанк {powerbank_id} помечен как удаленный, статус unknown")
+                    logger.info(f"Повербанк {powerbank_id} помечен как удаленный (power_er=5, status=system_error)")
                     return True
                 else:
                     logger.warning(f"Повербанк {powerbank_id} не найден или уже удален")
@@ -369,15 +407,15 @@ async def restore_station(db_pool, station_id: int) -> bool:
 async def restore_powerbank(db_pool, powerbank_id: int) -> bool:
     """
     Восстановление повербанка
-    При восстановлении также меняет статус на 'active'
+    При восстановлении сбрасывает power_er и меняет статус на 'active'
     """
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 query = """
                     UPDATE `powerbank` 
-                    SET is_deleted = 0, deleted_at = NULL, status = 'active'
-                    WHERE id = %s AND is_deleted = 1
+                    SET power_er = NULL, deleted_at = NULL, status = 'active'
+                    WHERE id = %s AND power_er = 5 AND status = 'system_error'
                 """
                 await cur.execute(query, (powerbank_id,))
                 await conn.commit()
@@ -416,6 +454,21 @@ async def get_deleted_stations(db_pool, limit: int = 100, offset: int = 0) -> li
 
 
 async def get_deleted_powerbanks(db_pool, limit: int = 100, offset: int = 0) -> list:
-    """Получить список удаленных повербанков"""
-    return await SoftDeleteMixin.get_deleted_records(db_pool, 'powerbank', limit, offset)
+    """Получить список удаленных повербанков (power_er = 5)"""
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                query = """
+                    SELECT * FROM `powerbank` 
+                    WHERE power_er = 5 AND status = 'system_error'
+                    ORDER BY deleted_at DESC 
+                    LIMIT %s OFFSET %s
+                """
+                await cur.execute(query, (limit, offset))
+                records = await cur.fetchall()
+                return records
+                
+    except Exception as e:
+        logger.error(f"Ошибка при получении удаленных повербанков: {e}", exc_info=True)
+        return []
 

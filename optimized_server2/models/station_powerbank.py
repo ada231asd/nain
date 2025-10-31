@@ -284,7 +284,7 @@ class StationPowerbank:
                     
                     # Получаем powerbank_id по serial_number
                     await cur.execute("""
-                        SELECT id FROM powerbank WHERE serial_number = %s
+                        SELECT id FROM powerbank WHERE serial_number COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci
                     """, (terminal_id,))
                     powerbank_result = await cur.fetchone()
                     

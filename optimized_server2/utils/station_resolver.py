@@ -44,7 +44,7 @@ async def get_station_id_by_box_id(db_pool, box_id: str) -> Optional[int]:
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute("SELECT station_id FROM station WHERE box_id=%s LIMIT 1", (box_id,))
+                await cur.execute("SELECT station_id FROM station WHERE box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci LIMIT 1", (box_id,))
                 row = await cur.fetchone()
                 if row and 'station_id' in row:
                     return int(row['station_id'])

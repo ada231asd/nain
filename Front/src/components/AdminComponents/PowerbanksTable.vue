@@ -303,7 +303,7 @@
     </div>
 
     <!-- Модальное окно подтверждения удаления -->
-    <div v-if="isDeleteModalOpen" class="modal-overlay" @click="closeDeleteModal">
+    <div v-if="isDeleteModalOpen && selectedPowerbank" class="modal-overlay" @click="closeDeleteModal">
       <div class="modal-content delete-modal" @click.stop>
         <div class="modal-header">
           <h3>Подтверждение удаления</h3>
@@ -431,11 +431,22 @@ const filteredPowerbanks = computed(() => {
   
   // ФИЛЬТРАЦИЯ ПО УДАЛЁННЫМ/НЕУДАЛЁННЫМ АККУМУЛЯТОРАМ
   if (showDeletedPowerbanks.value) {
-    // Показываем только удалённые аккумуляторы (is_deleted = 1)
-    filtered = filtered.filter(powerbank => powerbank.is_deleted === 1 || powerbank.is_deleted === true)
+    // Показываем удалённые аккумуляторы:
+    // 1. is_deleted = 1 (мягкое удаление)
+    // 2. status = 'system_error' И power_er = 5 (системная ошибка с power_error=5)
+    filtered = filtered.filter(powerbank => {
+      const isSoftDeleted = powerbank.is_deleted === 1 || powerbank.is_deleted === true
+      const isSystemErrorWithPowerEr5 = powerbank.status === 'system_error' && powerbank.power_er === 5
+      return isSoftDeleted || isSystemErrorWithPowerEr5
+    })
   } else {
-    // По умолчанию показываем только НЕ удалённые аккумуляторы (is_deleted = 0 или null)
-    filtered = filtered.filter(powerbank => !powerbank.is_deleted || powerbank.is_deleted === 0)
+    // По умолчанию показываем только НЕ удалённые аккумуляторы:
+    // Исключаем is_deleted = 1 И аккумуляторы с system_error + power_er = 5
+    filtered = filtered.filter(powerbank => {
+      const isSoftDeleted = powerbank.is_deleted === 1 || powerbank.is_deleted === true
+      const isSystemErrorWithPowerEr5 = powerbank.status === 'system_error' && powerbank.power_er === 5
+      return !isSoftDeleted && !isSystemErrorWithPowerEr5
+    })
   }
   
   // Фильтрация по группам/подгруппам
@@ -615,6 +626,10 @@ const resetError = async () => {
 }
 
 const showDeleteConfirmation = () => {
+  if (!selectedPowerbank.value || !selectedPowerbank.value.id) {
+    showError('Ошибка: не удалось получить информацию об аккумуляторе')
+    return
+  }
   isDeleteModalOpen.value = true
 }
 
@@ -623,18 +638,38 @@ const closeDeleteModal = () => {
 }
 
 const confirmDeletePowerbank = async () => {
-  if (!selectedPowerbank.value) return
+  if (!selectedPowerbank.value || !selectedPowerbank.value.id) {
+    showError('Ошибка: не удалось получить информацию об аккумуляторе')
+    closeDeleteModal()
+    return
+  }
+  
+  // Сохраняем ID и serial_number перед удалением
+  const powerbankId = selectedPowerbank.value.id
+  const serialNumber = selectedPowerbank.value.serial_number || 'N/A'
   
   isDeleting.value = true
   
   try {
-    await adminStore.deletePowerbank(selectedPowerbank.value.id)
+    // Используем softDelete для обычного удаления (мягкое удаление)
+    // Если нужно жёсткое удаление, используем hardDelete
+    if (showDeletedPowerbanks.value) {
+      // Жёсткое удаление для уже удалённых аккумуляторов
+      await pythonAPI.hardDelete('powerbank', powerbankId)
+      showSuccess('Аккумулятор удалён навсегда')
+    } else {
+      // Мягкое удаление для обычных аккумуляторов
+      await pythonAPI.softDelete('powerbank', powerbankId)
+      showSuccess('Аккумулятор успешно удалён')
+    }
     
-    showSuccess('Аккумулятор успешно удален')
+    // Обновляем список аккумуляторов
+    await adminStore.fetchPowerbanks()
+    
     closeDeleteModal()
     closePowerbankModal()
     
-    emit('powerbank-deleted', selectedPowerbank.value.id)
+    emit('powerbank-deleted', powerbankId)
   } catch (error) {
     console.error('Ошибка удаления аккумулятора:', error)
     showError('Ошибка удаления: ' + (error.message || 'Неизвестная ошибка'))
@@ -645,6 +680,11 @@ const confirmDeletePowerbank = async () => {
 
 // Удаление аккумулятора (мягкое или жёсткое в зависимости от фильтра)
 const handleDelete = async (powerbank) => {
+  if (!powerbank || !powerbank.id) {
+    showError('Ошибка: не удалось получить информацию об аккумуляторе')
+    return
+  }
+  
   const powerbankId = powerbank.id
   
   if (showDeletedPowerbanks.value) {

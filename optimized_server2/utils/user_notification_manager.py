@@ -23,10 +23,8 @@ class UserNotificationManager:
             old_ws = self.user_connections[user_id]
             if not old_ws.closed:
                 await old_ws.close()
-                self.logger.info(f"Закрыто старое WebSocket соединение для пользователя {user_id}")
         
         self.user_connections[user_id] = ws
-        self.logger.info(f"✅ Пользователь {user_id} подключен к WebSocket. Всего подключений: {len(self.user_connections)}")
         
         # Отправляем накопленные уведомления
         await self.send_pending_notifications(user_id)
@@ -35,7 +33,6 @@ class UserNotificationManager:
         """Удаляет WebSocket соединение пользователя"""
         if user_id in self.user_connections:
             del self.user_connections[user_id]
-            self.logger.info(f"❌ Пользователь {user_id} отключен от WebSocket. Осталось подключений: {len(self.user_connections)}")
     
     async def send_notification(self, user_id: int, notification_type: str, data: Dict[str, Any]) -> bool:
         """Отправляет уведомление пользователю"""
@@ -45,23 +42,19 @@ class UserNotificationManager:
         }
         
         if user_id not in self.user_connections:
-            self.logger.info(f"Пользователь {user_id} не подключен к WebSocket, добавляем в очередь")
             self.pending_notifications[user_id].append(message)
             return False
         
         ws = self.user_connections[user_id]
         if ws.closed:
-            self.logger.warning(f"WebSocket пользователя {user_id} закрыт, добавляем в очередь")
             self.unregister_user(user_id)
             self.pending_notifications[user_id].append(message)
             return False
         
         try:
             await ws.send_json(message)
-            self.logger.info(f"Уведомление отправлено пользователю {user_id}: {notification_type}")
             return True
         except Exception as e:
-            self.logger.error(f"Ошибка отправки уведомления пользователю {user_id}: {e}, добавляем в очередь")
             self.unregister_user(user_id)
             self.pending_notifications[user_id].append(message)
             return False
@@ -73,8 +66,6 @@ class UserNotificationManager:
         
         notifications = list(self.pending_notifications[user_id])
         self.pending_notifications[user_id].clear()
-        
-        self.logger.info(f"📬 Отправка {len(notifications)} накопленных уведомлений пользователю {user_id}")
         
         if user_id not in self.user_connections:
             # Возвращаем обратно в очередь
@@ -93,12 +84,8 @@ class UserNotificationManager:
                     # Возвращаем неотправленные обратно в очередь
                     self.pending_notifications[user_id].append(message)
             except Exception as e:
-                self.logger.error(f"Ошибка отправки накопленного уведомления пользователю {user_id}: {e}")
                 # Возвращаем неотправленные обратно в очередь
                 self.pending_notifications[user_id].append(message)
-        
-        if sent_count > 0:
-            self.logger.info(f"✅ Отправлено {sent_count} накопленных уведомлений пользователю {user_id}")
     
     async def send_powerbank_return_notification(self, user_id: int, order_id: int, 
                                                  powerbank_serial: str, message: str) -> bool:

@@ -146,13 +146,18 @@ class BaseAPI:
                                 include_deleted: bool = False) -> Optional[Dict[str, Any]]:
         """
         Получить сущность по ID
-        По умолчанию возвращает только is_deleted = 0
+        По умолчанию возвращает только неудаленные записи
+        Для powerbank использует power_er != 5, для остальных - is_deleted = 0
         """
         async with self.db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 where_clause = f"{id_field} = %s"
                 if not include_deleted:
-                    where_clause += " AND is_deleted = 0"
+                    # Для powerbank используем power_er != 5, для остальных - is_deleted = 0
+                    if table == 'powerbank':
+                        where_clause += " AND (power_er != 5 OR power_er IS NULL) AND status != 'system_error'"
+                    else:
+                        where_clause += " AND is_deleted = 0"
                 
                 query = f"SELECT * FROM {table} WHERE {where_clause}"
                 await cur.execute(query, (entity_id,))
@@ -221,19 +226,26 @@ class BaseAPI:
         self, 
         where_conditions: list, 
         table_aliases: list, 
-        show_deleted: bool = False
+        show_deleted: bool = False,
+        table_name: str = None
     ):
         """
         Добавляет фильтр is_deleted = 0 для указанных таблиц
+        Для powerbank использует фильтр power_er != 5 AND status != 'system_error'
         
         Args:
             where_conditions: Список условий WHERE
             table_aliases: Список алиасов таблиц (например, ['s', 'ou'])
             show_deleted: Если True, фильтр не добавляется
+            table_name: Имя таблицы для определения типа фильтра ('powerbank' или другая)
         """
         if not show_deleted:
             for alias in table_aliases:
-                where_conditions.append(f"{alias}.is_deleted = 0")
+                # Для powerbank используем power_er != 5 вместо is_deleted
+                if table_name == 'powerbank' or (table_name is None and 'p' in table_aliases and len(table_aliases) == 1):
+                    where_conditions.append(f"({alias}.power_er != 5 OR {alias}.power_er IS NULL) AND {alias}.status != 'system_error'")
+                else:
+                    where_conditions.append(f"{alias}.is_deleted = 0")
     
     # ============ Валидация ID ============
     

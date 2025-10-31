@@ -565,7 +565,7 @@ class Order:
             async with conn.cursor(aiomysql.DictCursor) as cursor:
                 await cursor.execute("""
                     SELECT * FROM orders
-                    WHERE powerbank_serial = %s AND status = 'borrow'
+                    WHERE powerbank_serial COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci AND status = 'borrow'
                     LIMIT 1
                 """, (powerbank_serial,))
 
@@ -657,7 +657,7 @@ class Order:
                     SELECT id, station_box_id, user_phone, user_fio, powerbank_serial, 
                            org_unit_name, status, timestamp, completed_at
                     FROM orders
-                    WHERE powerbank_serial = %s AND status = 'borrow' AND completed_at IS NULL
+                    WHERE powerbank_serial COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci AND status = 'borrow' AND completed_at IS NULL
                     ORDER BY timestamp DESC
                     LIMIT 1
                 """, (powerbank_serial,))
@@ -813,9 +813,9 @@ class Order:
                         pb.id AS powerbank_id
                     FROM orders o
                     LEFT JOIN app_user u ON o.user_phone = u.phone_e164
-                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN station s ON o.station_box_id COLLATE utf8mb4_unicode_ci = s.box_id COLLATE utf8mb4_unicode_ci
                     LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
-                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN powerbank pb ON o.powerbank_serial COLLATE utf8mb4_unicode_ci = pb.serial_number COLLATE utf8mb4_unicode_ci
                     LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
                     WHERE o.user_phone = %s AND o.is_deleted = 0
                     ORDER BY o.timestamp DESC
@@ -857,9 +857,9 @@ class Order:
                         pb.id AS powerbank_id
                     FROM orders o
                     LEFT JOIN app_user u ON o.user_phone = u.phone_e164
-                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN station s ON o.station_box_id COLLATE utf8mb4_unicode_ci = s.box_id COLLATE utf8mb4_unicode_ci
                     LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
-                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN powerbank pb ON o.powerbank_serial COLLATE utf8mb4_unicode_ci = pb.serial_number COLLATE utf8mb4_unicode_ci
                     LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
                     WHERE o.station_box_id = %s AND o.is_deleted = 0
                     ORDER BY o.timestamp DESC
@@ -893,9 +893,9 @@ class Order:
                         pb.id AS powerbank_id
                     FROM orders o
                     LEFT JOIN app_user u ON o.user_phone = u.phone_e164
-                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN station s ON o.station_box_id COLLATE utf8mb4_unicode_ci = s.box_id COLLATE utf8mb4_unicode_ci
                     LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
-                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN powerbank pb ON o.powerbank_serial COLLATE utf8mb4_unicode_ci = pb.serial_number COLLATE utf8mb4_unicode_ci
                     LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
                     WHERE o.status = %s AND o.is_deleted = 0
                     ORDER BY o.timestamp DESC
@@ -944,7 +944,7 @@ class Order:
                     SELECT COUNT(*) as total 
                     FROM orders o
                     LEFT JOIN app_user u ON o.user_phone = u.phone_e164
-                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN station s ON o.station_box_id COLLATE utf8mb4_unicode_ci = s.box_id COLLATE utf8mb4_unicode_ci
                     {where_clause}
                 """
                 await cur.execute(count_query, params)
@@ -970,9 +970,9 @@ class Order:
                         pb.id AS powerbank_id
                     FROM orders o
                     LEFT JOIN app_user u ON o.user_phone = u.phone_e164
-                    LEFT JOIN station s ON o.station_box_id = s.box_id
+                    LEFT JOIN station s ON o.station_box_id COLLATE utf8mb4_unicode_ci = s.box_id COLLATE utf8mb4_unicode_ci
                     LEFT JOIN org_unit ou ON s.org_unit_id = ou.org_unit_id
-                    LEFT JOIN powerbank pb ON o.powerbank_serial = pb.serial_number
+                    LEFT JOIN powerbank pb ON o.powerbank_serial COLLATE utf8mb4_unicode_ci = pb.serial_number COLLATE utf8mb4_unicode_ci
                     LEFT JOIN user_favorites uf ON u.user_id = uf.user_id AND s.station_id = uf.station_id
                     {where_clause}
                     ORDER BY o.timestamp DESC

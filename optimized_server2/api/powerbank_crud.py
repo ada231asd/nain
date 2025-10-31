@@ -50,7 +50,7 @@ class PowerbankCRUD(BaseAPI):
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем уникальность serial_number
-                    await cur.execute("SELECT id FROM powerbank WHERE serial_number = %s", (data['serial_number'],))
+                    await cur.execute("SELECT id FROM powerbank WHERE serial_number COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci", (data['serial_number'],))
                     if await cur.fetchone():
                         return web.json_response({
                             "success": False,
@@ -110,7 +110,8 @@ class PowerbankCRUD(BaseAPI):
                     params = []
                     
                     # КРИТИЧНО: Фильтр удаленных записей (только основная таблица!)
-                    self.add_is_deleted_filter(where_conditions, ['p'], show_deleted)
+                    # Для powerbank используем power_er != 5 вместо is_deleted
+                    self.add_is_deleted_filter(where_conditions, ['p'], show_deleted, table_name='powerbank')
                     
                     if status:
                         where_conditions.append("p.status = %s")
@@ -327,10 +328,14 @@ class PowerbankCRUD(BaseAPI):
             if error_response:
                 return error_response
             
-            # Проверка существования
-            exists = await self.entity_exists('powerbank', 'id', powerbank_id)
+            # Проверка существования (включая удаленные для возможности повторного удаления)
+            exists = await self.entity_exists('powerbank', 'id', powerbank_id, include_deleted=True)
             if not exists:
                 return self.error_response("Powerbank не найден", 404)
+            
+            # Получаем serial_number перед удалением для ответа
+            powerbank_data = await self.get_entity_by_id('powerbank', 'id', powerbank_id, include_deleted=True)
+            serial_number = powerbank_data.get('serial_number') if powerbank_data else None
             
             # Мягкое удаление
             success, message = await self.soft_delete_entity(
@@ -338,7 +343,13 @@ class PowerbankCRUD(BaseAPI):
             )
             
             if success:
-                return self.success_response(message=message)
+                return self.success_response(
+                    data={
+                        'id': powerbank_id,
+                        'serial_number': serial_number
+                    }, 
+                    message=message
+                )
             else:
                 return self.error_response(message, 404)
                     

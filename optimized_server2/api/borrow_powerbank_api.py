@@ -50,7 +50,6 @@ class BorrowPowerbankAPI:
             
             from utils.centralized_logger import get_logger
             logger = get_logger('borrow_powerbank_api')
-            logger.info(f"📊 Станция {station_id}: Найдено записей в station_powerbank: {len(powerbanks)}")
             
             result = []
             total_powerbanks_count = 0    # Счетчик ВСЕХ повербанков (для расчета свободных слотов)
@@ -60,16 +59,15 @@ class BorrowPowerbankAPI:
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
                 
-                # Логируем каждый повербанк для отладки
-                logger.debug(f"  Слот {sp.slot_number}: powerbank_id={sp.powerbank_id}, "
-                           f"found={powerbank is not None}, "
-                           f"is_deleted={powerbank.is_deleted if powerbank else 'N/A'}, "
-                           f"status={powerbank.status if powerbank else 'N/A'}")
-                
                 # Пропускаем ТОЛЬКО если повербанк вообще не найден в БД
                 if not powerbank:
-                    logger.warning(f"  ⚠️ Слот {sp.slot_number}: Повербанк {sp.powerbank_id} не найден в БД!")
                     continue
+                
+                # Логируем каждый повербанк для отладки
+                power_er_value = getattr(powerbank, 'power_er', None)
+                logger.debug(f"  Слот {sp.slot_number}: powerbank_id={sp.powerbank_id}, "
+                           f"power_er={power_er_value}, "
+                           f"status={powerbank.status}")
                 
                 # ВАЖНО: Учитываем ВСЕ повербанки, даже удаленные и сломанные!
                 # Они физически находятся в станции и занимают слоты
@@ -77,14 +75,15 @@ class BorrowPowerbankAPI:
                 
                 # Проверяем, сломан ли повербанк по статусу или удален
                 is_broken_status = powerbank.status in ['system_error', 'user_reported_broken', 'written_off']
-                is_deleted = powerbank.is_deleted == 1
+                # Удаленные повербанки теперь имеют power_er = 5 и status = 'system_error'
+                is_deleted = powerbank.status == 'system_error' and getattr(powerbank, 'power_er', None) == 5
                 # Проверяем наличие ошибок в параметрах слота
                 has_slot_errors = self._check_powerbank_errors(sp)
                 
                 # Повербанк считается сломанным, если:
                 # - у него проблемный статус
                 # - есть ошибки слота
-                # - он помечен как удаленный
+                # - он помечен как удаленный (power_er = 5)
                 is_broken = is_broken_status or has_slot_errors or is_deleted
                 
                 if is_broken:
@@ -145,13 +144,6 @@ class BorrowPowerbankAPI:
             # ВАЖНО: Свободные слоты для возврата = total_slots - ВСЕ_повербанки
             # Сломанные повербанки ТОЖЕ занимают слоты!
             free_slots_for_return = max(0, station.slots_declared - total_powerbanks_count)
-            
-            # Логирование для отладки
-            from utils.centralized_logger import get_logger
-            logger = get_logger('borrow_powerbank_api')
-            logger.info(f"Станция {station_id}: slots={station.slots_declared}, "
-                       f"total_pb={total_powerbanks_count} (healthy={healthy_powerbanks_count}, broken={broken_powerbanks_count}), "
-                       f"free_slots={free_slots_for_return}, remain_num={station.remain_num}")
 
             return {
                 "success": True,

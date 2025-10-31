@@ -541,7 +541,7 @@ class CRUDEndpoints(BaseAPI):
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
                     # Проверяем уникальность box_id
-                    await cur.execute("SELECT station_id FROM station WHERE box_id = %s", (data['box_id'],))
+                    await cur.execute("SELECT station_id FROM station WHERE box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci", (data['box_id'],))
                     if await cur.fetchone():
                         return web.json_response({
                             "success": False,
@@ -616,7 +616,7 @@ class CRUDEndpoints(BaseAPI):
                         params.append(status)
                     
                     if box_id:
-                        where_conditions.append("s.box_id = %s")
+                        where_conditions.append("s.box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci")
                         params.append(box_id)
                     
                     # Применяем фильтрацию по org_unit на основе прав доступа

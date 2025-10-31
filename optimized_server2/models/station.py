@@ -78,7 +78,7 @@ class Station:
         """Получает станцию по box_id"""
         async with pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute("SELECT * FROM station WHERE box_id=%s", (box_id,))
+                await cur.execute("SELECT * FROM station WHERE box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci", (box_id,))
                 station_data = await cur.fetchone()
                 
                 if station_data:
@@ -108,7 +108,7 @@ class Station:
         async with pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 # Проверяем существующую станцию
-                await cur.execute("SELECT * FROM station WHERE box_id=%s", (box_id,))
+                await cur.execute("SELECT * FROM station WHERE box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci", (box_id,))
                 station_data = await cur.fetchone()
                 
                 if not station_data:

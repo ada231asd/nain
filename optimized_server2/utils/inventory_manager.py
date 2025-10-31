@@ -274,7 +274,7 @@ class InventoryManager:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
                     await cur.execute("""
-                        SELECT id FROM powerbank WHERE serial_number = %s
+                        SELECT id FROM powerbank WHERE serial_number COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci
                     """, (terminal_id,))
                     result = await cur.fetchone()
                     return result[0] if result else None

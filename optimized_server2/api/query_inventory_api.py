@@ -27,7 +27,6 @@ class QueryInventoryAPI:
         { "station_id": 123 }
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Администратор {user_id} запросил инвентарь станции.")
 
         try:
             data = await request.json()
@@ -45,14 +44,12 @@ class QueryInventoryAPI:
             response = await self.query_inventory_handler.send_inventory_request(station_id)
 
             if response["success"]:
-                self.logger.info(f"Администратор {user_id} успешно отправил запрос инвентаря на станцию {station_id}.")
                 return web.json_response({
                     "success": True,
                     "message": response["message"],
                     "packet_hex": response.get("packet_hex")
                 })
             else:
-                self.logger.error(f"Администратор {user_id}: Ошибка отправки запроса инвентаря на станцию {station_id}: {response['message']}")
                 return web.json_response({"error": response["message"]}, status=500)
 
         except Exception as e:
@@ -68,7 +65,6 @@ class QueryInventoryAPI:
         """
         user_id = request['user']['user_id']
         station_id = request.match_info.get('station_id')
-        self.logger.info(f"Администратор {user_id} запросил текущий инвентарь станции {station_id} из кэша.")
 
         if not station_id:
             return web.json_response({"error": "Не указан ID станции"}, status=400)

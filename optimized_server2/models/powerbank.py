@@ -17,7 +17,7 @@ class Powerbank:
                  serial_number: str = None, soh: int = None, 
                  status: str = 'unknown', write_off_reason: str = 'none',
                  created_at: datetime = None, is_deleted: int = 0, 
-                 deleted_at: datetime = None):
+                 deleted_at: datetime = None, power_er: int = None):
         self.powerbank_id = powerbank_id
         self.org_unit_id = org_unit_id
         self.serial_number = serial_number
@@ -27,6 +27,7 @@ class Powerbank:
         self.created_at = created_at
         self.is_deleted = is_deleted
         self.deleted_at = deleted_at
+        self.power_er = power_er
     
     @classmethod
     async def get_by_id(cls, db_pool, powerbank_id: int) -> Optional['Powerbank']:
@@ -35,7 +36,7 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "SELECT id, org_unit_id, serial_number, soh, status, write_off_reason, created_at, "
-                    "is_deleted, deleted_at "
+                    "is_deleted, deleted_at, power_er "
                     "FROM powerbank WHERE id = %s",
                     (powerbank_id,)
                 )
@@ -51,7 +52,8 @@ class Powerbank:
                         write_off_reason=str(result[5]) if result[5] else None,
                         created_at=result[6],
                         is_deleted=int(result[7]) if result[7] is not None else 0,
-                        deleted_at=result[8]
+                        deleted_at=result[8],
+                        power_er=int(result[9]) if result[9] is not None else None
                     )
                 return None
 
@@ -62,8 +64,8 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "SELECT id, org_unit_id, serial_number, soh, status, write_off_reason, created_at, "
-                    "is_deleted, deleted_at "
-                    "FROM powerbank WHERE serial_number = %s",
+                    "is_deleted, deleted_at, power_er "
+                    "FROM powerbank WHERE serial_number COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci",
                     (serial_number,)
                 )
                 result = await cursor.fetchone()
@@ -78,7 +80,8 @@ class Powerbank:
                         write_off_reason=str(result[5]) if result[5] else None,
                         created_at=result[6],
                         is_deleted=int(result[7]) if result[7] is not None else 0,
-                        deleted_at=result[8]
+                        deleted_at=result[8],
+                        power_er=int(result[9]) if result[9] is not None else None
                     )
                 return None
     
@@ -212,8 +215,8 @@ class Powerbank:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "SELECT id, org_unit_id, serial_number, soh, status, write_off_reason, created_at, "
-                    "is_deleted, deleted_at "
-                    "FROM powerbank WHERE serial_number = %s LIMIT 1",
+                    "is_deleted, deleted_at, power_er "
+                    "FROM powerbank WHERE serial_number COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci LIMIT 1",
                     (terminal_id,)
                 )
                 result = await cursor.fetchone()
@@ -227,7 +230,8 @@ class Powerbank:
                         write_off_reason=str(result[5]) if result[5] else None,
                         created_at=result[6],
                         is_deleted=int(result[7]) if result[7] is not None else 0,
-                        deleted_at=result[8]
+                        deleted_at=result[8],
+                        power_er=int(result[9]) if result[9] is not None else None
                     )
                 return None
 
@@ -270,13 +274,13 @@ class Powerbank:
 
     @classmethod
     async def get_all_active(cls, db_pool) -> list:
-        """Получает все активные повербанки (не удаленные)"""
+        """Получает все активные повербанки (не удаленные - power_er != 5)"""
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute(
                     "SELECT id, org_unit_id, serial_number, soh, status, write_off_reason, created_at, "
-                    "is_deleted, deleted_at "
-                    "FROM powerbank WHERE status = 'active' AND (is_deleted = 0 OR is_deleted IS NULL) "
+                    "is_deleted, deleted_at, power_er "
+                    "FROM powerbank WHERE status = 'active' AND (power_er != 5 OR power_er IS NULL) "
                     "ORDER BY created_at DESC"
                 )
                 results = await cursor.fetchall()
@@ -292,7 +296,8 @@ class Powerbank:
                         write_off_reason=str(result[5]) if result[5] else None,
                         created_at=result[6],
                         is_deleted=int(result[7]) if result[7] is not None else 0,
-                        deleted_at=result[8]
+                        deleted_at=result[8],
+                        power_er=int(result[9]) if len(result) > 9 and result[9] is not None else None
                     ))
                 return powerbanks
 

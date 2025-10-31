@@ -97,7 +97,6 @@ class HTTPServer:
         app = web.Application(client_max_size=client_max_size_bytes)
         app['client_max_size_bytes'] = client_max_size_bytes
         
-        # Единый JSON-обработчик ошибок, чтобы 413 и другие ошибки не возвращались как HTML
         @web.middleware
         async def error_to_json_middleware(request, handler):
             try:
@@ -300,7 +299,6 @@ class HTTPServer:
         self.slot_abnormal_report_endpoints = SlotAbnormalReportEndpoints(self.db_pool, connection_manager)
         self.slot_abnormal_report_endpoints.setup_routes(app)
         
-        # API для мягкого и жесткого удаления
         # Мягкое удаление (soft delete)
         app.router.add_delete('/api/soft-delete/{entity_type}/{entity_id}', self.soft_delete_api.soft_delete_entity)
         app.router.add_post('/api/soft-delete/restore/{entity_type}/{entity_id}', self.soft_delete_api.restore_entity)
@@ -312,7 +310,6 @@ class HTTPServer:
         app.router.add_delete('/api/hard-delete/cleanup', self.hard_delete_api.cleanup_old_deleted)
         app.router.add_get('/api/hard-delete/cleanup/preview', self.hard_delete_api.get_cleanup_candidates)
         
-        # Настройка раздачи статических файлов (логотипов)
         # Путь к папке с логотипами (tcp_server/uploads/logos)
         uploads_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "logos")
         os.makedirs(uploads_path, exist_ok=True)
@@ -333,13 +330,11 @@ class HTTPServer:
         user_id = None
         logger = get_logger('websocket')
         
-        logger.info("🔌 Новое WebSocket подключение")
-        
         try:
             # Получаем токен из query параметров
             token = request.query.get('token')
             if not token:
-                logger.warning("❌ WebSocket: токен не предоставлен")
+                logger.warning(" WebSocket: токен не предоставлен")
                 await ws.send_json({'error': 'Missing token'})
                 await ws.close()
                 return ws
@@ -348,62 +343,50 @@ class HTTPServer:
             try:
                 payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
                 user_id = payload.get('user_id')
-                logger.info(f"🔑 WebSocket: токен расшифрован, user_id={user_id}")
                 
                 if not user_id:
-                    logger.warning("❌ WebSocket: user_id не найден в токене")
+                    logger.warning(" WebSocket: user_id не найден в токене")
                     await ws.send_json({'error': 'Invalid token'})
                     await ws.close()
                     return ws
             except jwt.ExpiredSignatureError:
-                logger.warning("❌ WebSocket: токен истёк")
+                logger.warning(" WebSocket: токен истёк")
                 await ws.send_json({'error': 'Token expired'})
                 await ws.close()
                 return ws
             except jwt.InvalidTokenError as e:
-                logger.warning(f"❌ WebSocket: неверный токен - {e}")
+                logger.warning(f" WebSocket: неверный токен - {e}")
                 await ws.send_json({'error': 'Invalid token'})
                 await ws.close()
                 return ws
             
             # Регистрируем пользователя
-            logger.info(f"📝 Регистрируем пользователя {user_id} в WebSocket менеджере")
             await user_notification_manager.register_user(user_id, ws)
             await ws.send_json({
                 'type': 'connected',
                 'message': 'WebSocket connected successfully'
             })
             
-            logger.info(f"✅ WebSocket: пользователь {user_id} успешно подключен и слушает сообщения")
-            logger.info(f"🔍 WebSocket состояние перед циклом: closed={ws.closed}, close_code={ws.close_code}")
-            
             # Слушаем сообщения от клиента
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
                     if msg.data == 'ping':
                         await ws.send_json({'type': 'pong'})
-                        logger.debug(f"🏓 Ping/Pong от пользователя {user_id}")
                     else:
-                        logger.debug(f"📨 Получено текстовое сообщение от {user_id}: {msg.data}")
+                        pass
                 elif msg.type == web.WSMsgType.ERROR:
-                    logger.error(f'❌ WebSocket error for user {user_id}: {ws.exception()}')
                     break
                 elif msg.type == web.WSMsgType.CLOSE:
-                    logger.info(f"🔚 Клиент {user_id} закрыл соединение")
                     break
                 elif msg.type == web.WSMsgType.CLOSED:
-                    logger.info(f"🔚 Соединение с {user_id} уже закрыто")
                     break
                 else:
-                    logger.debug(f"❓ Неизвестный тип сообщения от {user_id}: {msg.type}")
-            
-            logger.info(f"🔄 WebSocket: цикл завершен для {user_id}, состояние: closed={ws.closed}, close_code={ws.close_code}")
+                    pass
         
         except Exception as e:
-            logger.error(f'❌ WebSocket критическая ошибка для пользователя {user_id}: {e}', exc_info=True)
+            pass
         finally:
             if user_id:
-                logger.info(f"🔚 Закрываем WebSocket для пользователя {user_id}")
                 user_notification_manager.unregister_user(user_id)
         
         return ws

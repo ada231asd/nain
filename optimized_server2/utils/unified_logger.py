@@ -26,8 +26,6 @@ class UnifiedLogger:
         
     def _get_current_log_file(self):
         """Возвращает имя текущего активного файла лога"""
-        # Текущий активный файл всегда server.log
-        # При ротации он будет переименован в server_ГГГГ-ММ-ДД.log
         return "server.log"
         
     def setup_logging(self):
@@ -47,16 +45,13 @@ class UnifiedLogger:
             log_file_path,
             when='midnight',  # Ротация в полночь
             interval=1,  # Каждый день
-            backupCount=self.log_retention_days,  # Хранить N дней
+            backupCount=self.log_retention_days,  
             encoding='utf-8',
-            utc=False  # Использовать локальное время
+            utc=False 
         )
         self._file_handler.setFormatter(logging.Formatter(log_format, date_format))
         
-        # Настраиваем формат имени: server.log -> server_2025-10-28.log
-        # При ротации файл переименовывается с добавлением даты
         self._file_handler.suffix = "_%Y-%m-%d"
-        # Убираем расширение .log перед добавлением суффикса, потом добавляем обратно
         self._file_handler.namer = lambda name: name.replace(".log", "") + ".log"
         
         # Создаем консольный обработчик
@@ -64,7 +59,7 @@ class UnifiedLogger:
         self._console_handler.setFormatter(logging.Formatter(log_format, date_format))
         
         # Настраиваем корневой логгер
-        root_logger = logging.getLogger()
+        root_logger = logging.getLogger()   
         root_logger.setLevel(getattr(logging, LOG_LEVEL.upper()))
         root_logger.addHandler(self._file_handler)
         root_logger.addHandler(self._console_handler)
