@@ -22,8 +22,9 @@ logger = get_logger('soft_delete_api')
 class SoftDeleteAPI:
     """API для управления мягким удалением"""
     
-    def __init__(self, db_pool):
+    def __init__(self, db_pool, connection_manager=None):
         self.db_pool = db_pool
+        self.connection_manager = connection_manager
     
     async def soft_delete_entity(self, request: Request) -> Response:
         """
@@ -65,9 +66,32 @@ class SoftDeleteAPI:
                     'error': f'Неподдерживаемый тип сущности: {entity_type}'
                 }, status=400)
             
+            # Для повербанков находим станцию до удаления
+            station_id = None
+            if entity_type == 'powerbank' and self.connection_manager:
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor(aiomysql.DictCursor) as cur:
+                        await cur.execute(
+                            "SELECT station_id FROM station_powerbank WHERE powerbank_id = %s LIMIT 1",
+                            (entity_id,)
+                        )
+                        result = await cur.fetchone()
+                        if result:
+                            station_id = result['station_id']
+            
             success = await delete_functions[entity_type](self.db_pool, entity_id)
             
             if success:
+                # Для повербанков отправляем запрос инвентаризации на станцию
+                if entity_type == 'powerbank' and station_id and self.connection_manager:
+                    try:
+                        from handlers.query_inventory import QueryInventoryHandler
+                        inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
+                        await inventory_handler.send_inventory_request(station_id)
+                        logger.info(f"Отправлен запрос инвентаризации на станцию {station_id} после удаления повербанка {entity_id}")
+                    except Exception as e:
+                        logger.warning(f"Не удалось отправить запрос инвентаризации для станции {station_id} после удаления повербанка {entity_id}: {e}")
+                
                 logger.info(f"Пользователь {user['user_id']} удалил {entity_type} #{entity_id}")
                 return web.json_response({
                     'success': True,

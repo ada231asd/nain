@@ -178,7 +178,7 @@ class HTTPServer:
 
         self.borrow_endpoints = BorrowEndpoints(self.db_pool, connection_manager, borrow_handler=shared_borrow_handler)  
         self.crud_endpoints = CRUDEndpoints(self.db_pool)
-        self.powerbank_crud = PowerbankCRUD(self.db_pool)
+        self.powerbank_crud = PowerbankCRUD(self.db_pool, connection_manager)
         self.orders_crud = OrdersCRUD(self.db_pool)
         self.org_unit_crud = OrgUnitCRUD(self.db_pool)
         self.other_entities_crud = OtherEntitiesCRUD(self.db_pool)
@@ -195,8 +195,8 @@ class HTTPServer:
         self.return_endpoints = ReturnEndpoints(self.db_pool, connection_manager)
         self.invitation_api = InvitationAPI(self.db_pool)
         self.invitation_storage_api = InvitationStorageAPI(self.db_pool)
-        self.soft_delete_api = SoftDeleteAPI(self.db_pool)
-        self.hard_delete_api = HardDeleteAPI(self.db_pool)
+        self.soft_delete_api = SoftDeleteAPI(self.db_pool, connection_manager)
+        self.hard_delete_api = HardDeleteAPI(self.db_pool, connection_manager)
         self.auth_middleware = AuthMiddleware(self.db_pool)
         
         # Регистрируем маршруты

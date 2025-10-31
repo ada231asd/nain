@@ -9,14 +9,16 @@ import aiomysql
 from datetime import datetime
 from utils.json_utils import serialize_for_json
 from utils.time_utils import get_moscow_time
+from utils.centralized_logger import get_logger
 from api.base_api import BaseAPI
 
 
 class PowerbankCRUD(BaseAPI):
     """CRUD endpoints для powerbank"""
     
-    def __init__(self, db_pool):
+    def __init__(self, db_pool, connection_manager=None):
         super().__init__(db_pool)
+        self.connection_manager = connection_manager
     
     async def create_powerbank(self, request: Request) -> Response:
         """POST /api/powerbanks - Создать powerbank"""
@@ -337,12 +339,36 @@ class PowerbankCRUD(BaseAPI):
             powerbank_data = await self.get_entity_by_id('powerbank', 'id', powerbank_id, include_deleted=True)
             serial_number = powerbank_data.get('serial_number') if powerbank_data else None
             
+            # Находим станцию, в которой находится повербанк, до удаления
+            station_id = None
+            if self.connection_manager:
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor(aiomysql.DictCursor) as cur:
+                        await cur.execute(
+                            "SELECT station_id FROM station_powerbank WHERE powerbank_id = %s LIMIT 1",
+                            (powerbank_id,)
+                        )
+                        result = await cur.fetchone()
+                        if result:
+                            station_id = result['station_id']
+            
             # Мягкое удаление
             success, message = await self.soft_delete_entity(
                 'powerbank', powerbank_id, user.get('user_id')
             )
             
             if success:
+                # Отправляем запрос инвентаризации на станцию, если повербанк был в станции
+                if station_id and self.connection_manager:
+                    try:
+                        from handlers.query_inventory import QueryInventoryHandler
+                        inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
+                        await inventory_handler.send_inventory_request(station_id)
+                    except Exception as e:
+                        # Логируем ошибку, но не прерываем удаление
+                        logger = get_logger('powerbank_crud')
+                        logger.warning(f"Не удалось отправить запрос инвентаризации для станции {station_id} после удаления повербанка {powerbank_id}: {e}")
+                
                 return self.success_response(
                     data={
                         'id': powerbank_id,

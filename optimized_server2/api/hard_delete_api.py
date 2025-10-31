@@ -16,8 +16,9 @@ logger = get_logger('hard_delete_api')
 class HardDeleteAPI:
     """API для физического удаления записей из БД"""
     
-    def __init__(self, db_pool):
+    def __init__(self, db_pool, connection_manager=None):
         self.db_pool = db_pool
+        self.connection_manager = connection_manager
     
     async def hard_delete_entity(self, request: Request) -> Response:
         """DELETE /api/hard-delete/{entity_type}/{entity_id} - Физическое удаление записи"""
@@ -56,10 +57,33 @@ class HardDeleteAPI:
             
             table, id_field = table_mapping[entity_type]
             
+            # Для повербанков находим станцию до удаления
+            station_id = None
+            if entity_type == 'powerbank' and self.connection_manager:
+                async with self.db_pool.acquire() as conn:
+                    async with conn.cursor(aiomysql.DictCursor) as cur:
+                        await cur.execute(
+                            "SELECT station_id FROM station_powerbank WHERE powerbank_id = %s LIMIT 1",
+                            (entity_id,)
+                        )
+                        result = await cur.fetchone()
+                        if result:
+                            station_id = result['station_id']
+            
             # Физическое удаление
             success = await SoftDeleteMixin.hard_delete(self.db_pool, table, entity_id, id_field)
             
             if success:
+                # Для повербанков отправляем запрос инвентаризации на станцию
+                if entity_type == 'powerbank' and station_id and self.connection_manager:
+                    try:
+                        from handlers.query_inventory import QueryInventoryHandler
+                        inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
+                        await inventory_handler.send_inventory_request(station_id)
+                        logger.info(f"Отправлен запрос инвентаризации на станцию {station_id} после жесткого удаления повербанка {entity_id}")
+                    except Exception as e:
+                        logger.warning(f"Не удалось отправить запрос инвентаризации для станции {station_id} после жесткого удаления повербанка {entity_id}: {e}")
+                
                 logger.warning(f"ЖЕСТКОЕ УДАЛЕНИЕ: {entity_type} #{entity_id} by user {user['user_id']}")
                 return web.json_response({
                     'success': True,
