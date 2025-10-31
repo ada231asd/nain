@@ -136,13 +136,9 @@
 
       <!-- Быстрые действия -->
       <section class="quick-actions">
-        <h2>Быстрые действия</h2>
         <div class="actions-grid">
           <button @click="showQRScanner = true" class="action-btn-standard">
             Найти станцию
-          </button>
-          <button @click="goToAdmin" v-if="isAdmin" class="action-btn-standard">
-            Панель управления
           </button>
         </div>
       </section>
@@ -1791,7 +1787,7 @@ onUnmounted(() => {
 
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
 }
 
@@ -1805,6 +1801,7 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   font-weight: 600;
   font-size: 1rem;
+  width: 100%;
 }
 
 .action-btn-standard:hover {
