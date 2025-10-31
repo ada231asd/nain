@@ -17,7 +17,6 @@
               <UsersTable
                 :users="users"
                 :org-units="orgUnits"
-                @add-user="() => showAddUserModal = true"
                 @bulk-import="() => showBulkImportModal = true"
                 @user-updated="handleUserUpdated"
                 @approve-user="approveUser"
@@ -145,12 +144,6 @@
     </main>
 
     <!-- Модальные окна -->
-    <AddUserModal
-      :is-visible="showAddUserModal"
-      @close="showAddUserModal = false"
-      @user-added="handleUserAdded"
-    />
-
     <BulkImportModal
       :is-visible="showBulkImportModal"
       :org-units="orgUnits"
@@ -248,7 +241,6 @@ import { showSuccess, showError, showWarning, showInfo, showConfirm } from '../u
 
 
 
-import AddUserModal from '../components/AddUserModal.vue'
 import BulkImportModal from '../components/BulkImportModal.vue'
 import AddStationModal from '../components/AddStationModal.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
@@ -274,7 +266,6 @@ const authStore = useAuthStore()
 const activeTab = ref('users')
 
 // Модальные окна
-const showAddUserModal = ref(false)
 const showBulkImportModal = ref(false)
 const showAddStationModal = ref(false)
 const showStationActivationModal = ref(false)
@@ -538,16 +529,7 @@ const handleStationAction = async (station, event) => {
 
 
 
-const handleUserAdded = async (userData) => {
-  try {
-    await adminStore.createUser(userData)
-    showAddUserModal.value = false
-    // Автоматическое обновление данных
-    await refreshAfterAction()
-  } catch (error) {
-    // Error handled silently
-  }
-}
+// add-user flow removed
 
 const handleBulkImportCompleted = async (importResult) => {
   try {

@@ -15,14 +15,11 @@
           />
           <span class="search-icon">🔍</span>
         </div>
-        <button @click="$emit('add-user')" class="btn-add-user">
-          + Добавить пользователя
-        </button>
         <button @click="$emit('bulk-import')" class="btn-bulk-import">
           Импорт из Excel
         </button>
         <button @click="showInvitationModal = true" class="btn-invitation">
-          🎫 Создать приглашение
+          Создать приглашение
         </button>
         <FilterButton 
           filter-type="users"
@@ -434,7 +431,6 @@ const authStore = useAuthStore()
 const adminStore = useAdminStore()
 
 const emit = defineEmits([
-  'add-user',
   'approve-user',
   'block-user',
   'unblock-user',
@@ -1246,20 +1242,7 @@ watch(currentPage, () => {
   font-size: 16px;
 }
 
-.btn-add-user {
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.3s ease;
-}
-
-.btn-add-user:hover {
-  background: #5a6fd8;
-}
+/* .btn-add-user styles removed as button no longer exists */
 
 .btn-bulk-import {
   padding: 10px 20px;

@@ -17,9 +17,6 @@
           <h2>Пользователи</h2>
           <div class="header-actions">
             <input type="text" v-model="userSearch" placeholder="Поиск..." class="search-input" />
-            <button @click="showAddUserModal = true" class="btn-primary">
-              + Добавить пользователя
-            </button>
           </div>
         </div>
 
@@ -80,12 +77,6 @@
     </main>
 
     <!-- Модальные окна -->
-    <AddUserModal 
-      :is-visible="showAddUserModal"
-      @close="showAddUserModal = false"
-      @user-added="handleUserAdded"
-    />
-    
     <EditUserModal
       :is-visible="showEditUserModal"
       :user="selectedUser"
@@ -109,7 +100,6 @@ import { useAdminStore } from '../../stores/admin'
 import { useAuthStore } from '../../stores/auth'
 
 import EditUserModal from '../../components/EditUserModal.vue'
-import AddUserModal from '../../components/AddUserModal.vue'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -119,7 +109,6 @@ const authStore = useAuthStore()
 const userSearch = ref('')
 
 // Модальные окна
-const showAddUserModal = ref(false)
 const showEditUserModal = ref(false)
 const selectedUser = ref(null)
 
@@ -352,16 +341,7 @@ const unblockUser = async (user) => {
   }
 }
 
-const handleUserAdded = async (userData) => {
-  try {
-    await adminStore.createUser(userData)
-    showAddUserModal.value = false
-    // Автоматическое обновление данных
-    await refreshAfterAction()
-  } catch (error) {
-    console.error('Ошибка при добавлении пользователя:', error)
-  }
-}
+// add-user flow removed
 
 // Обновление данных после действий
 const refreshAfterAction = async () => {
