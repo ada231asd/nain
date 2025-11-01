@@ -90,8 +90,8 @@ class RestartCabinetHandler:
             response = parse_restart_cabinet_response(data)
             
             if response.get("CheckSumValid", False):
+                pass
             
-           
             return None
             
         except Exception as e:

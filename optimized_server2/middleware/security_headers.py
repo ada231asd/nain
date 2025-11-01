@@ -23,3 +23,12 @@ async def security_headers_middleware(request, handler):
         response.headers[header] = value
     
     return response
+
+
+class SecurityHeadersMiddleware:
+    """Класс middleware для добавления заголовков безопасности"""
+    
+    @web.middleware
+    async def __call__(self, request, handler):
+        """Вызов middleware"""
+        return await security_headers_middleware(request, handler)

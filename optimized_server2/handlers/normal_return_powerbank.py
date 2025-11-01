@@ -126,7 +126,6 @@ class NormalReturnPowerbankHandler:
                         )
                     except Exception as e:
                         self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
-            else:
 
             # Обновляем статус повербанка на активный (если он был в другом статусе)
             if powerbank.status != 'active':

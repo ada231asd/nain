@@ -192,7 +192,6 @@ class EjectPowerbankHandler:
                         await self.extract_incompatible_powerbank(
                             station_id, sp.slot_number, powerbank.serial_number, connection
                         )
-                else:
                     
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

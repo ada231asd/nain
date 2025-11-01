@@ -4,6 +4,7 @@
 import re
 from typing import Any, Dict, List, Optional, Union
 import aiomysql
+from aiohttp import web
 from contextlib import asynccontextmanager
 
 
@@ -180,3 +181,26 @@ def create_secure_database(db_pool):
     """Создает экземпляр безопасной базы данных"""
     return SecureDatabase(db_pool)
 
+
+@web.middleware
+async def sql_protection_middleware(request, handler):
+    """Middleware для проверки параметров запроса на SQL инъекции"""
+    # Проверяем query параметры
+    if request.query_string:
+        sql_protection = SQLProtection()
+        for key, value in request.query.items():
+            if sql_protection.check_sql_injection(key) or sql_protection.check_sql_injection(value):
+                return web.json_response({'error': 'Обнаружена попытка SQL инъекции'}, status=400)
+    
+    return await handler(request)
+
+
+class SQLProtectionMiddleware:
+    """Класс middleware для защиты от SQL инъекций"""
+    
+    def __init__(self):
+        self.sql_protection = SQLProtection()
+    
+    async def __call__(self, request, handler):
+        """Вызов middleware"""
+        return await sql_protection_middleware(request, handler)

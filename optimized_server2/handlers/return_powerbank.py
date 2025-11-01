@@ -331,11 +331,10 @@ class ReturnPowerbankHandler:
             
             effective_user_id = order_user.user_id
             if effective_user_id != matching_user_id:
+                pass
 
             # Обновляем статус повербанка и тип ошибки
-            powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
-            if not powerbank:
-                return {"success": False, "error": "Повербанк не найден"}
+            # powerbank уже получен и проверен выше на строке 309
 
             await powerbank.update_status(self.db_pool, 'system_error')
             await powerbank.update_power_er(self.db_pool, error_type)
@@ -385,7 +384,6 @@ class ReturnPowerbankHandler:
                     powerbank_serial=powerbank.serial_number,
                     message='Спасибо за возврат! Заказ успешно закрыт.'
                 )
-                if notification_sent:
             except Exception as e:
                 self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
             
