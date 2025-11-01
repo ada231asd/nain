@@ -21,7 +21,6 @@ class BorrowPowerbankAPI:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.station_resolver = StationResolver(connection_manager) if connection_manager else None
-        # Важно: используем общий экземпляр обработчика, если он передан
         self.borrow_handler = borrow_handler if borrow_handler is not None else BorrowPowerbankHandler(db_pool, connection_manager)
     
     async def get_available_powerbanks(self, station_id: int, user_id: int = None, include_all: bool = False) -> Dict[str, Any]:
@@ -52,9 +51,9 @@ class BorrowPowerbankAPI:
             logger = get_logger('borrow_powerbank_api')
             
             result = []
-            total_powerbanks_count = 0    # Счетчик ВСЕХ повербанков (для расчета свободных слотов)
-            healthy_powerbanks_count = 0  # Счетчик здоровых повербанков (можно взять)
-            broken_powerbanks_count = 0   # Счетчик сломанных повербанков
+            total_powerbanks_count = 0    
+            healthy_powerbanks_count = 0  
+            broken_powerbanks_count = 0   
             
             for sp in powerbanks:
                 powerbank = await Powerbank.get_by_id(self.db_pool, sp.powerbank_id)
@@ -63,27 +62,12 @@ class BorrowPowerbankAPI:
                 if not powerbank:
                     continue
                 
-                # Логируем каждый повербанк для отладки
-                power_er_value = getattr(powerbank, 'power_er', None)
-                logger.debug(f"  Слот {sp.slot_number}: powerbank_id={sp.powerbank_id}, "
-                           f"power_er={power_er_value}, "
-                           f"status={powerbank.status}")
-                
-                # ВАЖНО: Учитываем ВСЕ повербанки, даже удаленные и сломанные!
-                # Они физически находятся в станции и занимают слоты
                 total_powerbanks_count += 1
                 
-                # Проверяем, сломан ли повербанк по статусу или удален
                 is_broken_status = powerbank.status in ['system_error', 'user_reported_broken', 'written_off']
-                # Удаленные повербанки теперь имеют power_er = 5 и status = 'system_error'
                 is_deleted = powerbank.status == 'system_error' and getattr(powerbank, 'power_er', None) == 5
-                # Проверяем наличие ошибок в параметрах слота
                 has_slot_errors = self._check_powerbank_errors(sp)
                 
-                # Повербанк считается сломанным, если:
-                # - у него проблемный статус
-                # - есть ошибки слота
-                # - он помечен как удаленный (power_er = 5)
                 is_broken = is_broken_status or has_slot_errors or is_deleted
                 
                 if is_broken:
@@ -91,13 +75,10 @@ class BorrowPowerbankAPI:
                 else:
                     healthy_powerbanks_count += 1
                     
-                # В список available_powerbanks добавляем только неудаленные и active
-                # (удаленные учитываются в счетчиках, но не выдаются пользователям)
                 if not is_deleted and (include_all or powerbank.status == 'active'):
-                    # Проверяем, что повербанк не находится в активном заказе
                     existing_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
                     if existing_order:
-                        continue  # Пропускаем повербанки в активных заказах
+                        continue  
                     
                     result.append({
                         "slot_number": sp.slot_number,
@@ -141,8 +122,6 @@ class BorrowPowerbankAPI:
                     # В случае ошибки подсчёта лимита не блокируем ответ
                     available_to_user = min(available_total, available_to_user)
 
-            # ВАЖНО: Свободные слоты для возврата = total_slots - ВСЕ_повербанки
-            # Сломанные повербанки ТОЖЕ занимают слоты!
             free_slots_for_return = max(0, station.slots_declared - total_powerbanks_count)
 
             return {
@@ -150,16 +129,11 @@ class BorrowPowerbankAPI:
                 "station_id": station_id,
                 "available_powerbanks": result,
                 "count": available_total,
-                # Сколько пользователь может взять прямо сейчас с учётом лимита и активных заказов
                 "available_to_user": available_to_user,
-                # Информация о лимите пользователя (для прозрачности на фронте)
                 "user_limit": user_limit_info,
-                # Свободные слоты станции (старое значение для обратной совместимости)
                 "free_slots": station.remain_num,
                 "total_slots": station.slots_declared,
-                # Свободные слоты для возврата (правильный расчет с учетом всех повербанков)
                 "free_slots_for_return": free_slots_for_return,
-                # Количество всех, здоровых и сломанных повербанков
                 "total_powerbanks_count": total_powerbanks_count,
                 "healthy_powerbanks_count": healthy_powerbanks_count,
                 "broken_powerbanks_count": broken_powerbanks_count,
@@ -219,7 +193,6 @@ class BorrowPowerbankAPI:
             if not station_powerbank:
                 return {"error": f"В слоте {slot_number} нет повербанка", "success": False}
             
-            # Комплексная валидация запроса на выдачу с защитой от дублирования
             from utils.order_utils import validate_borrow_request
             request_valid, validation_message = await validate_borrow_request(
                 self.db_pool, user_id, station_powerbank.powerbank_id, station_id
@@ -228,10 +201,8 @@ class BorrowPowerbankAPI:
             if not request_valid:
                 return {"error": validation_message, "success": False}
             
-            # Получаем информацию о powerbank'е (уже проверенном в validate_borrow_request)
             powerbank = await Powerbank.get_by_id(self.db_pool, station_powerbank.powerbank_id)
             
-            # Проверяем, что станция была онлайн в течение последних 30 секунд
             from utils.station_utils import validate_station_for_operation
             station_valid, station_message = await validate_station_for_operation(
                 self.db_pool, self.connection_manager, station_id, "выдача powerbank'а", 30
@@ -239,13 +210,11 @@ class BorrowPowerbankAPI:
             
             if not station_valid:
                 return {"error": station_message, "success": False}
-            
-            # Запрашиваем актуальный инвентарь станции для синхронизации данных
+
             await self._request_inventory_before_operation(station_id)
             import asyncio
-            await asyncio.sleep(2)  # Даем время на обновление данных
+            await asyncio.sleep(2)  
             
-            # Повторно проверяем наличие повербанка в слоте после синхронизации
             station_powerbank_updated = await StationPowerbank.get_by_slot(
                 self.db_pool, station_id, slot_number
             )
@@ -253,14 +222,11 @@ class BorrowPowerbankAPI:
             if not station_powerbank_updated:
                 return {"error": "Повербанк больше не находится в слоте после синхронизации", "success": False}
             
-            # Проверяем, что это тот же повербанк
             if station_powerbank_updated.powerbank_id != station_powerbank.powerbank_id:
                 return {"error": "В слоте находится другой повербанк", "success": False}
             
-            # Получаем соединение (уже проверенное в validate_station_for_operation)
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             
-            # Создаем заказ на выдачу
             order = await Order.create_borrow_order(
                 self.db_pool, station_id, user_id, powerbank.powerbank_id
             )
@@ -268,7 +234,6 @@ class BorrowPowerbankAPI:
             if not order:
                 return {"error": "Не удалось создать заказ", "success": False}
             
-            # Отправляем команду на выдачу станции и ждем ответа
             borrow_result = await self.borrow_handler.send_borrow_request_and_wait(
                 station_id, 
                 powerbank.powerbank_id, 
@@ -277,17 +242,14 @@ class BorrowPowerbankAPI:
             )
             
             if not borrow_result["success"]:
-                # Если команда не отправилась или станция отклонила, отменяем заказ
                 await Order.delete(self.db_pool, order.order_id)
                 return {
                     "success": False,
                     "error": f"Ошибка выдачи повербанка: {borrow_result['message']}"
                 }
             
-            # Подтверждаем заказ после успешной выдачи
             await Order.confirm_borrow(self.db_pool, order.order_id)
             
-            # Запрашиваем инвентарь для проверки, что повербанк действительно выдался
             await self._request_inventory_after_operation(station_id)
             
             return {
@@ -309,7 +271,6 @@ class BorrowPowerbankAPI:
         Получает статус выдачи повербанка
         """
         try:
-            # Проверяем, есть ли повербанк в слоте
             station_powerbank = await StationPowerbank.get_by_slot(
                 self.db_pool, station_id, slot_number
             )
@@ -348,13 +309,11 @@ class BorrowPowerbankAPI:
             if not station:
                 return {"error": "Станция не найдена", "success": False}
             
-            # Получаем информацию о подключении 
             is_connected = False
             if self.connection_manager:
                 connection = self.connection_manager.get_connection_by_station_id(station_id)
                 is_connected = connection is not None
             
-            # Получаем повербанки
             powerbanks = await StationPowerbank.get_station_powerbanks(self.db_pool, station_id)
             active_powerbanks = [sp for sp in powerbanks if sp.powerbank_id]
             
@@ -385,27 +344,23 @@ class BorrowPowerbankAPI:
         Проверяет наличие ошибок у повербанка
         Возвращает True если есть ошибки
         """
-        # Проверяем критические параметры
         if station_powerbank.level is not None and station_powerbank.level < 5:
-            return True  # Критически низкий заряд
+            return True  
         
         if station_powerbank.voltage is not None:
             if station_powerbank.voltage < 3000 or station_powerbank.voltage > 4500:
-                return True  # Некорректное напряжение
+                return True  
         
         if station_powerbank.temperature is not None:
             if station_powerbank.temperature < -10 or station_powerbank.temperature > 60:
-                return True  # Критическая температура
+                return True  
         
         return False
     
     async def select_optimal_powerbank(self, station_id: int) -> Dict[str, Any]:
         """
         Выбирает оптимальный повербанк для выдачи по правилам:
-        1. Максимальный уровень заряда
-        2. Без ошибок
-        3. Статус активный
-        4. Если все нормальные - случайный выбор
+      
         """
         try:
             # Получаем все активные повербанки в станции
@@ -575,7 +530,6 @@ class BorrowPowerbankAPI:
             if station_powerbank_updated.powerbank_id != powerbank_id:
                 return {"error": "В слоте находится другой повербанк", "success": False}
             
-            # Проверяем, что повербанк не находится в активном заказе
             # Получаем серийный номер powerbank'а
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
             if not powerbank:

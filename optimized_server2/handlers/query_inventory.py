@@ -142,7 +142,6 @@ class QueryInventoryHandler:
             # Получаем соединение для станции
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                self.logger.warning(f"Соединение для станции {station_id} не найдено")
                 return
             
             # Используем обработчик извлечения для проверки совместимости

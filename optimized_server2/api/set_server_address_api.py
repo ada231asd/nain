@@ -72,10 +72,6 @@ class SetServerAddressAPI:
             )
             
             if result['success']:
-                # Логируем успешный запрос
-                self.logger.info(f"API: Установка адреса сервера отправлена на станцию {station.box_id} (ID: {station_id}) | "
-                               f"Адрес: {server_address}:{server_port} | Heartbeat: {heartbeat_interval}")
-                
                 return web.json_response({
                     'success': True,
                     'message': result['message'],

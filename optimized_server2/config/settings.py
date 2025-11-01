@@ -27,7 +27,7 @@ DB_CONFIG = {
 
 # Настройки логирования
 LOG_LEVEL = "INFO"
-# Все логи теперь записываются в единый файл logs/server.log  
+
 
 # Настройки JWT
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
@@ -70,7 +70,7 @@ MAX_PACKET_SIZE = 1024
 # Настройки напоминаний о возврате аккумуляторов
 POWERBANK_REMINDER_CONFIG = {
     "enabled": os.getenv("REMINDER_ENABLED", "true").lower() == "true",  # Включены ли напоминания
-    "check_interval_hours": float(os.getenv("REMINDER_CHECK_INTERVAL", "0.5")),  # Как часто проверять (в часах, по умолчанию 0.5 = 30 минут)
+    "check_interval_hours": float(os.getenv("REMINDER_CHECK_INTERVAL", "0.5")),  # 1 раз в 30 минут
 }
 
 # Таймаут ожидания подтверждения возврата (в секундах), используется сервером

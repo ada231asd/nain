@@ -27,32 +27,27 @@ class QueryServerAddressAPI:
         POST /api/query-server-address
         """
         user_id = request['user']['user_id']
-        self.logger.info(f"Администратор {user_id} запросил адрес сервера станции.")
         
         try:
             data = await request.json()
             station_id = data.get('station_id')
             
             if not station_id:
-                self.logger.warning(f"Администратор {user_id}: Не указан station_id для запроса адреса сервера.")
                 return web.json_response({"error": "Не указан ID станции"}, status=400)
             
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
-                self.logger.warning(f"Администратор {user_id}: Станция с ID {station_id} не найдена.")
                 return web.json_response({"error": "Станция не найдена"}, status=404)
             
             response = await self.query_server_address_handler.send_query_server_address_request(station_id)
             
             if response["success"]:
-                self.logger.info(f"Администратор {user_id} успешно отправил запрос адреса сервера на станцию {station_id}.")
                 return web.json_response({
                     "success": True,
                     "message": response["message"],
                     "packet_hex": response.get("packet_hex")
                 })
             else:
-                self.logger.error(f"Администратор {user_id}: Ошибка отправки запроса адреса сервера на станцию {station_id}: {response['message']}")
                 return web.json_response({"error": response["message"]}, status=500)
                 
         except Exception as e:

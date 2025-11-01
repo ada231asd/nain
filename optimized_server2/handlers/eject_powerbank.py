@@ -125,7 +125,6 @@ class EjectPowerbankHandler:
             )
             
             if not station_powerbank:
-                self.logger.warning(f"Повербанк {terminal_id} не найден в слоте {slot_number} станции {station_id} - пропускаем извлечение")
                 return
             
             # Отправляем команду на извлечение
@@ -138,11 +137,6 @@ class EjectPowerbankHandler:
                 if connection.writer and not connection.writer.is_closing():
                     connection.writer.write(eject_command)
                     await connection.writer.drain()
-                    self.logger.info(f"Команда извлечения отправлена для повербанка {terminal_id} из слота {slot_number} станции {station_id}")
-                else:
-                    self.logger.warning(f"Соединение со станцией {station_id} недоступно для извлечения повербанка {terminal_id}")
-            else:
-                self.logger.warning(f"Не удалось создать команду на извлечение повербанка {terminal_id} из слота {slot_number} станции {station_id}")
                 
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
@@ -161,7 +155,6 @@ class EjectPowerbankHandler:
             # Получаем информацию о станции
             station_info = await self._get_station_info(station_id)
             if not station_info:
-                self.logger.warning(f"Не удалось получить информацию о станции {station_id}")
                 return
             
             station_org_unit_id = station_info['org_unit_id']
@@ -187,7 +180,6 @@ class EjectPowerbankHandler:
                         reason = await get_compatibility_reason(
                             self.db_pool, powerbank.org_unit_id, station_org_unit_id
                         )
-                        self.logger.info(f"Повербанк {powerbank.serial_number} (org_unit: {powerbank.org_unit_id}) не совместим со станцией {station_id} (org_unit: {station_org_unit_id}). Причина: {reason}")
                         
                         # Логируем событие выплева
                         from utils.org_unit_utils import log_powerbank_ejection_event
@@ -201,7 +193,6 @@ class EjectPowerbankHandler:
                             station_id, sp.slot_number, powerbank.serial_number, connection
                         )
                 else:
-                    self.logger.warning(f"Повербанк с ID {sp.powerbank_id} в слоте {sp.slot_number} не найден в БД")
                     
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

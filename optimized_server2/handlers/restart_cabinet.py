@@ -61,9 +61,6 @@ class RestartCabinetHandler:
             # Меняем статус станции на inactive
             await station.update_status(self.db_pool, "inactive")
             
-            # Логируем отправку команды в файл
-            self.logger.info(f"Команда перезагрузки отправлена на станцию {station.box_id} (ID: {station_id}) | "
-                           f"Админ: {admin_user_id} | Статус изменен на inactive")
             
             return {
                 "success": True,
@@ -93,9 +90,6 @@ class RestartCabinetHandler:
             response = parse_restart_cabinet_response(data)
             
             if response.get("CheckSumValid", False):
-                # Логируем получение ответа в файл
-                self.logger.info(f"Получен ответ на команду перезагрузки от станции {connection.box_id} (ID: {connection.station_id}) | "
-                               f"Ответ: {response}")
             
            
             return None

@@ -76,9 +76,6 @@ class SetServerAddressHandler:
             connection.writer.write(set_address_packet)
             await connection.writer.drain()
             
-            # Логируем отправку команды в файл
-            self.logger.info(f"Установка адреса сервера отправлена на станцию {station.box_id} (ID: {station_id}) | "
-                           f"Адрес: {server_address}:{server_port} | Heartbeat: {heartbeat_interval}")
             
             return {
                 "success": True,
@@ -108,9 +105,6 @@ class SetServerAddressHandler:
             if not response.get("CheckSumValid", False):
                 return
             
-            # Логируем получение ответа в файл
-            self.logger.info(f"Получен ответ на установку адреса сервера от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Статус: Успешно, станция перезагружается")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

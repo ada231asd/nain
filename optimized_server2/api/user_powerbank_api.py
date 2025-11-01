@@ -595,7 +595,6 @@ class UserPowerbankAPI:
         """
         Возврат повербанка с ошибкой (удерживает соединение до получения данных о вставке)
         POST /api/return-error
-        Принимает: station_box_id, user_phone, error_type_id
         """
         try:
             data = await request.json()

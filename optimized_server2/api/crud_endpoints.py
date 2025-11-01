@@ -619,21 +619,15 @@ class CRUDEndpoints(BaseAPI):
                         where_conditions.append("s.box_id COLLATE utf8mb4_unicode_ci = %s COLLATE utf8mb4_unicode_ci")
                         params.append(box_id)
                     
-                    # Применяем фильтрацию по org_unit на основе прав доступа
-                    if accessible_org_units is not None:  # None = service_admin (без фильтра)
+
+                    if accessible_org_units is not None:  
                         if len(accessible_org_units) == 0:
-                            # Пустой список означает:
-                            # 1. Обычного пользователя (role='user') - показываем все станции
-                            # 2. Администратора без org_unit - показываем все станции
-                            # Не применяем фильтрацию, пользователь может видеть все станции
                             pass
                         else:
-                            # Фильтруем по доступным org_units (для group_admin/subgroup_admin с org_unit)
                             placeholders = ','.join(['%s'] * len(accessible_org_units))
                             where_conditions.append(f"s.org_unit_id IN ({placeholders})")
                             params.extend(accessible_org_units)
                     elif org_unit_id:
-                        # Если service_admin указал конкретный org_unit_id
                         where_conditions.append("s.org_unit_id = %s")
                         params.append(int(org_unit_id))
                     
@@ -661,7 +655,6 @@ class CRUDEndpoints(BaseAPI):
                     stations = await cur.fetchall()
                     
                     # Добавляем информацию о портах для каждой станции
-                    # ВАЖНО: Используем remain_num как источник правды
                     for station in stations:
                         total_slots = station['slots_declared'] or 0
                         free_slots = station['remain_num'] or 0
@@ -719,8 +712,6 @@ class CRUDEndpoints(BaseAPI):
                         }, status=404)
                     
                     # Добавляем информацию о портах
-                    # ВАЖНО: Используем remain_num как источник правды для свободных слотов
-                    # occupied_ports = total - free (не используем COUNT из station_powerbank, т.к. данные могут быть неактуальными)
                     total_slots = station['slots_declared'] or 0
                     free_slots = station['remain_num'] or 0
                     occupied_slots = total_slots - free_slots

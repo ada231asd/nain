@@ -1,14 +1,8 @@
 """
-Утилиты для поддержки мягкого удаления (soft delete)
-Вместо физического удаления записи помечаются как удаленные
+Утилиты для поддержки мягкого удаления 
 """
 from datetime import datetime
-from typing import Optional, Dict, Any
 import aiomysql
-from utils.centralized_logger import get_logger
-
-
-logger = get_logger('soft_delete')
 
 
 class SoftDeleteMixin:
@@ -19,14 +13,6 @@ class SoftDeleteMixin:
         """
         Мягкое удаление записи из таблицы
         
-        Args:
-            db_pool: Пул соединений с БД
-            table: Название таблицы
-            record_id: ID записи для удаления
-            id_field: Название поля ID (по умолчанию 'id')
-            
-        Returns:
-            bool: True если запись успешно помечена как удаленная
         """
         try:
             async with db_pool.acquire() as conn:
@@ -41,29 +27,17 @@ class SoftDeleteMixin:
                     
                     affected_rows = cur.rowcount
                     if affected_rows > 0:
-                        logger.info(f"Запись {record_id} из таблицы {table} помечена как удаленная")
                         return True
                     else:
-                        logger.warning(f"Запись {record_id} из таблицы {table} не найдена или уже удалена")
                         return False
                         
         except Exception as e:
-            logger.error(f"Ошибка при мягком удалении из {table}: {e}", exc_info=True)
             return False
     
     @staticmethod
     async def restore(db_pool, table: str, record_id: int, id_field: str = 'id') -> bool:
         """
         Восстановление мягко удаленной записи
-        
-        Args:
-            db_pool: Пул соединений с БД
-            table: Название таблицы
-            record_id: ID записи для восстановления
-            id_field: Название поля ID (по умолчанию 'id')
-            
-        Returns:
-            bool: True если запись успешно восстановлена
         """
         try:
             async with db_pool.acquire() as conn:
@@ -78,30 +52,17 @@ class SoftDeleteMixin:
                     
                     affected_rows = cur.rowcount
                     if affected_rows > 0:
-                        logger.info(f"Запись {record_id} из таблицы {table} восстановлена")
                         return True
                     else:
-                        logger.warning(f"Запись {record_id} из таблицы {table} не найдена или не была удалена")
                         return False
                         
         except Exception as e:
-            logger.error(f"Ошибка при восстановлении записи из {table}: {e}", exc_info=True)
             return False
     
     @staticmethod
     async def hard_delete(db_pool, table: str, record_id: int, id_field: str = 'id') -> bool:
         """
-        Физическое удаление записи из таблицы (использовать с осторожностью!)
-        Для powerbank проверяет power_er = 5 и status = 'system_error' вместо is_deleted
-        
-        Args:
-            db_pool: Пул соединений с БД
-            table: Название таблицы
-            record_id: ID записи для удаления
-            id_field: Название поля ID (по умолчанию 'id')
-            
-        Returns:
-            bool: True если запись успешно удалена
+        Физическое удаление записи из таблицы 
         """
         try:
             async with db_pool.acquire() as conn:
@@ -115,14 +76,10 @@ class SoftDeleteMixin:
                         )
                         powerbank = await cur.fetchone()
                         if not powerbank:
-                            logger.warning(f"Повербанк {record_id} не найден в базе данных")
                             return False
                         
-                        # Если повербанк существует, но не помечен как удаленный - предупреждаем, но все равно удаляем
                         power_er = powerbank[1] if len(powerbank) > 1 else None
                         status = powerbank[2] if len(powerbank) > 2 else None
-                        if power_er != 5 or status != 'system_error':
-                            logger.warning(f"Повербанк {record_id} не помечен как удаленный (power_er={power_er}, status={status}), но будет физически удален")
                     
                     # Для станций сначала удаляем связанные записи
                     if table == 'station':
@@ -131,14 +88,12 @@ class SoftDeleteMixin:
                             "DELETE FROM `station_secret_key` WHERE station_id = %s",
                             (record_id,)
                         )
-                        logger.info(f"Удалены секретные ключи для станции {record_id}")
                         
                         # Удаляем связи станции с повербанками
                         await cur.execute(
                             "DELETE FROM `station_powerbank` WHERE station_id = %s",
                             (record_id,)
                         )
-                        logger.info(f"Удалены связи станции {record_id} с повербанками")
                     
                     # Удаляем основную запись
                     query = f"DELETE FROM `{table}` WHERE {id_field} = %s"
@@ -147,29 +102,18 @@ class SoftDeleteMixin:
                     
                     affected_rows = cur.rowcount
                     if affected_rows > 0:
-                        logger.warning(f"Запись {record_id} из таблицы {table} ФИЗИЧЕСКИ УДАЛЕНА")
                         return True
                     else:
-                        logger.warning(f"Запись {record_id} из таблицы {table} не найдена")
                         return False
                         
         except Exception as e:
-            logger.error(f"Ошибка при физическом удалении из {table}: {e}", exc_info=True)
             return False
     
     @staticmethod
     async def get_deleted_records(db_pool, table: str, limit: int = 100, offset: int = 0) -> list:
         """
         Получает список удаленных записей
-        
-        Args:
-            db_pool: Пул соединений с БД
-            table: Название таблицы
-            limit: Количество записей для выборки
-            offset: Смещение для пагинации
-            
-        Returns:
-            list: Список удаленных записей
+       
         """
         try:
             async with db_pool.acquire() as conn:
@@ -185,20 +129,13 @@ class SoftDeleteMixin:
                     return records
                     
         except Exception as e:
-            logger.error(f"Ошибка при получении удаленных записей из {table}: {e}", exc_info=True)
             return []
     
     @staticmethod
     async def count_deleted_records(db_pool, table: str) -> int:
         """
         Подсчитывает количество удаленных записей
-        
-        Args:
-            db_pool: Пул соединений с БД
-            table: Название таблицы
-            
-        Returns:
-            int: Количество удаленных записей
+       
         """
         try:
             async with db_pool.acquire() as conn:
@@ -213,7 +150,6 @@ class SoftDeleteMixin:
                     return result[0] if result else 0
                     
         except Exception as e:
-            logger.error(f"Ошибка при подсчете удаленных записей из {table}: {e}", exc_info=True)
             return 0
     
     @staticmethod
@@ -221,11 +157,6 @@ class SoftDeleteMixin:
         """
         Добавляет фильтр для исключения удаленных записей в WHERE условие
         
-        Args:
-            where_clause: Существующее WHERE условие (без слова WHERE)
-            
-        Returns:
-            str: WHERE условие с добавленным фильтром is_deleted = 0
         """
         if where_clause:
             return f"{where_clause} AND is_deleted = 0"
@@ -237,7 +168,7 @@ class SoftDeleteMixin:
 async def soft_delete_user(db_pool, user_id: int) -> bool:
     """
     Мягкое удаление пользователя
-    При удалении также меняет статус на 'blocked'
+   
     """
     try:
         async with db_pool.acquire() as conn:
@@ -252,21 +183,18 @@ async def soft_delete_user(db_pool, user_id: int) -> bool:
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Пользователь {user_id} помечен как удаленный и заблокирован")
                     return True
                 else:
-                    logger.warning(f"Пользователь {user_id} не найден или уже удален")
                     return False
                     
     except Exception as e:
-        logger.error(f"Ошибка при мягком удалении пользователя {user_id}: {e}", exc_info=True)
         return False
 
 
 async def soft_delete_station(db_pool, station_id: int) -> bool:
     """
     Мягкое удаление станции
-    При удалении также меняет статус на 'inactive' - сервер не работает с этой станцией
+   
     """
     try:
         async with db_pool.acquire() as conn:
@@ -281,21 +209,18 @@ async def soft_delete_station(db_pool, station_id: int) -> bool:
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Станция {station_id} помечена как удаленная, статус inactive")
                     return True
                 else:
-                    logger.warning(f"Станция {station_id} не найдена или уже удалена")
                     return False
                     
     except Exception as e:
-        logger.error(f"Ошибка при мягком удалении станции {station_id}: {e}", exc_info=True)
         return False
 
 
 async def soft_delete_powerbank(db_pool, powerbank_id: int) -> bool:
     """
     Мягкое удаление повербанка
-    При удалении устанавливает power_er = 5 и status = 'system_error'
+    
     """
     try:
         async with db_pool.acquire() as conn:
@@ -305,14 +230,12 @@ async def soft_delete_powerbank(db_pool, powerbank_id: int) -> bool:
                 powerbank = await cur.fetchone()
                 
                 if not powerbank:
-                    logger.warning(f"Повербанк {powerbank_id} не найден в базе данных")
                     return False
                 
                 # Если уже удален - возвращаем True (уже помечен как удаленный)
                 power_er = powerbank[1] if len(powerbank) > 1 else None
                 status = powerbank[2] if len(powerbank) > 2 else None
                 if power_er == 5 and status == 'system_error':
-                    logger.info(f"Повербанк {powerbank_id} уже помечен как удаленный")
                     return True
                 
                 query = """
@@ -325,14 +248,11 @@ async def soft_delete_powerbank(db_pool, powerbank_id: int) -> bool:
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Повербанк {powerbank_id} помечен как удаленный (power_er=5, status=system_error)")
                     return True
                 else:
-                    logger.warning(f"Повербанк {powerbank_id} не найден или уже удален")
                     return False
                     
     except Exception as e:
-        logger.error(f"Ошибка при мягком удалении повербанка {powerbank_id}: {e}", exc_info=True)
         return False
 
 
@@ -364,14 +284,11 @@ async def restore_user(db_pool, user_id: int) -> bool:
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Пользователь {user_id} восстановлен и активирован")
                     return True
                 else:
-                    logger.warning(f"Пользователь {user_id} не найден или не был удален")
                     return False
                     
     except Exception as e:
-        logger.error(f"Ошибка при восстановлении пользователя {user_id}: {e}", exc_info=True)
         return False
 
 
@@ -393,14 +310,11 @@ async def restore_station(db_pool, station_id: int) -> bool:
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Станция {station_id} восстановлена, статус active")
                     return True
                 else:
-                    logger.warning(f"Станция {station_id} не найдена или не была удалена")
                     return False
                     
     except Exception as e:
-        logger.error(f"Ошибка при восстановлении станции {station_id}: {e}", exc_info=True)
         return False
 
 
@@ -422,14 +336,11 @@ async def restore_powerbank(db_pool, powerbank_id: int) -> bool:
                 
                 affected_rows = cur.rowcount
                 if affected_rows > 0:
-                    logger.info(f"Повербанк {powerbank_id} восстановлен, статус active")
                     return True
                 else:
-                    logger.warning(f"Повербанк {powerbank_id} не найден или не был удален")
                     return False
                     
     except Exception as e:
-        logger.error(f"Ошибка при восстановлении повербанка {powerbank_id}: {e}", exc_info=True)
         return False
 
 
@@ -469,6 +380,5 @@ async def get_deleted_powerbanks(db_pool, limit: int = 100, offset: int = 0) -> 
                 return records
                 
     except Exception as e:
-        logger.error(f"Ошибка при получении удаленных повербанков: {e}", exc_info=True)
         return []
 

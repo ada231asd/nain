@@ -44,7 +44,6 @@ class QueryServerAddressHandler:
             connection.writer.write(server_address_request_packet)
             await connection.writer.drain()
 
-            self.logger.info(f"Запрос адреса сервера отправлен на станцию {station.box_id} (ID: {station_id})")
 
             return {
                 "success": True,
@@ -77,9 +76,6 @@ class QueryServerAddressHandler:
                 'token': response.get('Token', 'N/A')
             }
             
-            # Логируем получение ответа в файл
-            self.logger.info(f"Получен ответ на запрос адреса сервера от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Адрес: {response.get('Address', 'N/A')} | Порт: {response.get('Ports', 'N/A')}")
             
         except Exception as e:
             self.logger.error(f"Ошибка обработки ответа на запрос адреса сервера от станции {connection.box_id}: {e}")

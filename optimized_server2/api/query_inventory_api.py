@@ -33,12 +33,10 @@ class QueryInventoryAPI:
             station_id = data.get('station_id')
 
             if not station_id:
-                self.logger.warning(f"Администратор {user_id}: Не указан station_id для запроса инвентаря.")
                 return web.json_response({"error": "Не указан ID станции"}, status=400)
 
             station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
-                self.logger.warning(f"Администратор {user_id}: Станция с ID {station_id} не найдена.")
                 return web.json_response({"error": "Станция не найдена"}, status=404)
 
             response = await self.query_inventory_handler.send_inventory_request(station_id)
@@ -108,19 +106,15 @@ class QueryInventoryAPI:
                 inventory_data.append({
                     "slot_number": slot['slot_number'],
                     "terminal_id": slot['terminal_id'],
-                    # frontend ожидает serial_number
                     "serial_number": slot['terminal_id'],
                     "powerbank_id": powerbank_id,
-                    # статус из БД (active, user_reported_broken, system_error, ...)
                     "powerbank_status": powerbank_status,
                     "level": slot['level'],
                     "voltage": slot['voltage'],
                     "current": slot['current'],
                     "temperature": slot['temperature'],
                     "soh": slot['soh'],
-                    # оригинальная структура статусов слота
                     "status": status_bits,
-                    # плоские флаги ошибок для совместимости с существующим UI
                     "error_typec": error_typec,
                     "error_lightning": error_lightning,
                     "error_microusb": error_microusb,

@@ -62,9 +62,6 @@ class SetVoiceVolumeAPI:
             result = await self.set_voice_volume_handler.send_set_voice_volume_request(station_id, volume_level)
             
             if result['success']:
-                # Логируем успешный запрос
-                self.logger.info(f"API: Установка уровня громкости отправлена на станцию {station.box_id} (ID: {station_id}) | Уровень: {volume_level}")
-                
                 return web.json_response({
                     'success': True,
                     'message': result['message'],

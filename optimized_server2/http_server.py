@@ -305,7 +305,7 @@ class HTTPServer:
         app.router.add_get('/api/soft-delete/{entity_type}', self.soft_delete_api.get_deleted_entities)
         app.router.add_get('/api/soft-delete/statistics', self.soft_delete_api.get_statistics)
         
-        # Жесткое удаление (hard delete) - только для service_admin
+        # Жесткое удаление (hard delete)
         app.router.add_delete('/api/hard-delete/{entity_type}/{entity_id}', self.hard_delete_api.hard_delete_entity)
         app.router.add_delete('/api/hard-delete/cleanup', self.hard_delete_api.cleanup_old_deleted)
         app.router.add_get('/api/hard-delete/cleanup/preview', self.hard_delete_api.get_cleanup_candidates)

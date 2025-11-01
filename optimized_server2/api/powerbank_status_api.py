@@ -60,8 +60,6 @@ class PowerbankStatusAPI:
             # Вычисляем пагинацию
             total_pages = (total + limit - 1) // limit
             
-            logger.info(f"Возвращено {len(powerbanks)} повербанков из {total} (страница {page}/{total_pages})")
-            
             return web.json_response(serialize_for_json({
                 "success": True,
                 "data": powerbanks,
@@ -107,8 +105,6 @@ class PowerbankStatusAPI:
             # Получаем сводку
             summary = await self.powerbank_status.get_powerbank_status_summary(org_unit_id)
             
-            logger.info(f"Возвращена сводка по статусам: {summary}")
-            
             return web.json_response(serialize_for_json({
                 "success": True,
                 "data": summary,
@@ -140,8 +136,6 @@ class PowerbankStatusAPI:
                     "success": False,
                     "error": "Повербанк не найден"
                 }, status=404)
-            
-            logger.info(f"Возвращен повербанк {powerbank_id} со статусом {powerbank['status']}")
             
             return web.json_response(serialize_for_json({
                 "success": True,

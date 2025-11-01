@@ -117,13 +117,6 @@ class ReturnPowerbankHandler:
                 'ttl_seconds': timeout_seconds
             }
             
-            # Логируем инициализацию окна ожидания с полной информацией
-            self.logger.info(
-                f"[ИНИЦИАЛИЗАЦИЯ ОКНА ОЖИДАНИЯ] "
-                f"userId={user_id}, phone={user_phone}, stationId={station_id}, "
-                f"errorType={error_type} ({error.type_error}), "
-                f"TTL={timeout_seconds} секунд, timestamp={timestamp}"
-            )
             
             # Ждем результат с таймаутом
             try:
@@ -160,7 +153,6 @@ class ReturnPowerbankHandler:
             
             active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
             if not active_order:
-                self.logger.warning(f"Повербанк {powerbank_id} вставлен, но нет активного заказа")
                 return {"success": False, "error": "Нет активного заказа для этого повербанка", "handled": False}
             
             owner_user_phone = active_order.user_phone
@@ -181,12 +173,6 @@ class ReturnPowerbankHandler:
             if matching_return_data:
                 # Есть активное окно ожидания - обрабатываем как возврат с ошибкой
                 error_type = matching_return_data.get('error_type')
-                self.logger.info(
-                    f"[ВСТАВКА ПАВЕРБАНКА - ВОЗВРАТ С ОШИБКОЙ] "
-                    f"stationId={station_id}, powerbankId={powerbank_id}, slotNumber={slot_number}, "
-                    f"ownerUserId={matching_user_id}, ownerUserPhone={owner_user_phone}, "
-                    f"errorType={error_type}, окно найдено и использовано"
-                )
                 return await self._process_error_return(
                     station_id=station_id,
                     slot_number=slot_number,
@@ -207,12 +193,6 @@ class ReturnPowerbankHandler:
                 
                 owner_user_id = owner_user.user_id
                 
-                self.logger.info(
-                    f"[ВСТАВКА ПАВЕРБАНКА - ОБЫЧНЫЙ ВОЗВРАТ] "
-                    f"stationId={station_id}, powerbankId={powerbank_id}, slotNumber={slot_number}, "
-                    f"ownerUserId={owner_user_id}, ownerUserPhone={owner_user_phone}, "
-                    f"активное окно ожидания возврата с ошибкой не найдено"
-                )
                 
                 # Закрываем заказ как обычный возврат (без system_error)
                 await active_order.update_status(self.db_pool, 'return')
@@ -256,7 +236,6 @@ class ReturnPowerbankHandler:
                 # Отправляем запрос инвентаризации в фоне без логирования
                 asyncio.create_task(self._send_inventory_request_silently(station_id))
                 
-                self.logger.info(f"[ОБЫЧНЫЙ ВОЗВРАТ ЗАВЕРШЕН] Заказ {active_order.order_id} закрыт у владельца {owner_user_id}")
                 
                 return {
                     "success": True,
@@ -297,7 +276,6 @@ class ReturnPowerbankHandler:
                     })
                 
                 del self.pending_error_returns[user_id]
-                self.logger.info(f"Просроченный запрос на возврат с ошибкой для пользователя {user_id} удален")
 
     async def _process_error_return(self, station_id: int, slot_number: int, powerbank_id: int, matching_user_phone: str, matching_user_id: int) -> Dict[str, Any]:
         """Единая обработка успешного возврата с ошибкой: статусы, заказ, лог, future.
@@ -353,7 +331,6 @@ class ReturnPowerbankHandler:
             
             effective_user_id = order_user.user_id
             if effective_user_id != matching_user_id:
-                self.logger.warning(f"Повербанк {powerbank_id} принадлежит пользователю {effective_user_id}, а ожидал {matching_user_id}. Продолжаем по владельцу заказа.")
 
             # Обновляем статус повербанка и тип ошибки
             powerbank = await Powerbank.get_by_id(self.db_pool, powerbank_id)
@@ -375,7 +352,6 @@ class ReturnPowerbankHandler:
             if station:
                 new_remain_num = int(station.remain_num) + 1
                 await station.update_remain_num(self.db_pool, new_remain_num)
-                self.logger.info(f"Обновлен remain_num станции {station_id}: {new_remain_num}")
 
             # Удаляем из ожидающих (используем телефон как ключ)
             if matching_user_phone in ReturnPowerbankHandler._pending_error_returns:
@@ -410,9 +386,6 @@ class ReturnPowerbankHandler:
                     message='Спасибо за возврат! Заказ успешно закрыт.'
                 )
                 if notification_sent:
-                    self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {effective_user_id}")
-                else:
-                    self.logger.info(f"Пользователь {effective_user_id} не подключен к WebSocket, уведомление не отправлено")
             except Exception as e:
                 self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
             
@@ -455,7 +428,6 @@ class ReturnPowerbankHandler:
         try:
             if user_id in ReturnPowerbankHandler._pending_error_returns:
                 del ReturnPowerbankHandler._pending_error_returns[user_id]
-                self.logger.info(f"Отменен запрос на возврат с ошибкой для пользователя {user_id}")
                 return {"success": True, "message": "Запрос на возврат с ошибкой отменен"}
             else:
                 return {"success": False, "error": "Запрос на возврат с ошибкой не найден"}
@@ -479,7 +451,6 @@ class ReturnPowerbankHandler:
             
             for user_id in expired_users:
                 del ReturnPowerbankHandler._pending_error_returns[user_id]
-                self.logger.info(f"Удален просроченный запрос на возврат для пользователя {user_id}")
             
             return len(expired_users)
             
@@ -561,7 +532,6 @@ class ReturnPowerbankHandler:
                 active_order = None
 
             if not active_order:
-                self.logger.debug(f"Нет активного заказа для повербанка {powerbank_id}")
                 return None
 
             owner_user_phone = active_order.user_phone
@@ -589,12 +559,6 @@ class ReturnPowerbankHandler:
             # Есть активное окно - обрабатываем как возврат с ошибкой
             matching_user_phone = owner_user_phone
             
-            self.logger.info(
-                f"[TCP ВСТАВКА ПАВЕРБАНКА - ВОЗВРАТ С ОШИБКОЙ] "
-                f"stationId={station_id}, powerbankId={powerbank_id}, slotNumber={slot}, "
-                f"ownerUserId={matching_user_id}, ownerUserPhone={matching_user_phone}, "
-                f"errorType={error_type}, окно найдено и использовано"
-            )
             
             # Получаем user_id по телефону (уже есть в matching_user_id, но проверяем для безопасности)
             async with self.db_pool.acquire() as conn:

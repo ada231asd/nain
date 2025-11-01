@@ -29,11 +29,7 @@ class SoftDeleteAPI:
     async def soft_delete_entity(self, request: Request) -> Response:
         """
         DELETE /api/soft-delete/{entity_type}/{entity_id} - Мягкое удаление
-        
-        Важно: 
-        - При удалении пользователя (user) статус меняется на 'blocked'
-        - При удалении станции (station) статус меняется на 'inactive'
-        - При удалении повербанка (powerbank) статус меняется на 'unknown'
+
         """
         try:
             # Проверка авторизации
@@ -88,11 +84,8 @@ class SoftDeleteAPI:
                         from handlers.query_inventory import QueryInventoryHandler
                         inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
                         await inventory_handler.send_inventory_request(station_id)
-                        logger.info(f"Отправлен запрос инвентаризации на станцию {station_id} после удаления повербанка {entity_id}")
                     except Exception as e:
-                        logger.warning(f"Не удалось отправить запрос инвентаризации для станции {station_id} после удаления повербанка {entity_id}: {e}")
-                
-                logger.info(f"Пользователь {user['user_id']} удалил {entity_type} #{entity_id}")
+                        pass
                 return web.json_response({
                     'success': True,
                     'message': f'{entity_type} #{entity_id} успешно удален'
@@ -116,10 +109,6 @@ class SoftDeleteAPI:
         """
         POST /api/soft-delete/restore/{entity_type}/{entity_id} - Восстановление
         
-        Важно: 
-        - При восстановлении пользователя (user) статус меняется на 'active'
-        - При восстановлении станции (station) статус меняется на 'active'
-        - При восстановлении повербанка (powerbank) статус меняется на 'active'
         """
         try:
             # Проверка авторизации
@@ -155,7 +144,6 @@ class SoftDeleteAPI:
             success = await restore_functions[entity_type](self.db_pool, entity_id)
             
             if success:
-                logger.info(f"Пользователь {user['user_id']} восстановил {entity_type} #{entity_id}")
                 return web.json_response({
                     'success': True,
                     'message': f'{entity_type} #{entity_id} успешно восстановлен'

@@ -58,7 +58,7 @@ class OptimizedServer:
         self.tcp_servers: list[asyncio.Server] = []
         self.http_server: Optional[HTTPServer] = None
         self.running = False
-        self.reminder_service = None  # Сервис напоминаний о возврате аккумуляторов
+        self.reminder_service = None  
         
     
     async def initialize_database(self):

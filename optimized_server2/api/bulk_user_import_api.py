@@ -271,7 +271,7 @@ class BulkUserImportAPI:
                 'message': message,
                 'errors': all_errors,
                 'statistics': statistics,
-                'preview_users': new_users[:10]  # Показываем первые 10 пользователей для предварительного просмотра
+                'preview_users': new_users[:10]  
             }))
             
         except Exception as e:
@@ -285,7 +285,6 @@ class BulkUserImportAPI:
     def setup_routes(self, app):
         """Настраивает маршруты API для пакетного импорта пользователей"""
         
-        # Bulk import routes (только REST)
         app.router.add_post('/api/users/bulk-import', self.import_users_from_excel)
         app.router.add_get('/api/users/bulk-import/template', self.get_import_template)
         app.router.add_post('/api/users/bulk-import/validate', self.validate_excel_file)

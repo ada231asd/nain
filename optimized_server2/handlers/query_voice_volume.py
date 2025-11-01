@@ -59,8 +59,6 @@ class QueryVoiceVolumeHandler:
             connection.writer.write(voice_volume_packet)
             await connection.writer.drain()
             
-            # Логируем отправку команды в файл
-            self.logger.info(f"Запрос уровня громкости отправлен на станцию {station.box_id} (ID: {station_id})")
             
             return {
                 "success": True,
@@ -112,9 +110,6 @@ class QueryVoiceVolumeHandler:
                 'token': token
             }
             
-            # Логируем получение ответа в файл
-            self.logger.info(f"Получен ответ на запрос уровня громкости от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Уровень громкости: {volume_level}")
             
         except Exception as e:
             self.logger.error(f"Ошибка обработки ответа на запрос уровня громкости от станции {connection.box_id}: {e}")

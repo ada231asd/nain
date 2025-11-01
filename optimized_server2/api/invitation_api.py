@@ -101,7 +101,7 @@ class InvitationAPI:
                     'error': 'Приглашение не найдено или истекло'
                 }, status=404)
             
-            # Приглашения теперь постоянные, проверка срока действия не нужна
+
             
             # Получаем информацию об организационной единице
             org_unit_info = await self._get_org_unit_info(invitation_info['org_unit_id'])
@@ -146,9 +146,6 @@ class InvitationAPI:
                 return web.json_response({
                     'error': 'Приглашение не найдено'
                 }, status=404)
-            
-            # Приглашения теперь постоянные, проверка срока действия не нужна
-            # Приглашения могут использоваться неограниченное количество раз
             
             # Создаем пользователя с привязкой к группе
             user, password = await self._create_user_with_invitation(

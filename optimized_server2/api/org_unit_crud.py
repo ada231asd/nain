@@ -139,10 +139,8 @@ class OrgUnitCRUD(BaseAPI):
                         where_conditions.append("ou.parent_org_unit_id = %s")
                         params.append(int(parent_id))
                     
-                    # Применяем фильтрацию по org_unit на основе прав доступа
-                    if accessible_org_units is not None:  # None = service_admin (без фильтра)
+                    if accessible_org_units is not None:  
                         if len(accessible_org_units) == 0:
-                            # Нет доступных org_units - возвращаем пустой результат
                             return web.json_response(serialize_for_json({
                                 "success": True,
                                 "data": [],

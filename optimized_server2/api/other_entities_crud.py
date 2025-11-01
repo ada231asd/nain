@@ -39,7 +39,6 @@ class OtherEntitiesCRUD:
                     "error": f"Недопустимая роль пользователя. Допустимые значения: {', '.join(valid_roles)}"
                 }, status=400)
             
-            # Защита: сервис-админ не может менять свою собственную роль через создание записи
             try:
                 current_user = request.get('user') or {}
                 current_user_id = current_user.get('user_id')
@@ -313,7 +312,6 @@ class OtherEntitiesCRUD:
     async def delete_user_favorite(self, request: Request) -> Response:
         """DELETE /api/user-favorites/{favorite_id} - Удалить из избранного (физическое удаление)"""
         try:
-            # Поддерживаем оба варианта: через favorite_id в пути или через user_id+station_id в теле
             data = None
             try:
                 data = await request.json()
@@ -370,7 +368,6 @@ class OtherEntitiesCRUD:
         """PUT /api/user-favorites/{favorite_id}/nik - Установить никнейм станции"""
         try:
             data = await request.json()
-            # Поддерживаем оба варианта: через favorite_id в пути или через user_id+station_id в теле
             user_id = data.get('user_id')
             station_id = data.get('station_id')
             nik = data.get('nik', '').strip()

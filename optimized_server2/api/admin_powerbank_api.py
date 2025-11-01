@@ -9,7 +9,6 @@ import aiomysql
 
 from models.powerbank import Powerbank
 from models.station_powerbank import StationPowerbank
-from models.action_log import ActionLog
 from models.order import Order
 
 
@@ -20,7 +19,6 @@ class AdminPowerbankAPI:
     def __init__(self, db_pool, connection_manager=None):
         self.db_pool = db_pool
         self.connection_manager = connection_manager
-        # Логгер может использоваться во всех методах; инициализируем безопасно
         try:
             from utils.centralized_logger import get_logger
             self.logger = get_logger('admin_powerbank_api')
@@ -153,11 +151,6 @@ class AdminPowerbankAPI:
     async def write_off_powerbank_lost(self, user_id: int, powerbank_id: int, admin_user_id: int, note: str | None = None) -> dict:
         """Списывает повербанк у пользователя как утерянный.
 
-        Действия:
-        - Закрывает активный заказ пользователя на этот повербанк (status='return', completed_at=NOW)
-        - Удаляет повербанк из всех станций
-        - Обновляет статус повербанка на 'written_off' и причину списания 'lost'
-        - Пишет запись в action_logs
         """
         try:
             # Проверяем существование повербанка
@@ -179,28 +172,6 @@ class AdminPowerbankAPI:
             # Обновляем статус и причину списания
             await powerbank.update_status(self.db_pool, 'written_off')
             await powerbank.update_write_off_reason(self.db_pool, 'lost')
-
-            # Логируем действие
-            description_parts = [
-                f"Списание повербанка ID {powerbank_id} как утерянного",
-                f"пользователь ID {user_id}" if user_id else None,
-                f"примечание: {note}" if note else None
-            ]
-            description = ", ".join([p for p in description_parts if p])
-            try:
-                await ActionLog.create(
-                    self.db_pool,
-                    user_id=admin_user_id,
-                    action_type='powerbank_update',
-                    entity_type='powerbank',
-                    entity_id=powerbank_id,
-                    description=description,
-                    ip_address=None,
-                    user_agent=None
-                )
-            except Exception:
-                # Логирование не критично для основного потока
-                pass
 
             return {
                 "success": True,
@@ -324,7 +295,6 @@ class AdminPowerbankAPI:
                     """, (powerbank_id,))
                     
                     # Обновляем счетчики станций
-                    # remain_num = свободные слоты = total - занятые
                     await cur.execute("""
                         UPDATE station s 
                         SET remain_num = s.slots_declared - (
@@ -494,11 +464,6 @@ class AdminPowerbankAPI:
                             ON DUPLICATE KEY UPDATE username = new_user.username
                         """, (admin_user_id, f'admin_user_{admin_user_id}', f'admin_{admin_user_id}@system.local', '0000000000', 'active', get_moscow_time()))
                     
-                    # Создаем запись о принудительном извлечении
-                    # Не создаем заказ для принудительного извлечения
-                    # Это просто команда станции, не заказ пользователя
-                    
-                    # Отправляем команду принудительного извлечения станции
                     if self.connection_manager:
                         try:
                             connection = self.connection_manager.get_connection_by_station_id(station_id)

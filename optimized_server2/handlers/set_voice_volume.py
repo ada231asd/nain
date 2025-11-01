@@ -70,9 +70,6 @@ class SetVoiceVolumeHandler:
             connection.writer.write(set_volume_packet)
             await connection.writer.drain()
             
-            # Логируем отправку команды в файл
-            self.logger.info(f"Установка уровня громкости отправлена на станцию {station.box_id} (ID: {station_id}) | "
-                           f"Уровень: {volume_level} | Пакет: {packet_hex}")
             
             print(f"Установка уровня громкости отправлена на станцию {station.box_id} (ID: {station_id})")
             
@@ -112,9 +109,6 @@ class SetVoiceVolumeHandler:
             print(f" Получен ответ на установку уровня громкости от станции {connection.box_id}")
             print(f" Установка громкости выполнена успешно")
             
-            # Логируем получение ответа в файл
-            self.logger.info(f"Получен ответ на установку уровня громкости от станции {connection.box_id} (ID: {connection.station_id}) | "
-                           f"Статус: Успешно")
             
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")

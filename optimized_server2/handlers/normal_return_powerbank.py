@@ -78,7 +78,6 @@ class NormalReturnPowerbankHandler:
                     reason = await get_compatibility_reason(
                         self.db_pool, powerbank.org_unit_id, station.org_unit_id
                     )
-                    self.logger.warning(f"Попытка возврата повербанка {powerbank_id} в несовместимую станцию {station_id}: {reason}")
                     return {
                         "success": False, 
                         "error": f"Повербанк нельзя вернуть в эту станцию. {reason}"
@@ -125,19 +124,13 @@ class NormalReturnPowerbankHandler:
                             powerbank_serial=powerbank.serial_number,
                             message='Спасибо за возврат! Заказ успешно закрыт.'
                         )
-                        if notification_sent:
-                            self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
-                        else:
-                            self.logger.info(f"Пользователь {user_id} не подключен к WebSocket, уведомление не отправлено")
                     except Exception as e:
                         self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
             else:
-                self.logger.warning(f"НЕ НАЙДЕН активный заказ для повербанка {powerbank_id} (serial: {powerbank.serial_number}). Проверьте есть ли заказ со статусом 'borrow' и completed_at = NULL")
 
             # Обновляем статус повербанка на активный (если он был в другом статусе)
             if powerbank.status != 'active':
                 await powerbank.update_status(self.db_pool, 'active')
-                self.logger.info(f"Статус повербанка {powerbank_id} обновлен на 'active'")
 
             # Добавляем повербанк в станцию
             await StationPowerbank.add_powerbank(self.db_pool, station_id, powerbank_id, slot_number)
@@ -273,7 +266,6 @@ class NormalReturnPowerbankHandler:
             if active_order:
                 # Закрываем активный заказ
                 await active_order.update_status(self.db_pool, 'return')
-                self.logger.info(f"Активный заказ {active_order.order_id} закрыт для повербанка {powerbank_id} (обнаружен в инвентаре)")
                 
                 # Получаем user_id по телефону
                 async with self.db_pool.acquire() as conn:
@@ -305,10 +297,6 @@ class NormalReturnPowerbankHandler:
                             powerbank_serial=powerbank.serial_number,
                             message='Спасибо за возврат! Заказ успешно закрыт.'
                         )
-                        if notification_sent:
-                            self.logger.info(f"WebSocket уведомление о возврате отправлено пользователю {user_id}")
-                        else:
-                            self.logger.info(f"Пользователь {user_id} не подключен к WebSocket, уведомление не отправлено")
                     except Exception as e:
                         self.logger.error(f"Ошибка отправки WebSocket уведомления о возврате: {e}")
                 
@@ -320,7 +308,6 @@ class NormalReturnPowerbankHandler:
                     "user_phone": active_order.user_phone
                 }
             else:
-                self.logger.info(f"Нет активного заказа для повербанка {powerbank_id} (обнаружен в инвентаре)")
                 return {
                     "success": True,
                     "message": "Повербанк обнаружен в инвентаре, но нет активного заказа",

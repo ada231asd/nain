@@ -218,11 +218,7 @@ async def log_access_denied_event(db_pool, user_id: int, resource_type: str,
 async def get_admin_accessible_org_units(db_pool, user_id: int) -> Optional[list[int]]:
     """
     Получает список ID организационных единиц, доступных администратору.
-    
-    Returns:
-        - None: если service_admin (доступ ко всем)
-        - list[int]: список доступных org_unit_id для group_admin/subgroup_admin
-        - []: если нет прав администратора
+   
     """
     try:
         import aiomysql

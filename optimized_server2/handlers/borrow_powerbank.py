@@ -148,7 +148,6 @@ class BorrowPowerbankHandler:
                 else:
                     error_msg = "Ошибка выдачи повербанка"
                 
-                self.logger.error(f"Выдача повербанка не удалась для станции {station_id}, слот {slot_number}: {error_msg}")
                 
                 # Уведомляем ожидающий запрос об ошибке
                 if pending_order_id and pending_order_id in self.pending_requests:
@@ -298,8 +297,6 @@ class BorrowPowerbankHandler:
                     if order_id in self.pending_requests:
                         del self.pending_requests[order_id]
                     
-                    # Логируем таймаут с деталями
-                    self.logger.error(f"Таймаут ожидания ответа от станции {station_id} для слота {slot_number}, заказ {order_id}")
                     return {"success": False, "message": "Таймаут ожидания ответа от станции (15 секунд)"}
                 
             else:

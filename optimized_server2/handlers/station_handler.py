@@ -49,12 +49,10 @@ class StationHandler:
             
             # Проверяем is_deleted - если станция удалена, не обрабатываем пакеты
             if station.is_deleted:
-                logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} удалена (is_deleted=1) — соединение закрыто")
                 return None
             
             # Проверяем статус станции и наличие ключа
             if station.status == "pending" or secret_key is None:
-                logger = get_logger('station_handler'); logger.warning(f"Станция {station.box_id} в статусе pending или нет ключа — соединение закрыто")
                 return None
             
             # Создаем ответ на логин
@@ -67,8 +65,6 @@ class StationHandler:
                 from utils.time_utils import get_moscow_time
                 current_time = get_moscow_time()
                 time_since_heartbeat = (current_time - existing_connection.last_heartbeat).total_seconds()
-                
-                logger = get_logger('station_handler'); logger.warning(f"ПЕРЕПОДКЛЮЧЕНИЕ СТАНЦИИ: {station.box_id} - старое соединение fd={existing_connection.fd}, последний heartbeat {time_since_heartbeat:.1f} сек назад")
                 
                 # Закрываем старое соединение при переподключении
                 self.connection_manager.close_old_station_connections(station.station_id, connection.fd)
@@ -113,11 +109,8 @@ class StationHandler:
     async def handle_heartbeat(self, data: bytes, connection: StationConnection) -> Optional[bytes]:
         """Обрабатывает heartbeat пакет"""
         try:
-            self.logger.info(f"Получен heartbeat от {connection.addr}, box_id: {connection.box_id}")
-            
             # Проверяем, что соединение авторизовано
             if not connection.secret_key:
-                self.logger.warning(f"Heartbeat от неавторизованного соединения {connection.addr}")
                 return None
 
             received_token = data[5:9]
@@ -158,13 +151,11 @@ class StationHandler:
         """Запрашивает инвентарь после успешного логина"""
         try:
             if not connection.writer or connection.writer.is_closing():
-                logger = get_logger('station_handler'); logger.warning("Соединение недоступно для запроса инвентаря")
                 return
             
             from handlers.query_inventory import QueryInventoryHandler
             inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
             await inventory_handler.send_inventory_request(connection.station_id)
-            logger = get_logger('station_handler'); logger.info(f" Запрос инвентаря отправлен на станцию {connection.box_id}")
         except Exception as e:
             logger = get_logger('station_handler'); logger.error(f"Ошибка запроса инвентаря: {e}")
     
@@ -172,7 +163,6 @@ class StationHandler:
         """Автоматически запрашивает ICCID после успешного логина только если его нет в БД"""
         try:
             if not connection.writer or connection.writer.is_closing():
-                logger = get_logger('station_handler'); logger.warning("Соединение недоступно для запроса ICCID")
                 return
             
             # Проверяем, есть ли уже ICCID у станции
@@ -188,18 +178,15 @@ class StationHandler:
             connection.writer.write(iccid_request)
             await connection.writer.drain()
             
-            logger = get_logger('station_handler'); logger.info(f"Запрос ICCID отправлен станции {connection.box_id} (ICCID отсутствует в БД)")
-            
         except Exception as e:
             self.logger.error(f"Ошибка: {e}")
     
     async def _sync_powerbanks_to_db(self, station_id: int, slots_data: list) -> None:
-        """Синхронизирует данные повербанков с БД (как в старом сервере)"""
+        """Синхронизирует данные повербанков с БД"""
         
         # Получаем org_unit_id станции
         station = await Station.get_by_id(self.db_pool, station_id)
         if not station:
-            logger = get_logger('station_handler'); logger.info(f"Станция {station_id} не найдена")
             return
         
         for slot in slots_data:
@@ -221,8 +208,6 @@ class StationHandler:
                     reason = await get_compatibility_reason(
                         self.db_pool, existing_powerbank.org_unit_id, station.org_unit_id
                     )
-                    logger = get_logger('station_handler')
-                    logger.info(f"Повербанк {terminal_id} (org_unit {existing_powerbank.org_unit_id}) не совместим со станцией {station.org_unit_id} — выплёвываем. Причина: {reason}")
                     
                     from utils.org_unit_utils import log_powerbank_ejection_event
                     await log_powerbank_ejection_event(
@@ -245,8 +230,6 @@ class StationHandler:
                     terminal_id, 
                     station.org_unit_id  # Создаем в группе станции
                 )
-                logger = get_logger('station_handler')
-                logger.info(f"Создан новый повербанк {terminal_id} со статусом unknown в группе {station.org_unit_id} станции {station_id} (ID: {new_powerbank.powerbank_id})")
                 
                 # Обновляем SOH если есть данные
                 if slot.get('SOH') is not None:
@@ -260,7 +243,6 @@ class StationHandler:
             
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                logger = get_logger('station_handler'); logger.warning(f"Соединение для станции {station_id} не найдено")
                 return
             
             # Используем обработчик извлечения для проверки совместимости
@@ -277,7 +259,6 @@ class StationHandler:
             
             connection = self.connection_manager.get_connection_by_station_id(station_id)
             if not connection:
-                logger = get_logger('station_handler'); logger.info(f"Соединение для станции {station_id} не найдено для извлечения повербанка")
                 return
             
             from handlers.eject_powerbank import EjectPowerbankHandler

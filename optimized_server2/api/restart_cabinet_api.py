@@ -44,7 +44,7 @@ class RestartCabinetAPI:
                     'error': 'Пользователь не найден'
                 }, status=404)
             
-            # Проверяем права доступа (только администраторы)
+            # Проверяем права доступа
             if user.role not in ['service_admin', 'group_admin']:
                 return web.json_response({
                     'error': 'Недостаточно прав доступа. Требуется роль service_admin или group_admin'

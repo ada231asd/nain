@@ -1,7 +1,6 @@
 """
 Единый централизованный логгер для всего сервера
-Перехватывает все логи и записывает в файл с ротацией по дате
-Логи хранятся 1 месяц, старые автоматически удаляются
+
 """
 import logging
 import os
@@ -18,7 +17,7 @@ class UnifiedLogger:
     
     def __init__(self):
         self.log_dir = "logs"
-        self.log_retention_days = 30  # Хранить логи 1 месяц (30 дней)
+        self.log_retention_days = 30  # Хранить логи 30 дней
         self._original_loggers = {}
         self._file_handler = None
         self._console_handler = None

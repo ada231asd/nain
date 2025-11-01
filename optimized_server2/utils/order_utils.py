@@ -3,7 +3,6 @@
 """
 from typing import Optional, Tuple, Dict, Any
 from models.order import Order
-from utils.centralized_logger import get_logger
 
 
 async def check_duplicate_borrow_order(db_pool, user_id: int, powerbank_id: int, 
@@ -13,8 +12,6 @@ async def check_duplicate_borrow_order(db_pool, user_id: int, powerbank_id: int,
     
     """
     try:
-        logger = get_logger('order_utils')
-        
         # Получаем телефон пользователя и серийный номер powerbank'а
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
@@ -42,21 +39,16 @@ async def check_duplicate_borrow_order(db_pool, user_id: int, powerbank_id: int,
             # Проверяем, есть ли заказ на тот же powerbank
             for order in active_user_orders:
                 if order.powerbank_serial == powerbank_serial:
-                    logger.warning(f"Дублирующий заказ: пользователь {user_id} уже имеет активный заказ {order.order_id} на powerbank {powerbank_serial}")
                     return True, f"У вас уже есть активный заказ на этот powerbank (заказ #{order.order_id})"
         
         # Проверяем активные заказы на powerbank
         active_powerbank_order = await Order.get_active_by_powerbank_serial(db_pool, powerbank_serial)
         if active_powerbank_order:
-            logger.warning(f"Дублирующий заказ: powerbank {powerbank_serial} уже выдан в заказе {active_powerbank_order.order_id}")
             return True, f"Powerbank уже выдан другому пользователю (заказ #{active_powerbank_order.order_id})"
         
-        logger.info(f"Проверка дубликатов пройдена: пользователь {user_id}, powerbank {powerbank_id}, станция {station_id}")
         return False, "Дубликатов не найдено"
         
     except Exception as e:
-        logger = get_logger('order_utils')
-        logger.error(f"Ошибка проверки дубликатов заказов: {e}")
         return True, f"Ошибка проверки дубликатов: {e}"
 
 
@@ -68,8 +60,6 @@ async def check_powerbank_availability(db_pool, powerbank_id: int) -> Tuple[bool
         from models.powerbank import Powerbank
         from models.station_powerbank import StationPowerbank
         
-        logger = get_logger('order_utils')
-        
         # Проверяем существование powerbank'а
         powerbank = await Powerbank.get_by_id(db_pool, powerbank_id)
         if not powerbank:
@@ -77,13 +67,11 @@ async def check_powerbank_availability(db_pool, powerbank_id: int) -> Tuple[bool
         
         # Проверяем статус powerbank'а
         if powerbank.status != 'active':
-            logger.warning(f"Powerbank {powerbank_id} недоступен (статус: {powerbank.status})")
             return False, f"Powerbank недоступен (статус: {powerbank.status})"
         
         # Проверяем, что powerbank находится в станции
         station_powerbank = await StationPowerbank.get_by_powerbank_id(db_pool, powerbank_id)
         if not station_powerbank:
-            logger.warning(f"Powerbank {powerbank_id} не найден ни в одной станции")
             return False, "Powerbank не найден в станциях"
         
         # Получаем серийный номер powerbank'а для поиска в orders
@@ -94,15 +82,11 @@ async def check_powerbank_availability(db_pool, powerbank_id: int) -> Tuple[bool
         # Проверяем активные заказы на powerbank
         active_order = await Order.get_active_by_powerbank_serial(db_pool, powerbank_serial)
         if active_order:
-            logger.warning(f"Powerbank {powerbank_serial} уже выдан в заказе {active_order.order_id}")
             return False, f"Powerbank уже выдан (заказ #{active_order.order_id})"
         
-        logger.info(f"Powerbank {powerbank_id} ({powerbank.serial_number}) доступен для выдачи")
         return True, f"Powerbank {powerbank.serial_number} доступен"
         
     except Exception as e:
-        logger = get_logger('order_utils')
-        logger.error(f"Ошибка проверки доступности powerbank {powerbank_id}: {e}")
         return False, f"Ошибка проверки доступности: {e}"
 
 
@@ -112,8 +96,6 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
     
     """
     try:
-        logger = get_logger('order_utils')
-        
         # Получаем информацию о пользователе с лимитами
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
@@ -193,12 +175,9 @@ async def check_user_powerbank_limit(db_pool, user_id: int) -> Tuple[bool, str]:
                     limit_source = "индивидуального лимита" if limit_type == 'individual' else f"лимита группы"
                     return False, f"Превышен лимит повербанков ({active_count}/{effective_limit}). Источник: {limit_source}"
                 
-                logger.info(f"Пользователь {user_id}: активных повербанков {active_count}/{effective_limit} (тип: {limit_type})")
                 return True, f"Лимит не превышен ({active_count}/{effective_limit})"
                 
     except Exception as e:
-        logger = get_logger('order_utils')
-        logger.error(f"Ошибка проверки лимита пользователя {user_id}: {e}")
         return False, f"Ошибка проверки лимита: {e}"
 
 
@@ -311,9 +290,6 @@ async def get_user_limit_info(db_pool, user_id: int) -> Dict[str, Any]:
                     "active_count": active_count,
                 }
     except Exception as e:
-        logger = get_logger('order_utils')
-        logger.error(f"Ошибка получения информации о лимите пользователя {user_id}: {e}")
-
         return {
             "user_id": user_id,
             "individual_limit": None,
@@ -358,9 +334,6 @@ async def validate_borrow_request(db_pool, user_id: int, powerbank_id: int,
     
     """
     try:
-        logger = get_logger('order_utils')
-        logger.info(f"Валидация запроса на выдачу: пользователь {user_id}, powerbank {powerbank_id}, станция {station_id}")
-        
         # Проверяем лимит повербанков пользователя
         limit_ok, limit_message = await check_user_powerbank_limit(db_pool, user_id)
         if not limit_ok:
@@ -380,11 +353,8 @@ async def validate_borrow_request(db_pool, user_id: int, powerbank_id: int,
         if not is_available:
             return False, availability_message
         
-        logger.info(f"Валидация запроса на выдачу пройдена успешно")
         return True, "Запрос валиден"
         
     except Exception as e:
-        logger = get_logger('order_utils')
-        logger.error(f"Ошибка валидации запроса на выдачу: {e}")
         return False, f"Ошибка валидации: {e}"
 

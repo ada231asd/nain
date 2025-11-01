@@ -119,8 +119,8 @@ class PowerbankCRUD(BaseAPI):
                         where_conditions.append("p.status = %s")
                         params.append(status)
                     
-                    # Применяем фильтрацию по org_unit на основе прав доступа
-                    if accessible_org_units is not None:  # None = service_admin (без фильтра)
+
+                    if accessible_org_units is not None:
                         if len(accessible_org_units) == 0:
                             # Нет доступных org_units - возвращаем пустой результат
                             return web.json_response(serialize_for_json({
@@ -365,9 +365,7 @@ class PowerbankCRUD(BaseAPI):
                         inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
                         await inventory_handler.send_inventory_request(station_id)
                     except Exception as e:
-                        # Логируем ошибку, но не прерываем удаление
-                        logger = get_logger('powerbank_crud')
-                        logger.warning(f"Не удалось отправить запрос инвентаризации для станции {station_id} после удаления повербанка {powerbank_id}: {e}")
+                        pass
                 
                 return self.success_response(
                     data={
@@ -456,11 +454,6 @@ class PowerbankCRUD(BaseAPI):
                             SET last_update = %s
                             WHERE powerbank_id = %s AND station_id = %s
                         """, (get_moscow_time(), powerbank_id, station_info['station_id']))
-                        
-                        # Логируем одобрение аккумулятора в станции
-                        from utils.centralized_logger import get_logger
-                        logger = get_logger('powerbank_crud')
-                        logger.info(f"Аккумулятор {powerbank['serial_number']} одобрен и активирован в группе {data['org_unit_id']}, находится в станции {station_info['box_id']}, слот {station_info['slot_number']}")
                     
                     return web.json_response({
                         "success": True,

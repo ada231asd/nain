@@ -48,9 +48,6 @@ class QueryVoiceVolumeAPI:
             result = await self.voice_volume_handler.send_voice_volume_request(station_id)
             
             if result['success']:
-                # Логируем успешный запрос
-                self.logger.info(f"API: Запрос уровня громкости отправлен на станцию {station.box_id} (ID: {station_id})")
-                
                 return web.json_response({
                     'success': True,
                     'message': result['message'],

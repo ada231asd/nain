@@ -33,7 +33,6 @@ class BaseAPI:
     def check_auth(self, request: Request) -> tuple[bool, Optional[Response]]:
         """
         Проверить авторизацию
-        Возвращает (успех, ответ_с_ошибкой)
         """
         user = self.get_user_from_request(request)
         if not user:
@@ -86,7 +85,6 @@ class BaseAPI:
     def check_required_fields(self, data: dict, required_fields: list) -> tuple[bool, Optional[Response]]:
         """
         Проверить наличие обязательных полей
-        Возвращает (успех, ответ_с_ошибкой)
         """
         for field in required_fields:
             if field not in data:
@@ -100,7 +98,6 @@ class BaseAPI:
     async def soft_delete_entity(self, entity_type: str, entity_id: int, user_id: Optional[int] = None) -> tuple[bool, str]:
         """
         Универсальное мягкое удаление сущности
-        Возвращает (успех, сообщение)
         """
         delete_functions = {
             'user': lambda db, id: soft_delete_user(db, id),
@@ -111,9 +108,7 @@ class BaseAPI:
         }
         
         if entity_type not in delete_functions:
-            # Для других таблиц используем общий метод
             table_mapping = {}
-            # Примечание: user_role, user_favorite, slot_abnormal_report, station_powerbank, station_secret_key используют физическое удаление
             
             if entity_type in table_mapping:
                 table, id_field = table_mapping[entity_type]
@@ -124,8 +119,6 @@ class BaseAPI:
             success = await delete_functions[entity_type](self.db_pool, entity_id)
         
         if success:
-            if user_id:
-                logger.info(f"Пользователь {user_id} удалил {entity_type} #{entity_id}")
             return True, f'{entity_type} #{entity_id} успешно удален'
         else:
             return False, f'{entity_type} #{entity_id} не найден или уже удален'
@@ -146,8 +139,6 @@ class BaseAPI:
                                 include_deleted: bool = False) -> Optional[Dict[str, Any]]:
         """
         Получить сущность по ID
-        По умолчанию возвращает только неудаленные записи
-        Для powerbank использует power_er != 5, для остальных - is_deleted = 0
         """
         async with self.db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
@@ -196,10 +187,6 @@ class BaseAPI:
     async def should_show_deleted(self, request: Request) -> bool:
         """
         Проверяет, нужно ли показывать удаленные записи
-        
-        Returns:
-            bool: True если service_admin (по умолчанию показываем удаленные,
-                  можно отключить через show_deleted=false)
         """
         # Проверяем роль
         user = self.get_user_from_request(request)
@@ -216,8 +203,6 @@ class BaseAPI:
         if not is_service_admin:
             return False
         
-        # Для service_admin показываем удаленные по умолчанию,
-        # но можно отключить через show_deleted=false
         show_deleted = request.query.get('show_deleted', 'true').lower()
         
         return show_deleted != 'false'
@@ -231,17 +216,10 @@ class BaseAPI:
     ):
         """
         Добавляет фильтр is_deleted = 0 для указанных таблиц
-        Для powerbank использует фильтр power_er != 5 AND status != 'system_error'
-        
-        Args:
-            where_conditions: Список условий WHERE
-            table_aliases: Список алиасов таблиц (например, ['s', 'ou'])
-            show_deleted: Если True, фильтр не добавляется
-            table_name: Имя таблицы для определения типа фильтра ('powerbank' или другая)
+
         """
         if not show_deleted:
             for alias in table_aliases:
-                # Для powerbank используем power_er != 5 вместо is_deleted
                 if table_name == 'powerbank' or (table_name is None and 'p' in table_aliases and len(table_aliases) == 1):
                     where_conditions.append(f"({alias}.power_er != 5 OR {alias}.power_er IS NULL) AND {alias}.status != 'system_error'")
                 else:
@@ -252,7 +230,6 @@ class BaseAPI:
     def parse_int_param(self, value: str, param_name: str) -> tuple[Optional[int], Optional[Response]]:
         """
         Парсинг целочисленного параметра
-        Возвращает (значение, ответ_с_ошибкой)
         """
         try:
             return int(value), None

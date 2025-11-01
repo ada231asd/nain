@@ -80,11 +80,8 @@ class HardDeleteAPI:
                         from handlers.query_inventory import QueryInventoryHandler
                         inventory_handler = QueryInventoryHandler(self.db_pool, self.connection_manager)
                         await inventory_handler.send_inventory_request(station_id)
-                        logger.info(f"Отправлен запрос инвентаризации на станцию {station_id} после жесткого удаления повербанка {entity_id}")
                     except Exception as e:
-                        logger.warning(f"Не удалось отправить запрос инвентаризации для станции {station_id} после жесткого удаления повербанка {entity_id}: {e}")
-                
-                logger.warning(f"ЖЕСТКОЕ УДАЛЕНИЕ: {entity_type} #{entity_id} by user {user['user_id']}")
+                        pass
                 return web.json_response({
                     'success': True,
                     'message': f'{entity_type} #{entity_id} физически удален из базы данных'
@@ -156,8 +153,6 @@ class HardDeleteAPI:
                     await conn.commit()
                     
                     deleted_count = cur.rowcount
-            
-            logger.warning(f"ОЧИСТКА: Удалено {deleted_count} записей {entity_type} старше {days_old} дней by user {user['user_id']}")
             
             return web.json_response({
                 'success': True,

@@ -109,7 +109,7 @@ class PowerbankReminderService:
                     """, (
                         user_id,
                         order_data['order_id'],
-                        f"Отправлено напоминание о возврате аккумулятора {order_data['powerbank_serial']}"
+                        ""
                     ))
         except Exception as e:
             self.logger.error(f"Ошибка при логировании отправки напоминания: {e}")
@@ -131,7 +131,6 @@ class PowerbankReminderService:
                 if success:
                     sent_count += 1
                 
-                # Небольшая задержка между отправками, чтобы не перегружать SMTP сервер
                 await asyncio.sleep(1)
             
             return sent_count
@@ -146,16 +145,13 @@ class PowerbankReminderService:
             try:
                 await self.check_and_send_reminders()
                 
-                # Очищаем множество отправленных напоминаний раз в 24 часа
-                # чтобы можно было отправлять повторные напоминания
-                if len(self.sent_reminders) > 1000:  # Ограничение размера множества
+                if len(self.sent_reminders) > 1000:
                     self.sent_reminders.clear()
                 
             except Exception as e:
                 self.logger.error(f"Ошибка в периодической проверке: {e}", exc_info=True)
             
-            # Ждем до следующей проверки
-            await asyncio.sleep(interval_hours * 3600)  # Преобразуем часы в секунды
+            await asyncio.sleep(interval_hours * 3600)
     
     def clear_sent_reminders(self) -> None:
         """Очищает множество отправленных напоминаний"""
