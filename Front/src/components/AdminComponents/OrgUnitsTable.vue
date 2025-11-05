@@ -15,6 +15,11 @@
           />
           <span class="search-icon">🔍</span>
         </div>
+        
+        <button @click="$emit('add-org-unit')" class="btn-add-org-unit">
+          + Добавить группу
+        </button>
+
         <FilterButton 
           filter-type="org-units"
           :org-units="orgUnits"
@@ -23,9 +28,7 @@
           :show-role-filter="false"
           @filter-change="handleFilterChange"
         />
-        <button @click="$emit('add-org-unit')" class="btn-add-org-unit">
-          + Добавить группу
-        </button>
+
       </div>
     </div>
 
@@ -473,18 +476,23 @@ watch(searchQuery, () => {
 }
 
 .btn-add-org-unit {
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
-  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 2px solid #e9ecef;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.3s ease;
 }
 
 .btn-add-org-unit:hover {
-  background: #5a6fd8;
+  border-color: #667eea;
+  background: #f8f9fa;
 }
 
 .table-wrapper {

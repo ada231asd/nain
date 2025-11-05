@@ -15,6 +15,11 @@
           />
           <span class="search-icon">🔍</span>
         </div>
+        
+        <button @click="$emit('refresh')" class="btn-refresh" :disabled="isLoading">
+          {{ isLoading ? '🔄' : '↻' }} Обновить
+        </button>
+
         <FilterButton 
           filter-type="orders"
           :org-units="orgUnits"
@@ -23,9 +28,7 @@
           :show-role-filter="false"
           @filter-change="handleFilterChange"
         />
-        <button @click="$emit('refresh')" class="btn-refresh" :disabled="isLoading">
-          {{ isLoading ? '🔄' : '↻' }} Обновить
-        </button>
+        
       </div>
     </div>
 
@@ -536,22 +539,27 @@ watch(searchQuery, () => {
 }
 
 .btn-refresh {
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
-  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 2px solid #e9ecef;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.3s ease;
 }
 
-.btn-refresh:hover:not(:disabled) {
-  background: #5a6fd8;
+.btn-refresh:hover {
+  border-color: #667eea;
+  background: #f8f9fa;
 }
 
 .btn-refresh:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

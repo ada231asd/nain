@@ -1242,22 +1242,26 @@ watch(currentPage, () => {
   font-size: 16px;
 }
 
-/* .btn-add-user styles removed as button no longer exists */
-
-.btn-bulk-import {
-  padding: 10px 20px;
-  background: #28a745;
-  color: white;
-  border: none;
+.btn-bulk-import,
+.btn-invitation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 2px solid #e9ecef;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.3s ease;
-  margin-left: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.3s ease;
 }
 
-.btn-bulk-import:hover {
-  background: #218838;
+.btn-bulk-import:hover,
+.btn-invitation:hover {
+  border-color: #667eea;
+  background: #f8f9fa;
 }
 
 /* Панель массовых действий */
@@ -2423,19 +2427,6 @@ watch(currentPage, () => {
   height: auto;
 }
 
-.btn-invitation {
-  padding: 10px 20px;
-  background: #10b981;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
 
-.btn-invitation:hover {
-  background: #059669;
-}
 </style>
 

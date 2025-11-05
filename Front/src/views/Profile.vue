@@ -23,9 +23,10 @@
             <BaseButton @click="goToDashboard" variant="outline" size="small" class="btn-home" title="На главную">
               🏠
             </BaseButton>
-            <BaseButton @click="toggleEditMode" variant="primary" size="small" :disabled="isLoading">
+            <!-- Кнопка редактирования закомментирована, но функционал остается рабочим -->
+            <!-- <BaseButton @click="toggleEditMode" variant="primary" size="small" :disabled="isLoading">
               {{ isEditing ? 'Сохранить' : 'Редактировать' }}
-            </BaseButton>
+            </BaseButton> -->
           </div>
         </div>
         <div class="info-grid">
