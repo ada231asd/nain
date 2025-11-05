@@ -16,15 +16,16 @@ export function initPWAInstall() {
     deferredPrompt = e
     console.log('📱 PWA готово к установке (beforeinstallprompt)')
     
-    // Можно показать кастомную кнопку установки
-    // dispatchEvent(new CustomEvent('pwa-installable'))
+    // Отправляем событие для компонентов, чтобы показать кнопку установки
+    window.dispatchEvent(new CustomEvent('pwa-installable'))
   })
 
   // Обработка успешной установки
   window.addEventListener('appinstalled', () => {
     console.log('✅ PWA успешно установлено')
     deferredPrompt = null
-    // Можно показать уведомление об успешной установке
+    // Отправляем событие для скрытия кнопки установки
+    window.dispatchEvent(new CustomEvent('pwa-installed'))
   })
 }
 
