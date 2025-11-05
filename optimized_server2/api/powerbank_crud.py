@@ -152,14 +152,41 @@ class PowerbankCRUD(BaseAPI):
                     
                     # Получаем powerbanks
                     query = f"""
-                        SELECT p.id, p.org_unit_id, p.serial_number, p.soh, 
-                               p.status, p.write_off_reason, p.created_at, p.power_er,
-                               p.is_deleted, p.deleted_at,
-                               ou.name as org_unit_name,
-                               pe.type_error as error_type
+                        SELECT 
+                            p.id, p.org_unit_id, p.serial_number, p.soh, 
+                            p.status, p.write_off_reason, p.created_at, p.power_er,
+                            p.is_deleted, p.deleted_at,
+                            ou.name AS org_unit_name,
+                            pe.type_error AS error_type,
+                            -- Текущее местоположение повербанка (если находится в станции)
+                            sp.station_id AS station_id,
+                            s.box_id AS station_box_id,
+                            sp.slot_number AS station_slot_number,
+                            -- Активный заказ по повербанку (если есть)
+                            ao.id AS active_order_id,
+                            ao.status AS active_order_status,
+                            ao.timestamp AS active_order_timestamp,
+                            ao.user_phone AS active_order_user_phone,
+                            ao.station_box_id AS active_order_station_box_id
                         FROM powerbank p
                         LEFT JOIN org_unit ou ON p.org_unit_id = ou.org_unit_id
                         LEFT JOIN powerbank_error pe ON p.power_er = pe.id_er
+                        -- Привязка к станции (текущее расположение)
+                        LEFT JOIN station_powerbank sp ON sp.powerbank_id = p.id
+                        LEFT JOIN station s ON s.station_id = sp.station_id
+                        -- Активные заказы по этому повербанку (берем последний активный)
+                        LEFT JOIN (
+                            SELECT o1.*
+                            FROM orders o1
+                            INNER JOIN (
+                                SELECT powerbank_serial, MAX(id) AS max_id
+                                FROM orders
+                                WHERE status IN ('borrow','pending','return_damage')
+                                  AND (completed_at IS NULL)
+                                GROUP BY powerbank_serial
+                            ) last ON last.powerbank_serial COLLATE utf8mb4_unicode_ci = o1.powerbank_serial COLLATE utf8mb4_unicode_ci
+                               AND last.max_id = o1.id
+                        ) ao ON ao.powerbank_serial COLLATE utf8mb4_unicode_ci = p.serial_number COLLATE utf8mb4_unicode_ci
                         {where_clause}
                         ORDER BY p.created_at DESC
                         LIMIT %s OFFSET %s
