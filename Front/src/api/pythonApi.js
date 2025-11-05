@@ -351,21 +351,12 @@ export const pythonAPI = {
   approveUser: async (userId) => {
     validateId(userId, 'user ID')
     try {
-      // Сначала получаем данные пользователя
-      const response = await handleResponse(apiClient.get(`/users/${userId}`), 'get user data')
-      const userData = response.data || response
-      
-      // Обновляем только статус, сохраняя остальные данные
-      const updateData = {
-        fio: userData.fio || '',
-        phone_e164: userData.phone_e164 || '',
-        email: userData.email || '',
-        role: userData.role || 'user',
-        parent_org_unit_id: userData.parent_org_unit_id || '',
-        status: 'active' // Меняем статус на активный
+      // Используем специальный endpoint для одобрения, который отправляет уведомление
+      const approveData = {
+        user_id: userId
       }
       
-      return handleResponse(apiClient.put(`/users/${userId}`, updateData), 'approve user')
+      return handleResponse(apiClient.post('/admin/approve-user', approveData), 'approve user')
     } catch (error) {
       throw new Error(`Failed to approve user: ${error.message}`)
     }
@@ -373,21 +364,12 @@ export const pythonAPI = {
   rejectUser: async (userId) => {
     validateId(userId, 'user ID')
     try {
-      // Сначала получаем данные пользователя
-      const response = await handleResponse(apiClient.get(`/users/${userId}`), 'get user data')
-      const userData = response.data || response
-      
-      // Обновляем только статус, сохраняя остальные данные
-      const updateData = {
-        fio: userData.fio || '',
-        phone_e164: userData.phone_e164 || '',
-        email: userData.email || '',
-        role: userData.role || 'user',
-        parent_org_unit_id: userData.parent_org_unit_id || '',
-        status: 'blocked' // Меняем статус на заблокированный
+      // Используем специальный endpoint для отклонения
+      const rejectData = {
+        user_id: userId
       }
       
-      return handleResponse(apiClient.put(`/users/${userId}`, updateData), 'reject user')
+      return handleResponse(apiClient.post('/admin/reject-user', rejectData), 'reject user')
     } catch (error) {
       throw new Error(`Failed to reject user: ${error.message}`)
     }
