@@ -37,12 +37,18 @@ const handleInstall = async () => {
   isInstalling.value = true
   
   try {
-    const success = await installPWA()
-    if (success) {
-      // После успешной установки скрываем кнопку
-      setTimeout(() => {
+    const result = await installPWA()
+    if (result.success) {
+      // Если пользователь принял установку, скрываем кнопку сразу
+      // Если отклонил, кнопка скроется после очистки deferredPrompt
+      if (result.outcome === 'accepted') {
         showInstallButton.value = false
-      }, 500)
+      } else {
+        // После отклонения также скрываем кнопку
+        setTimeout(() => {
+          showInstallButton.value = false
+        }, 500)
+      }
     }
   } catch (error) {
     console.error('Ошибка при установке PWA:', error)
