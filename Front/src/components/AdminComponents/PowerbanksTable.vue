@@ -257,6 +257,57 @@
               </div>
             </div>
 
+            <!-- Местоположение (Станция или Заказ) -->
+            <div class="detail-section" v-if="hasLocationInfo(selectedPowerbank)">
+              <h4>Местоположение</h4>
+              <div class="detail-rows">
+                <!-- Информация о заказе (приоритет) -->
+                <template v-if="hasActiveOrder(selectedPowerbank)">
+                  <div class="detail-row">
+                    <span class="detail-label">В заказе:</span>
+                    <span class="detail-value order-info">Да</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.active_order_id">
+                    <span class="detail-label">ID заказа:</span>
+                    <span class="detail-value">{{ selectedPowerbank.active_order_id }}</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.active_order_status">
+                    <span class="detail-label">Статус заказа:</span>
+                    <span class="detail-value">{{ getOrderStatusText(selectedPowerbank.active_order_status) }}</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.active_order_timestamp">
+                    <span class="detail-label">Время заказа:</span>
+                    <span class="detail-value">{{ formatTime(selectedPowerbank.active_order_timestamp) }}</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.active_order_user_phone">
+                    <span class="detail-label">Телефон пользователя:</span>
+                    <span class="detail-value">{{ selectedPowerbank.active_order_user_phone }}</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.active_order_station_box_id">
+                    <span class="detail-label">Станция заказа:</span>
+                    <span class="detail-value">{{ selectedPowerbank.active_order_station_box_id }}</span>
+                  </div>
+                </template>
+                
+                <!-- Информация о станции (если нет активного заказа) -->
+                <template v-else-if="hasStationInfo(selectedPowerbank)">
+                  <div class="detail-row">
+                    <span class="detail-label">В станции:</span>
+                    <span class="detail-value station-info">Да</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.station_box_id">
+                    <span class="detail-label">ID станции:</span>
+                    <span class="detail-value">{{ selectedPowerbank.station_box_id }}</span>
+                  </div>
+                  <div class="detail-row" v-if="selectedPowerbank.station_slot_number !== null && selectedPowerbank.station_slot_number !== undefined">
+                    <span class="detail-label">Номер слота:</span>
+                    <span class="detail-value">{{ selectedPowerbank.station_slot_number }}</span>
+                  </div>
+                  
+                </template>
+              </div>
+            </div>
+
             <!-- Дополнительная информация -->
             <div class="detail-section">
               <h4>Дополнительная информация</h4>
@@ -782,6 +833,36 @@ const formatTime = (timestamp) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// Проверка наличия информации о местоположении
+const hasLocationInfo = (powerbank) => {
+  if (!powerbank) return false
+  return hasActiveOrder(powerbank) || hasStationInfo(powerbank)
+}
+
+// Проверка наличия активного заказа
+const hasActiveOrder = (powerbank) => {
+  if (!powerbank) return false
+  return !!(powerbank.active_order_id || powerbank.active_order_status)
+}
+
+// Проверка наличия информации о станции
+const hasStationInfo = (powerbank) => {
+  if (!powerbank) return false
+  return !!(powerbank.station_id || powerbank.station_box_id || 
+           (powerbank.station_slot_number !== null && powerbank.station_slot_number !== undefined))
+}
+
+// Получение текста статуса заказа
+const getOrderStatusText = (status) => {
+  const statusMap = {
+    'borrow': 'Взятие',
+    'return': 'Возврат',
+    'completed': 'Завершён',
+    'cancelled': 'Отменён'
+  }
+  return statusMap[status] || status
 }
 
 // Сброс страницы при изменении поиска
@@ -1370,6 +1451,16 @@ watch(searchQuery, () => {
   font-size: 1rem;
   text-align: right;
   flex: 1;
+}
+
+.order-info {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.station-info {
+  color: #28a745;
+  font-weight: 600;
 }
 
 .editable-field {
