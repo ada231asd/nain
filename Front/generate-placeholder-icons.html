@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор иконок для PWA ЗАРЯД</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="color"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="color"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .color-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .preview {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 12px;
+        }
+
+        .preview h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .icons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .icon-item {
+            text-align: center;
+        }
+
+        .icon-item canvas {
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 100%;
+            height: auto;
+        }
+
+        .icon-item p {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .download-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+
+        .instructions h4 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #555;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .emoji-size {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Генератор иконок PWA</h1>
+        <p class="subtitle">Создайте временные иконки для вашего PWA приложения ЗАРЯД</p>
+
+        <div class="form-group">
+            <label for="iconText">Текст иконки (1-2 символа или emoji)</label>
+            <input type="text" id="iconText" value="З" maxlength="2" placeholder="З или ⚡">
+            <p class="emoji-size">Попробуйте: З, ⚡, 🔋, ⚡️, 🔌</p>
+        </div>
+
+        <div class="color-inputs">
+            <div class="form-group">
+                <label for="bgColor">Цвет фона</label>
+                <input type="color" id="bgColor" value="#2196F3">
+            </div>
+
+            <div class="form-group">
+                <label for="textColor">Цвет текста</label>
+                <input type="color" id="textColor" value="#FFFFFF">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="fontStyle">Стиль шрифта</label>
+            <select id="fontStyle">
+                <option value="bold">Жирный</option>
+                <option value="normal">Обычный</option>
+            </select>
+        </div>
+
+        <button onclick="generateIcons()">🎨 Сгенерировать иконки</button>
+
+        <div id="preview" class="preview hidden">
+            <h3>Предварительный просмотр</h3>
+            <div class="icons-grid" id="iconsGrid"></div>
+            <button class="download-btn" onclick="downloadAllIcons()">⬇️ Скачать все иконки (ZIP)</button>
+            
+            <div class="instructions">
+                <h4>📝 Инструкция по установке:</h4>
+                <ol>
+                    <li>Нажмите "Скачать все иконки" или скачайте каждую по отдельности</li>
+                    <li>Распакуйте ZIP архив (если скачали все)</li>
+                    <li>Скопируйте все файлы в папку <code>Front/public/</code></li>
+                    <li>Запустите <code>npm run build</code></li>
+                    <li>Ваше PWA готово к установке!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        const iconSizes = [
+            { name: 'pwa-64x64.png', size: 64 },
+            { name: 'pwa-192x192.png', size: 192 },
+            { name: 'pwa-512x512.png', size: 512 },
+            { name: 'maskable-icon-512x512.png', size: 512, maskable: true },
+            { name: 'apple-touch-icon.png', size: 180 },
+            { name: 'favicon-32x32.png', size: 32 },
+            { name: 'favicon-16x16.png', size: 16 }
+        ];
+
+        let generatedCanvases = [];
+
+        function generateIcons() {
+            const text = document.getElementById('iconText').value || 'З';
+            const bgColor = document.getElementById('bgColor').value;
+            const textColor = document.getElementById('textColor').value;
+            const fontStyle = document.getElementById('fontStyle').value;
+
+            generatedCanvases = [];
+            const grid = document.getElementById('iconsGrid');
+            grid.innerHTML = '';
+
+            iconSizes.forEach(icon => {
+                const canvas = createIcon(text, bgColor, textColor, icon.size, fontStyle, icon.maskable);
+                generatedCanvases.push({ canvas, name: icon.name });
+
+                const item = document.createElement('div');
+                item.className = 'icon-item';
+                
+                const displayCanvas = document.createElement('canvas');
+                displayCanvas.width = 100;
+                displayCanvas.height = 100;
+                const ctx = displayCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, 0, 100, 100);
+                
+                const name = document.createElement('p');
+                name.textContent = `${icon.size}×${icon.size}`;
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = '⬇️';
+                downloadBtn.className = 'download-btn';
+                downloadBtn.onclick = () => downloadIcon(canvas, icon.name);
+                
+                item.appendChild(displayCanvas);
+                item.appendChild(name);
+                item.appendChild(downloadBtn);
+                grid.appendChild(item);
+            });
+
+            document.getElementById('preview').classList.remove('hidden');
+        }
+
+        function createIcon(text, bgColor, textColor, size, fontStyle, maskable = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            ctx.fillStyle = bgColor;
+            if (maskable) {
+                ctx.fillRect(0, 0, size, size);
+            } else {
+                ctx.beginPath();
+                ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Text
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Font size adjustment
+            const fontSize = maskable ? size * 0.5 : size * 0.6;
+            ctx.font = `${fontStyle === 'bold' ? 'bold' : 'normal'} ${fontSize}px Arial, sans-serif`;
+            
+            // Check if emoji
+            const isEmoji = /[\u{1F000}-\u{1F9FF}]/u.test(text);
+            if (isEmoji && ctx.measureText) {
+                ctx.font = `${fontSize}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+            }
+            
+            ctx.fillText(text, size / 2, size / 2);
+
+            return canvas;
+        }
+
+        function downloadIcon(canvas, filename) {
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        async function downloadAllIcons() {
+            const zip = new JSZip();
+
+            for (const { canvas, name } of generatedCanvases) {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve));
+                zip.file(name, blob);
+            }
+
+            const content = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pwa-icons.zip';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Generate default icons on load
+        window.addEventListener('load', () => {
+            generateIcons();
+        });
+    </script>
+</body>
+</html>
+
