@@ -11,7 +11,21 @@ const beforeInstallPromptHandler = (e) => {
   e.preventDefault()
   // Сохраняем событие для использования позже
   deferredPrompt = e
-  console.log('📱 PWA готово к установке (beforeinstallprompt)')
+  
+  // Детальное логирование для отладки
+  const ua = navigator.userAgent
+  const browserInfo = {
+    isYandex: /yabrowser|yaapp/i.test(ua),
+    isChrome: /chrome/i.test(ua) && !/yabrowser|yaapp|edg/i.test(ua),
+    hasPrompt: !!e.prompt,
+    canPrompt: typeof e.prompt === 'function'
+  }
+  
+  console.log('📱 PWA готово к установке (beforeinstallprompt)', {
+    browser: browserInfo,
+    userAgent: ua,
+    event: e
+  })
   
   // Отправляем событие для компонентов, чтобы показать кнопку установки
   window.dispatchEvent(new CustomEvent('pwa-installable'))
@@ -22,6 +36,17 @@ const appInstalledHandler = () => {
   deferredPrompt = null
   // Отправляем событие для скрытия кнопки установки
   window.dispatchEvent(new CustomEvent('pwa-installed'))
+}
+
+/**
+ * Определение браузера Yandex
+ * @returns {boolean}
+ */
+export function isYandexBrowser() {
+  const ua = navigator.userAgent.toLowerCase()
+  // Yandex браузер имеет специфичные признаки в user agent
+  return /yabrowser|yaapp/.test(ua) || 
+         (window.yandex !== undefined && window.yandex !== null)
 }
 
 /**
@@ -71,10 +96,70 @@ export function initPWAInstall() {
     return
   }
 
-  // Обработка события beforeinstallprompt (Chrome, Edge, Samsung Internet)
+  const ua = navigator.userAgent
+  const browserInfo = {
+    isYandex: isYandexBrowser(),
+    isSafari: isSafari(),
+    isChrome: /chrome/i.test(ua) && !/yabrowser|yaapp|edg/i.test(ua),
+    userAgent: ua,
+    hasServiceWorker: 'serviceWorker' in navigator,
+    isStandalone: window.matchMedia('(display-mode: standalone)').matches
+  }
+  
+  console.log('🔍 Инициализация PWA install:', browserInfo)
+
+  // Проверка наличия манифеста
+  const manifestLink = document.querySelector('link[rel="manifest"]')
+  if (!manifestLink) {
+    console.warn('⚠️ Манифест PWA не найден в DOM')
+  } else {
+    console.log('✅ Манифест найден:', manifestLink.href)
+  }
+
+  // Обработка события beforeinstallprompt (Chrome, Edge, Yandex Browser, Samsung Internet)
   // Safari не поддерживает это событие
   if (!isSafari()) {
+    // Для Yandex браузера и других Chromium-браузеров добавляем обработчик
     window.addEventListener('beforeinstallprompt', beforeInstallPromptHandler)
+    
+    // Для Yandex браузера также добавляем дополнительную проверку через небольшой таймаут
+    // так как событие может сработать с задержкой
+    if (isYandexBrowser()) {
+      console.log('🌐 Yandex браузер обнаружен - добавлена дополнительная проверка')
+      
+      // Проверяем через небольшие интервалы, не сработало ли событие
+      let checkCount = 0
+      const maxChecks = 10 // проверяем 10 раз (20 секунд)
+      
+      const yandexCheckInterval = setInterval(() => {
+        checkCount++
+        
+        // Если deferredPrompt уже установлен, прекращаем проверку
+        if (deferredPrompt !== null) {
+          clearInterval(yandexCheckInterval)
+          console.log('✅ Yandex: beforeinstallprompt получен через проверку')
+          return
+        }
+        
+        // Если превысили лимит проверок, прекращаем
+        if (checkCount >= maxChecks) {
+          clearInterval(yandexCheckInterval)
+          console.warn('⚠️ Yandex: beforeinstallprompt не получен после', maxChecks * 2, 'секунд')
+          
+          // Проверяем, может быть приложение уже установлено
+          if (isPWAInstalled()) {
+            console.log('ℹ️ Yandex: Приложение уже установлено как PWA')
+          } else {
+            // Если событие не пришло, но мы в Yandex браузере, проверяем манифест
+            // и пытаемся показать кнопку установки через альтернативный способ
+            if (manifestLink) {
+              console.log('ℹ️ Yandex: Показываем кнопку установки (манифест найден)')
+              window.dispatchEvent(new CustomEvent('pwa-installable'))
+            }
+          }
+        }
+      }, 2000) // проверяем каждые 2 секунды
+    }
   } else {
     // Для Safari проверяем, можно ли показать кнопку установки
     // Safari требует ручной установки через меню "Поделиться"
@@ -113,11 +198,44 @@ export async function installPWA() {
   }
 
   if (!deferredPrompt) {
-    console.warn('⚠️ Установка PWA недоступна')
+    console.warn('⚠️ Установка PWA недоступна - deferredPrompt отсутствует')
+    
+    // Для Yandex браузера пробуем альтернативный способ
+    if (isYandexBrowser()) {
+      console.log('🌐 Yandex: Пробуем альтернативный способ проверки установки')
+      
+      // Проверяем, может быть событие еще не пришло
+      // Пробуем вызвать установку через прямое обращение к браузеру
+      // (Yandex браузер может требовать прямого вызова)
+      try {
+        // Проверяем наличие манифеста
+        const manifestLink = document.querySelector('link[rel="manifest"]')
+        if (manifestLink) {
+          console.log('ℹ️ Yandex: Манифест найден, но beforeinstallprompt не получен')
+          console.log('ℹ️ Yandex: Пользователь может установить приложение через меню браузера')
+          return { 
+            success: false, 
+            needsManualInstall: true,
+            message: 'Для установки используйте меню браузера: "Установить приложение"' 
+          }
+        }
+      } catch (error) {
+        console.error('❌ Yandex: Ошибка при проверке:', error)
+      }
+    }
+    
     return { success: false }
   }
 
   try {
+    // Детальное логирование для Yandex браузера
+    if (isYandexBrowser()) {
+      console.log('🌐 Yandex: Запуск установки PWA', {
+        hasPrompt: typeof deferredPrompt.prompt === 'function',
+        promptType: typeof deferredPrompt.prompt
+      })
+    }
+    
     // Показываем промпт установки
     deferredPrompt.prompt()
     
@@ -136,6 +254,16 @@ export async function installPWA() {
     }
   } catch (error) {
     console.error('❌ Ошибка при установке PWA:', error)
+    
+    // Для Yandex браузера добавляем дополнительную информацию
+    if (isYandexBrowser()) {
+      console.error('🌐 Yandex: Детали ошибки:', {
+        error: error.message,
+        stack: error.stack,
+        deferredPrompt: deferredPrompt
+      })
+    }
+    
     deferredPrompt = null
     return { success: false, error: error.message }
   }
@@ -167,6 +295,23 @@ export function canInstallPWA() {
   // В Safari всегда можно показать инструкции (если не установлено)
   if (isSafari()) {
     return !isPWAInstalled()
+  }
+  
+  // Для Yandex браузера более либеральная проверка
+  if (isYandexBrowser()) {
+    // Если есть deferredPrompt - точно можно установить
+    if (deferredPrompt !== null) {
+      return true
+    }
+    
+    // Если deferredPrompt еще нет, но есть манифест и приложение не установлено,
+    // показываем кнопку (событие может прийти позже)
+    const manifestLink = document.querySelector('link[rel="manifest"]')
+    if (manifestLink && !isPWAInstalled()) {
+      return true
+    }
+    
+    return false
   }
   
   // Для других браузеров проверяем наличие deferredPrompt

@@ -22,36 +22,72 @@
     <span class="pwa-install-btn__text">Установить</span>
   </button>
 
-  <!-- Модальное окно с инструкциями для Safari -->
+  <!-- Модальное окно с инструкциями для Safari и Yandex браузера -->
   <div v-if="showSafariInstructions" class="safari-instructions-overlay" @click="showSafariInstructions = false">
     <div class="safari-instructions-modal" @click.stop>
       <button class="safari-instructions-close" @click="showSafariInstructions = false" aria-label="Закрыть">
         ✕
       </button>
-      <h2 class="safari-instructions-title">Как установить приложение на iPhone/iPad</h2>
-      <div class="safari-instructions-content">
-        <div class="safari-instructions-step">
-          <div class="safari-instructions-step-number">1</div>
-          <div class="safari-instructions-step-text">
-            Нажмите кнопку <strong>"Поделиться"</strong> <span class="safari-instructions-icon">📤</span> внизу экрана
+      
+      <!-- Инструкции для Yandex браузера -->
+      <template v-if="isYandexBrowserValue">
+        <h2 class="safari-instructions-title">Как установить приложение в Yandex браузере</h2>
+        <div class="safari-instructions-content">
+          <div class="safari-instructions-step">
+            <div class="safari-instructions-step-number">1</div>
+            <div class="safari-instructions-step-text">
+              Нажмите на иконку меню <strong>"☰"</strong> или <strong>"⋮"</strong> в правом верхнем углу браузера
+            </div>
+          </div>
+          <div class="safari-instructions-step">
+            <div class="safari-instructions-step-number">2</div>
+            <div class="safari-instructions-step-text">
+              Найдите пункт меню <strong>"Установить приложение"</strong> или <strong>"Установить ЗАРЯД"</strong>
+            </div>
+          </div>
+          <div class="safari-instructions-step">
+            <div class="safari-instructions-step-number">3</div>
+            <div class="safari-instructions-step-text">
+              Нажмите на этот пункт и подтвердите установку в появившемся окне
+            </div>
           </div>
         </div>
-        <div class="safari-instructions-step">
-          <div class="safari-instructions-step-number">2</div>
-          <div class="safari-instructions-step-text">
-            Прокрутите вниз и нажмите <strong>"На экран Домой"</strong> <span class="safari-instructions-icon">➕</span>
+        <div v-if="installMessage" class="safari-instructions-note">
+          {{ installMessage }}
+        </div>
+        <div class="safari-instructions-note">
+          После установки приложение появится на рабочем столе и в списке приложений
+        </div>
+      </template>
+      
+      <!-- Инструкции для Safari -->
+      <template v-else>
+        <h2 class="safari-instructions-title">Как установить приложение на iPhone/iPad</h2>
+        <div class="safari-instructions-content">
+          <div class="safari-instructions-step">
+            <div class="safari-instructions-step-number">1</div>
+            <div class="safari-instructions-step-text">
+              Нажмите кнопку <strong>"Поделиться"</strong> <span class="safari-instructions-icon">📤</span> внизу экрана
+            </div>
+          </div>
+          <div class="safari-instructions-step">
+            <div class="safari-instructions-step-number">2</div>
+            <div class="safari-instructions-step-text">
+              Прокрутите вниз и нажмите <strong>"На экран Домой"</strong> <span class="safari-instructions-icon">➕</span>
+            </div>
+          </div>
+          <div class="safari-instructions-step">
+            <div class="safari-instructions-step-number">3</div>
+            <div class="safari-instructions-step-text">
+              Нажмите <strong>"Добавить"</strong> в правом верхнем углу
+            </div>
           </div>
         </div>
-        <div class="safari-instructions-step">
-          <div class="safari-instructions-step-number">3</div>
-          <div class="safari-instructions-step-text">
-            Нажмите <strong>"Добавить"</strong> в правом верхнем углу
-          </div>
+        <div class="safari-instructions-note">
+          После установки приложение появится на главном экране вашего устройства
         </div>
-      </div>
-      <div class="safari-instructions-note">
-        После установки приложение появится на главном экране вашего устройства
-      </div>
+      </template>
+      
       <button class="safari-instructions-close-btn" @click="showSafariInstructions = false">
         Понятно
       </button>
@@ -61,12 +97,14 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { canInstallPWA, installPWA, isPWAInstalled, isSafari } from '../utils/pwa-install'
+import { canInstallPWA, installPWA, isPWAInstalled, isSafari, isYandexBrowser } from '../utils/pwa-install'
 
 const showInstallButton = ref(false)
 const isInstalling = ref(false)
 const isSafariBrowser = ref(false)
+const isYandexBrowserValue = ref(false)
 const showSafariInstructions = ref(false)
+const installMessage = ref('')
 
 const checkInstallability = () => {
   // Не показываем кнопку, если приложение уже установлено
@@ -75,15 +113,31 @@ const checkInstallability = () => {
     return
   }
   
-  // Проверяем браузер Safari
+  // Проверяем браузеры
   isSafariBrowser.value = isSafari()
+  isYandexBrowserValue.value = isYandexBrowser()
   
   // Показываем кнопку только если установка доступна
-  showInstallButton.value = canInstallPWA()
+  const canInstall = canInstallPWA()
+  showInstallButton.value = canInstall
+  
+  // Если это Yandex браузер, добавляем дополнительную информацию
+  if (isYandexBrowserValue.value) {
+    console.log('🌐 Yandex: Проверка доступности установки', {
+      canInstall,
+      isInstalled: isPWAInstalled(),
+      hasManifest: !!document.querySelector('link[rel="manifest"]')
+    })
+  }
 }
 
 const handleInstall = async () => {
   if (!canInstallPWA()) {
+    // Для Yandex браузера показываем инструкции, если установка недоступна
+    if (isYandexBrowserValue.value) {
+      installMessage.value = 'Для установки используйте меню браузера: "Установить приложение" или три точки → "Установить приложение"'
+      showSafariInstructions.value = true
+    }
     return
   }
   
@@ -102,9 +156,19 @@ const handleInstall = async () => {
           showInstallButton.value = false
         }, 500)
       }
+    } else if (result.needsManualInstall && isYandexBrowserValue.value) {
+      // Для Yandex браузера показываем инструкции при необходимости ручной установки
+      installMessage.value = result.message || 'Для установки используйте меню браузера'
+      showSafariInstructions.value = true
     }
   } catch (error) {
     console.error('Ошибка при установке PWA:', error)
+    
+    // Для Yandex браузера показываем инструкции при ошибке
+    if (isYandexBrowserValue.value) {
+      installMessage.value = 'Произошла ошибка при установке. Используйте меню браузера: "Установить приложение"'
+      showSafariInstructions.value = true
+    }
   } finally {
     isInstalling.value = false
   }
@@ -133,6 +197,22 @@ onMounted(() => {
   // Также проверяем периодически (на случай если событие уже произошло)
   setTimeout(checkInstallability, 1000)
   setTimeout(checkInstallability, 2000)
+  
+  // Для Yandex браузера более частые проверки (событие может прийти с задержкой)
+  if (isYandexBrowser()) {
+    const yandexCheckInterval = setInterval(() => {
+      checkInstallability()
+      // Останавливаем проверку через 20 секунд или если кнопка уже показана
+      setTimeout(() => {
+        if (showInstallButton.value || isPWAInstalled()) {
+          clearInterval(yandexCheckInterval)
+        }
+      }, 20000)
+    }, 2000)
+    
+    // Останавливаем проверку через 30 секунд
+    setTimeout(() => clearInterval(yandexCheckInterval), 30000)
+  }
 })
 
 onUnmounted(() => {
