@@ -412,10 +412,11 @@ export const pythonAPI = {
   },
   setServerAddress: (data) => {
     validateData(data, 'server address data')
-    const { station_id, server_address } = data
+    const { station_id, station_box_id, server_address } = data
     let { server_port, heartbeat_interval } = data
-    if (!station_id) {
-      throw new Error('Отсутствует обязательное поле: station_id')
+    // Бэкенд ожидает station_box_id — проверяем его наличие, но допускаем station_id как запасной вариант
+    if (!station_box_id && !station_id) {
+      throw new Error('Отсутствует обязательное поле: station_box_id или station_id')
     }
     if (!server_address || !String(server_address).trim()) {
       throw new Error('Адрес сервера не может быть пустым')
@@ -427,9 +428,10 @@ export const pythonAPI = {
       throw new Error('Отсутствует обязательное поле: heartbeat_interval')
     }
 
-    // Backend expects port as string, heartbeat in [1..255]
+    // Backend expects port as string, heartbeat in [1..255]; передаем оба идентификатора, если доступны
     const normalizedPayload = {
-      station_id,
+      ...(station_id ? { station_id } : {}),
+      ...(station_box_id ? { station_box_id: String(station_box_id).trim() } : {}),
       server_address: String(server_address).trim(),
       server_port: String(server_port).trim(),
       heartbeat_interval: Math.max(1, Math.min(255, Number(heartbeat_interval)))

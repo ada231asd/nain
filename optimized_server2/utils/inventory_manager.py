@@ -212,7 +212,8 @@ class InventoryManager:
             if not station:
                 return False
             
-            # Создаем повербанк со статусом 'unknown' в группе станции
+            # Создаем повербанк со статусом 'unknown' и привязываем к группе станции
+            # Станция аппаратно не выплёвывает unknown, поэтому сохраняем в группе станции
             new_powerbank = await Powerbank.create_unknown(
                 self.db_pool, 
                 terminal_id, 

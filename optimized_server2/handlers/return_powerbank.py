@@ -24,6 +24,19 @@ class ReturnPowerbankHandler:
         if not hasattr(ReturnPowerbankHandler, '_pending_error_returns'):
             ReturnPowerbankHandler._pending_error_returns = {}
         self.pending_error_returns = ReturnPowerbankHandler._pending_error_returns
+        # Блокировки по (station_id, slot) для избежания гонок при одновременной вставке
+        if not hasattr(ReturnPowerbankHandler, '_slot_locks'):
+            ReturnPowerbankHandler._slot_locks = {}
+        self._slot_locks = ReturnPowerbankHandler._slot_locks
+
+    def _get_slot_lock(self, station_id: int, slot_number: int):
+        key = (int(station_id), int(slot_number))
+        import asyncio
+        lock = self._slot_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._slot_locks[key] = lock
+        return lock
     
     async def _send_inventory_request_silently(self, station_id: int) -> None:
         """
@@ -333,6 +346,49 @@ class ReturnPowerbankHandler:
             if effective_user_id != matching_user_id:
                 pass
 
+            # Проверяем совместимость сразу; если несовместим — инициируем выплёв и не принимаем возврат
+            from models.station import Station
+            station = await Station.get_by_id(self.db_pool, station_id)
+            if station and powerbank.org_unit_id and station.org_unit_id:
+                from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
+                compatible = await is_powerbank_compatible(self.db_pool, powerbank.org_unit_id, station.org_unit_id)
+                if not compatible:
+                    try:
+                        from handlers.eject_powerbank import EjectPowerbankHandler
+                        eject_handler = EjectPowerbankHandler(self.db_pool, self.connection_manager)
+                        # Для выплёва используем прямую команду по слоту
+                        connection = self.connection_manager.get_connection_by_station_id(station_id)
+                        if connection:
+                            eject_cmd = await eject_handler.handle_force_eject_request(station_id, slot_number, connection)
+                            if eject_cmd and connection.writer and not connection.writer.is_closing():
+                                connection.writer.write(eject_cmd)
+                                await connection.writer.drain()
+                    except Exception:
+                        pass
+                    # Триггерим инвентарь
+                    try:
+                        from utils.inventory_manager import InventoryManager
+                        inventory_manager = InventoryManager(self.db_pool)
+                        connection = self.connection_manager.get_connection_by_station_id(station_id)
+                        if connection:
+                            asyncio.create_task(inventory_manager.request_inventory_after_operation(station_id, connection))
+                    except Exception:
+                        pass
+                    # Сообщаем в future об отказе
+                    if future and not future.done():
+                        reason = await get_compatibility_reason(self.db_pool, powerbank.org_unit_id, station.org_unit_id)
+                        future.set_result({
+                            "success": False,
+                            "error": f"Несовместимая группа, инициирован выплёв. {reason}",
+                            "station_id": station_id,
+                            "slot_number": slot_number,
+                            "powerbank_serial": powerbank.serial_number
+                        })
+                    return {
+                        "success": False,
+                        "error": "Несовместимая группа, инициирован выплёв"
+                    }
+
             # Обновляем статус повербанка и тип ошибки
             # powerbank уже получен и проверен выше на строке 309
 
@@ -502,60 +558,63 @@ class ReturnPowerbankHandler:
                 self.logger.error(f"Станция с box_id {connection.box_id} не найдена")
                 return None
             
-            # Ищем повербанк по terminal_id
-            powerbank = await Powerbank.get_by_terminal_id(self.db_pool, terminal_id)
-            if not powerbank:
-                self.logger.error(f"Повербанк с terminal_id {terminal_id} не найден")
-                # Отправляем ответ об ошибке
-                return build_return_power_bank_response(
-                    slot=slot,
-                    result=0,  # Ошибка
-                    terminal_id=terminal_id.encode('ascii'),
-                    level=level,
-                    voltage=voltage,
-                    current=current,
-                    temperature=temperature,
-                    status=status,
-                    soh=soh,
-                    vsn=vsn,
-                    token=connection.token
-                )
-            
-            powerbank_id = powerbank.powerbank_id
+            # Сериализуем по (station, slot), чтобы корректно обработать одновременные вставки
+            slot_lock = self._get_slot_lock(station_id, slot)
+            async with slot_lock:
+                # Ищем повербанк по terminal_id
+                powerbank = await Powerbank.get_by_terminal_id(self.db_pool, terminal_id)
+                if not powerbank:
+                    self.logger.error(f"Повербанк с terminal_id {terminal_id} не найден")
+                    # Отправляем ответ об ошибке
+                    return build_return_power_bank_response(
+                        slot=slot,
+                        result=0,  # Ошибка
+                        terminal_id=terminal_id.encode('ascii'),
+                        level=level,
+                        voltage=voltage,
+                        current=current,
+                        temperature=temperature,
+                        status=status,
+                        soh=soh,
+                        vsn=vsn,
+                        token=connection.token
+                    )
+                
+                powerbank_id = powerbank.powerbank_id
 
-            # Получаем активный заказ по повербанку
-            try:
-                active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
-            except Exception:
-                active_order = None
+                # Получаем активный заказ по повербанку
+                try:
+                    active_order = await Order.get_active_by_powerbank_serial(self.db_pool, powerbank.serial_number)
+                except Exception:
+                    active_order = None
 
-            if not active_order:
-                return None
+                if not active_order:
+                    return None
 
-            owner_user_phone = active_order.user_phone
-            
-            # Ищем активное окно ожидания "возврата с ошибкой" для владельца павербанка на этой станции
-            matching_return_data = None
-            matching_user_id = None
-            error_type = None
-            
-            # Проверяем, есть ли активное окно для владельца этого павербанка на этой станции
-            for user_phone, return_data in self.pending_error_returns.items():
-                if (return_data.get('station_id') == station_id and 
-                    user_phone == owner_user_phone):
-                    # Нашли активное окно для владельца павербанка на этой станции
-                    matching_return_data = return_data
-                    matching_user_id = return_data.get('user_id')
-                    error_type = return_data.get('error_type')
-                    break
-            
-            if not matching_return_data:
-                # Нет активного окна для владельца павербанка - это обычный возврат
-                # Возвращаем None для обычной обработки
-                return None
-            
-            # Есть активное окно - обрабатываем как возврат с ошибкой
-            matching_user_phone = owner_user_phone
+                owner_user_phone = active_order.user_phone
+                
+                # Ищем активное окно ожидания "возврата с ошибкой" для владельца павербанка на этой станции
+                matching_return_data = None
+                matching_user_id = None
+                error_type = None
+                
+                # Проверяем, есть ли активное окно для владельца этого павербанка на этой станции
+                for user_phone, return_data in self.pending_error_returns.items():
+                    if (return_data.get('station_id') == station_id and 
+                        user_phone == owner_user_phone):
+                        # Нашли активное окно для владельца павербанка на этой станции
+                        matching_return_data = return_data
+                        matching_user_id = return_data.get('user_id')
+                        error_type = return_data.get('error_type')
+                        break
+                
+                if not matching_return_data:
+                    # Нет активного окна для владельца павербанка - это обычный возврат
+                    # Возвращаем None для обычной обработки
+                    return None
+                
+                # Есть активное окно - обрабатываем как возврат с ошибкой
+                matching_user_phone = owner_user_phone
             
             
             # Получаем user_id по телефону (уже есть в matching_user_id, но проверяем для безопасности)

@@ -166,7 +166,7 @@ class EjectPowerbankHandler:
                 )
                 
                 if powerbank:
-                    # НЕ выплевываем повербанки со статусом 'unknown' - они должны остаться в станции
+                    # НЕ выплёвываем повербанки со статусом 'unknown' — станция их не выплёвывает аппаратно
                     if powerbank.status == 'unknown':
                         continue
                     

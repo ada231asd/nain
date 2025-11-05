@@ -217,6 +217,7 @@ const saveServerAddress = async () => {
   try {
     const result = await pythonAPI.setServerAddress({
       station_id: props.station.station_id,
+      station_box_id: props.station.box_id || props.station.station_box_id,
       server_address: address,
       server_port: formData.value.server_port,
       heartbeat_interval: formData.value.heartbeat_interval

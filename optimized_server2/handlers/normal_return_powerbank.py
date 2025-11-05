@@ -20,6 +20,19 @@ class NormalReturnPowerbankHandler:
         self.db_pool = db_pool
         self.connection_manager = connection_manager
         self.logger = get_logger('normal_return_powerbank')
+        # Глобальные блокировки по (station_id, slot) для избежания гонок при одновременной вставке
+        if not hasattr(NormalReturnPowerbankHandler, '_slot_locks'):
+            NormalReturnPowerbankHandler._slot_locks = {}
+        self._slot_locks = NormalReturnPowerbankHandler._slot_locks
+
+    def _get_slot_lock(self, station_id: int, slot_number: int):
+        key = (int(station_id), int(slot_number))
+        import asyncio
+        lock = self._slot_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._slot_locks[key] = lock
+        return lock
     
     async def _send_inventory_request_silently(self, station_id: int) -> None:
         """
@@ -191,29 +204,71 @@ class NormalReturnPowerbankHandler:
                 self.logger.error(f"Станция с box_id {connection.box_id} не найдена")
                 return None
             
-            # Ищем повербанк по terminal_id
-            powerbank = await Powerbank.get_by_terminal_id(self.db_pool, terminal_id)
-            if not powerbank:
-                self.logger.error(f"Повербанк с terminal_id {terminal_id} не найден")
-                # Отправляем ответ об ошибке
-                return build_return_power_bank_response(
-                    slot=slot,
-                    result=0,  # Ошибка
-                    terminal_id=terminal_id.encode('ascii'),
-                    level=level,
-                    voltage=voltage,
-                    current=current,
-                    temperature=temperature,
-                    status=status,
-                    soh=soh,
-                    vsn=vsn,
-                    token=connection.token
-                )
-            
-            # Обрабатываем обычный возврат
-            powerbank_id = powerbank.powerbank_id
-            result = await self.handle_powerbank_insertion(station_id, slot, powerbank_id)
-            
+            # Сериализуем обработку по (station, slot), чтобы не было гонок при одновременной вставке
+            slot_lock = self._get_slot_lock(station_id, slot)
+            async with slot_lock:
+                # Ищем повербанк по terminal_id
+                powerbank = await Powerbank.get_by_terminal_id(self.db_pool, terminal_id)
+                if not powerbank:
+                    self.logger.error(f"Повербанк с terminal_id {terminal_id} не найден")
+                    # Отправляем ответ об ошибке
+                    return build_return_power_bank_response(
+                        slot=slot,
+                        result=0,  # Ошибка
+                        terminal_id=terminal_id.encode('ascii'),
+                        level=level,
+                        voltage=voltage,
+                        current=current,
+                        temperature=temperature,
+                        status=status,
+                        soh=soh,
+                        vsn=vsn,
+                        token=connection.token
+                    )
+
+                # Проверяем совместимость сразу при событии вставки и при несовместимости инициируем выплёв
+                from models.station import Station
+                station = await Station.get_by_id(self.db_pool, station_id)
+                if station and powerbank.org_unit_id and station.org_unit_id:
+                    from utils.org_unit_utils import is_powerbank_compatible, get_compatibility_reason
+                    compatible = await is_powerbank_compatible(self.db_pool, powerbank.org_unit_id, station.org_unit_id)
+                    if not compatible:
+                        # Немедленно отправляем команду выплёва указанного слота
+                        try:
+                            from handlers.eject_powerbank import EjectPowerbankHandler
+                            eject_handler = EjectPowerbankHandler(self.db_pool, self.connection_manager)
+                            eject_cmd = await eject_handler.handle_force_eject_request(station_id, slot, connection)
+                            if eject_cmd and connection.writer and not connection.writer.is_closing():
+                                connection.writer.write(eject_cmd)
+                                await connection.writer.drain()
+                        except Exception:
+                            pass
+                        # Параллельно запрашиваем инвентарь для быстрой синхронизации
+                        try:
+                            from utils.inventory_manager import InventoryManager
+                            inventory_manager = InventoryManager(self.db_pool)
+                            asyncio.create_task(inventory_manager.request_inventory_after_operation(station_id, connection))
+                        except Exception:
+                            pass
+                        # Возвращаем ответ об ошибке для команды возврата
+                        return build_return_power_bank_response(
+                            slot=slot,
+                            result=0,  # Ошибка
+                            terminal_id=terminal_id.encode('ascii'),
+                            level=level,
+                            voltage=voltage,
+                            current=current,
+                            temperature=temperature,
+                            status=status,
+                            soh=soh,
+                            vsn=vsn,
+                            token=connection.token
+                        )
+
+                # Обрабатываем обычный возврат (совместимый или без org_unit проверки)
+                powerbank_id = powerbank.powerbank_id
+                result = await self.handle_powerbank_insertion(station_id, slot, powerbank_id)
+
             if result.get('success'):
                 # Отправляем успешный ответ
                 return build_return_power_bank_response(

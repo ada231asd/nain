@@ -29,14 +29,16 @@ class SetServerAddressAPI:
             # Получаем данные из запроса
             data = await request.json()
             station_id = data.get('station_id')
+            station_box_id = data.get('station_box_id') or data.get('box_id')
             server_address = data.get('server_address')
             server_port = data.get('server_port')
             heartbeat_interval = data.get('heartbeat_interval', 30)
             
-            if not station_id:
+            # Разрешаем идентификацию по station_box_id или station_id
+            if not station_id and not station_box_id:
                 return web.json_response({
                     'success': False,
-                    'error': 'Не указан station_id'
+                    'error': 'Не указан station_box_id или station_id'
                 }, status=400)
             
             if not server_address:
@@ -58,28 +60,34 @@ class SetServerAddressAPI:
                     'error': f'Интервал heartbeat должен быть от 1 до 255, получен: {heartbeat_interval}'
                 }, status=400)
             
-            # Проверяем, что станция существует
-            station = await Station.get_by_id(self.db_pool, station_id)
+            # Проверяем, что станция существует. Если пришел box_id — резолвим по нему
+            station = None
+            if station_box_id and not station_id:
+                station = await Station.get_by_box_id(self.db_pool, str(station_box_id))
+                station_id = station.station_id if station else None
+            if not station:
+                station = await Station.get_by_id(self.db_pool, station_id)
             if not station:
                 return web.json_response({
                     'success': False,
-                    'error': f'Станция с ID {station_id} не найдена'
+                    'error': f'Станция не найдена по переданным идентификаторам'
                 }, status=404)
             
             # Отправляем запрос установки адреса сервера
             result = await self.set_server_address_handler.send_set_server_address_request(
-                station_id, server_address, server_port, heartbeat_interval
+                station_id, server_address, str(server_port), int(heartbeat_interval)
             )
             
-            if result['success']:
+            if result.get('success'):
                 return web.json_response({
                     'success': True,
-                    'message': result['message'],
-                    'station_box_id': result['station_box_id'],
-                    'server_address': result['server_address'],
-                    'server_port': result['server_port'],
-                    'heartbeat_interval': result['heartbeat_interval'],
-                    'packet_hex': result['packet_hex']
+                    'message': result.get('message') or f'Команда отправлена на станцию {station.box_id}',
+                    'station_box_id': station.box_id,
+                    'station_id': station.station_id,
+                    'server_address': server_address,
+                    'server_port': str(server_port),
+                    'heartbeat_interval': int(heartbeat_interval),
+                    'packet_hex': result.get('packet_hex')
                 })
             else:
                 # Логируем ошибку

@@ -79,7 +79,13 @@ class SetServerAddressHandler:
             
             return {
                 "success": True,
-                "message": f"Установка адреса сервера {server_address}:{server_port} отправлена на станцию {station.box_id}"
+                "message": f"Установка адреса сервера {server_address}:{server_port} отправлена на станцию {station.box_id}",
+                "station_box_id": station.box_id,
+                "station_id": station.station_id,
+                "server_address": server_address,
+                "server_port": str(server_port),
+                "heartbeat_interval": int(heartbeat_interval),
+                "packet_hex": set_address_packet.hex()
             }
             
         except Exception as e:
