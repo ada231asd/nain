@@ -4,6 +4,8 @@ import router from './router'
 import App from './App.vue'
 import { useAuthStore } from './stores/auth'
 import websocketNotificationService from './utils/websocketNotifications'
+import { registerSW } from 'virtual:pwa-register'
+import { initPWAInstall } from './utils/pwa-install'
 import './assets/variables.css'
 
 const app = createApp(App)
@@ -11,6 +13,28 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
+
+// Регистрация Service Worker для PWA
+if ('serviceWorker' in navigator) {
+  const updateSW = registerSW({
+    immediate: true,
+    onRegistered(registration) {
+      console.log('✅ Service Worker зарегистрирован:', registration)
+    },
+    onRegisterError(error) {
+      console.error('❌ Ошибка регистрации Service Worker:', error)
+    },
+    onNeedRefresh() {
+      console.log('🔄 Доступно обновление Service Worker')
+    },
+    onOfflineReady() {
+      console.log('📱 PWA готово к работе офлайн')
+    }
+  })
+}
+
+// Инициализация обработчика установки PWA
+initPWAInstall()
 
 // Инициализируем авторизацию при загрузке приложения и ждем завершения
 const authStore = useAuthStore()
