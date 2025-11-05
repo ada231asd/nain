@@ -136,43 +136,6 @@ class SlotAbnormalReportEndpoints:
                 "error": str(e)
             }, status=500)
     
-    async def get_abnormal_reports_by_date_range(self, request: Request) -> Response:
-        """GET /api/slot-abnormal-reports/date-range - Получить отчеты об аномалиях за период времени"""
-        try:
-            start_date = request.query.get('start_date')
-            end_date = request.query.get('end_date')
-            limit = int(request.query.get('limit', 100))
-            
-            if not start_date or not end_date:
-                return web.json_response({
-                    "success": False,
-                    "error": "Отсутствуют обязательные параметры: start_date и end_date"
-                }, status=400)
-            
-            if limit < 1 or limit > 500:
-                return web.json_response({
-                    "success": False,
-                    "error": "limit должен быть от 1 до 500"
-                }, status=400)
-            
-            result = await self.abnormal_report_api.get_abnormal_reports_by_date_range(start_date, end_date, limit)
-            
-            if result["success"]:
-                return web.json_response(result)
-            else:
-                return web.json_response(result, status=400)
-                
-        except ValueError:
-            return web.json_response({
-                "success": False,
-                "error": "Неверный limit"
-            }, status=400)
-        except Exception as e:
-            return web.json_response({
-                "success": False,
-                "error": str(e)
-            }, status=500)
-    
     async def delete_abnormal_report(self, request: Request) -> Response:
         """DELETE /api/slot-abnormal-reports/{report_id} - Удалить отчет об аномалии"""
         try:
@@ -202,5 +165,4 @@ class SlotAbnormalReportEndpoints:
         app.router.add_get('/api/slot-abnormal-reports', self.get_all_abnormal_reports)
         app.router.add_get('/api/slot-abnormal-reports/statistics', self.get_abnormal_reports_statistics)
         app.router.add_get('/api/slot-abnormal-reports/event-type/{event_type}', self.get_abnormal_reports_by_event_type)
-        app.router.add_get('/api/slot-abnormal-reports/date-range', self.get_abnormal_reports_by_date_range)
         app.router.add_delete('/api/slot-abnormal-reports/{report_id}', self.delete_abnormal_report)

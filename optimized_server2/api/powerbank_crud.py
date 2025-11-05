@@ -558,10 +558,8 @@ class PowerbankCRUD(BaseAPI):
     
     def setup_routes(self, app):
         """Настраивает маршруты для powerbank CRUD"""
-        app.router.add_post('/api/powerbanks', self.create_powerbank)
         app.router.add_get('/api/powerbanks', self.get_powerbanks)
         app.router.add_get('/api/powerbanks/{powerbank_id}', self.get_powerbank)
         app.router.add_put('/api/powerbanks/{powerbank_id}', self.update_powerbank)
-        app.router.add_put('/api/powerbanks/{powerbank_id}/approve', self.approve_powerbank)
         app.router.add_post('/api/powerbanks/{powerbank_id}/reset-error', self.reset_powerbank_error)
         app.router.add_delete('/api/powerbanks/{powerbank_id}', self.delete_powerbank)

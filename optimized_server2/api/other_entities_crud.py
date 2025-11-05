@@ -827,12 +827,9 @@ class OtherEntitiesCRUD:
         app.router.add_delete('/api/user-favorites/{favorite_id}/nik', self.delete_station_nik)
         
         # STATION_POWERBANK routes
-        app.router.add_post('/api/station-powerbanks', self.create_station_powerbank)
         app.router.add_get('/api/station-powerbanks', self.get_station_powerbanks)
-        app.router.add_delete('/api/station-powerbanks/{sp_id}', self.delete_station_powerbank)
         
         # STATION_SECRET_KEY routes
         app.router.add_post('/api/station-secret-keys', self.create_station_secret_key)
         app.router.add_get('/api/station-secret-keys', self.get_station_secret_keys)
         app.router.add_delete('/api/station-secret-keys/{key_id}', self.delete_station_secret_key)
-        app.router.add_delete('/api/station-secret-keys', self.delete_station_secret_key_by_station)

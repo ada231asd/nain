@@ -28,9 +28,6 @@ class ReturnEndpoints:
         # Отменить ожидание возврата с ошибкой
         app.router.add_delete('/api/return/error/pending/{user_id}', self.cancel_error_return)
         
-        # Получить типы ошибок
-        app.router.add_get('/api/return/error/types', self.get_error_types)
-        
         # Очистить просроченные запросы (админ)
         app.router.add_post('/api/return/error/cleanup', self.cleanup_expired_requests)
     
@@ -118,22 +115,6 @@ class ReturnEndpoints:
             return web.json_response({
                 "success": False,
                 "error": f"Ошибка отмены: {str(e)}"
-            }, status=500)
-    
-    async def get_error_types(self, request):
-        """GET /api/return/error/types - Получить типы ошибок"""
-        try:
-            result = await self.return_handler.get_error_types()
-            
-            if result.get('success'):
-                return web.json_response(result)
-            else:
-                return web.json_response(result, status=400)
-                
-        except Exception as e:
-            return web.json_response({
-                "success": False,
-                "error": f"Ошибка получения типов ошибок: {str(e)}"
             }, status=500)
     
     async def cleanup_expired_requests(self, request):

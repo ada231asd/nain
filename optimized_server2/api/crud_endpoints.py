@@ -798,61 +798,6 @@ class CRUDEndpoints(BaseAPI):
                 "error": str(e)
             }, status=500)
     
-    async def update_station_nik(self, request: Request) -> Response:
-        """PUT /api/stations/{station_id}/nik - Обновить никнейм станции"""
-        try:
-            station_id = int(request.match_info['station_id'])
-            data = await request.json()
-            
-            if 'nik' not in data:
-                return web.json_response({
-                    "success": False,
-                    "error": "Отсутствует поле nik"
-                }, status=400)
-            
-            nik = data['nik']
-            
-            # Ограничение длины никнейма (например, 50 символов)
-            if len(nik) > 50:
-                return web.json_response({
-                    "success": False,
-                    "error": "Никнейм не может превышать 50 символов"
-                }, status=400)
-            
-            async with self.db_pool.acquire() as conn:
-                async with conn.cursor(aiomysql.DictCursor) as cur:
-                    # Проверяем существование станции
-                    await cur.execute("SELECT station_id FROM station WHERE station_id = %s", (station_id,))
-                    if not await cur.fetchone():
-                        return web.json_response({
-                            "success": False,
-                            "error": "Станция не найдена"
-                        }, status=404)
-                    
-                    # Обновляем никнейм
-                    await cur.execute("UPDATE station SET nik = %s WHERE station_id = %s", (nik, station_id))
-                    await conn.commit()
-                    
-                    return web.json_response({
-                        "success": True,
-                        "message": "Никнейм станции обновлен",
-                        "data": {
-                            "station_id": station_id,
-                            "nik": nik
-                        }
-                    })
-                    
-        except ValueError:
-            return web.json_response({
-                "success": False,
-                "error": "Неверный ID станции"
-            }, status=400)
-        except Exception as e:
-            return web.json_response({
-                "success": False,
-                "error": str(e)
-            }, status=500)
-    
     async def delete_station(self, request: Request) -> Response:
         """
         DELETE /api/stations/{station_id} - Мягкое удаление станции
@@ -903,5 +848,4 @@ class CRUDEndpoints(BaseAPI):
         app.router.add_get('/api/stations', self.get_stations)
         app.router.add_get('/api/stations/{station_id}', self.get_station)
         app.router.add_put('/api/stations/{station_id}', self.update_station)
-        app.router.add_put('/api/stations/{station_id}/nik', self.update_station_nik)
         app.router.add_delete('/api/stations/{station_id}', self.delete_station)

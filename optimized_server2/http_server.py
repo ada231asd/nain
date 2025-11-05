@@ -30,7 +30,6 @@ from api.powerbank_status_api import PowerbankStatusAPI
 from api.bulk_user_import_api import BulkUserImportAPI
 from api.logo_upload_api import LogoUploadAPI
 from api.return_endpoints import ReturnEndpoints
-from api.invitation_api import InvitationAPI
 from api.invitation_storage_api import InvitationStorageAPI
 from api.soft_delete_api import SoftDeleteAPI
 from api.hard_delete_api import HardDeleteAPI
@@ -193,7 +192,6 @@ class HTTPServer:
         self.bulk_user_import_api = BulkUserImportAPI(self.db_pool)
         self.logo_upload_api = LogoUploadAPI(self.db_pool)
         self.return_endpoints = ReturnEndpoints(self.db_pool, connection_manager)
-        self.invitation_api = InvitationAPI(self.db_pool)
         self.invitation_storage_api = InvitationStorageAPI(self.db_pool)
         self.soft_delete_api = SoftDeleteAPI(self.db_pool, connection_manager)
         self.hard_delete_api = HardDeleteAPI(self.db_pool, connection_manager)
@@ -220,13 +218,6 @@ class HTTPServer:
         app.router.add_get('/api/admin/pending-users', self.auth_handler.get_pending_users)
         app.router.add_post('/api/admin/approve-user', self.auth_handler.approve_user)
         app.router.add_post('/api/admin/reject-user', self.auth_handler.reject_user)
-        app.router.add_post('/api/admin/reset-email', self.auth_handler.reset_email_service)
-        
-        # API для приглашений (старое, через БД)
-        app.router.add_post('/api/invitations/generate', self.invitation_api.generate_invitation_link)
-        app.router.add_get('/api/invitations/{token}', self.invitation_api.get_invitation_info)
-        app.router.add_post('/api/invitations/register', self.invitation_api.register_with_invitation)
-        app.router.add_get('/api/invitations', self.invitation_api.list_invitations)
         
         # API для хранилища приглашений (новое, без БД)
         app.router.add_post('/api/invitations/storage/store', self.invitation_storage_api.store_invitation)
@@ -277,12 +268,9 @@ class HTTPServer:
         app.router.add_get('/api/user/orders', self.user_powerbank_api.get_user_orders)
         app.router.add_post('/api/user/powerbanks/borrow', self.user_powerbank_api.borrow_powerbank)
         app.router.add_post('/api/user/powerbanks/return', self.user_powerbank_api.return_powerbank)
-        app.router.add_post('/api/return-damage', self.user_powerbank_api.return_damage_powerbank) 
         app.router.add_post('/api/return-error', self.user_powerbank_api.return_error_powerbank) 
         app.router.add_get('/api/powerbank-error-types', self.user_powerbank_api.get_powerbank_error_types) 
-        app.router.add_get('/api/user/stations', self.user_powerbank_api.get_stations)
         app.router.add_get('/api/user/stations/availability', self.user_powerbank_api.get_available_slots_with_limits)
-        app.router.add_get('/api/user/profile', self.user_powerbank_api.get_user_profile)
         
         
         # API для статусов повербанков
@@ -303,12 +291,9 @@ class HTTPServer:
         app.router.add_delete('/api/soft-delete/{entity_type}/{entity_id}', self.soft_delete_api.soft_delete_entity)
         app.router.add_post('/api/soft-delete/restore/{entity_type}/{entity_id}', self.soft_delete_api.restore_entity)
         app.router.add_get('/api/soft-delete/{entity_type}', self.soft_delete_api.get_deleted_entities)
-        app.router.add_get('/api/soft-delete/statistics', self.soft_delete_api.get_statistics)
         
         # Жесткое удаление (hard delete)
         app.router.add_delete('/api/hard-delete/{entity_type}/{entity_id}', self.hard_delete_api.hard_delete_entity)
-        app.router.add_delete('/api/hard-delete/cleanup', self.hard_delete_api.cleanup_old_deleted)
-        app.router.add_get('/api/hard-delete/cleanup/preview', self.hard_delete_api.get_cleanup_candidates)
         
         # Путь к папке с логотипами (tcp_server/uploads/logos)
         uploads_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "logos")

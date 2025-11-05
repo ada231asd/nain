@@ -158,12 +158,7 @@ class PowerbankStatusAPI:
     def setup_routes(self, app):
         """Настраивает маршруты API для статусов повербанков"""
         
-        # Powerbank status routes - используем более специфичные пути чтобы избежать конфликтов
+        # Powerbank status routes - используем более специфичные пути
         app.router.add_get('/api/powerbanks-status', self.get_powerbanks_with_status)
         app.router.add_get('/api/powerbanks-status/summary', self.get_powerbank_status_summary)
         app.router.add_get('/api/powerbanks-status/{powerbank_id}', self.get_powerbank_by_id)
-        
-        # Обратная совместимость - старые маршруты (должны быть после новых)
-        app.router.add_get('/api/powerbanks/status', self.get_powerbanks_with_status)
-        app.router.add_get('/api/powerbanks/status/summary', self.get_powerbank_status_summary)
-        app.router.add_get('/api/powerbanks/{powerbank_id}/status', self.get_powerbank_by_id)
