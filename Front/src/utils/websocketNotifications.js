@@ -196,18 +196,80 @@ class WebSocketNotificationService {
   /**
    * Показать уведомление пользователю
    */
-  showNotification({ title, message, type, data }) {
-    // Попытка использовать браузерные уведомления
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, {
-        body: message,
-        icon: '/favicon.ico',
-        tag: `powerbank-${data.order_id}`
-      })
+  async showNotification({ title, message, type, data }) {
+    const isPageVisible = !document.hidden
+    
+    // Для мобильных устройств и когда страница в фоне используем Service Worker
+    // Это критично для Android и современных браузеров на мобильных
+    if (!isPageVisible && 'serviceWorker' in navigator && Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification(title, {
+          body: message,
+          icon: '/pwa-192x192.png',
+          badge: '/pwa-64x64.png',
+          tag: `powerbank-${data?.order_id || 'return'}`,
+          requireInteraction: false,
+          vibrate: [200, 100, 200],
+          data: data || {},
+          actions: [
+            {
+              action: 'open',
+              title: 'Открыть'
+            }
+          ]
+        })
+        console.log('📱 Показано уведомление через Service Worker (страница в фоне)')
+        return
+      } catch (error) {
+        console.error('❌ Ошибка показа уведомления через Service Worker:', error)
+        // На iOS Safari Service Worker может не поддерживать уведомления в фоне
+        // Продолжаем попытку показать обычное уведомление
+      }
     }
     
-    // Также показываем визуальное уведомление в UI
-    this.showUINotification({ title, message, type, data })
+    // Когда страница видима - используем обычное Notification API
+    // Также используем как fallback если Service Worker не доступен
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        // Проверяем видимость страницы для обычных уведомлений
+        // На мобильных устройствах обычные Notification работают только когда страница видима
+        if (isPageVisible) {
+          new Notification(title, {
+            body: message,
+            icon: '/pwa-192x192.png',
+            badge: '/pwa-64x64.png',
+            tag: `powerbank-${data?.order_id || 'return'}`
+          })
+          console.log('📱 Показано уведомление через Notification API (страница видима)')
+        } else {
+          // Если страница не видима, но Service Worker не сработал, пробуем еще раз
+          // Это может помочь на некоторых устройствах
+          try {
+            const registration = await navigator.serviceWorker.ready
+            await registration.showNotification(title, {
+              body: message,
+              icon: '/pwa-192x192.png',
+              badge: '/pwa-64x64.png',
+              tag: `powerbank-${data?.order_id || 'return'}`,
+              requireInteraction: false,
+              vibrate: [200, 100, 200],
+              data: data || {}
+            })
+            console.log('📱 Показано уведомление через Service Worker (fallback)')
+          } catch (swError) {
+            console.warn('⚠️ Не удалось показать уведомление (страница в фоне и Service Worker недоступен)')
+          }
+        }
+      } catch (error) {
+        console.error('❌ Ошибка показа уведомления через Notification API:', error)
+      }
+    }
+    
+    // Также показываем визуальное уведомление в UI если страница видима
+    if (isPageVisible) {
+      this.showUINotification({ title, message, type, data })
+    }
   }
 
   /**
@@ -416,12 +478,46 @@ class WebSocketNotificationService {
    * Запросить разрешение на браузерные уведомления
    */
   async requestNotificationPermission() {
-    if ('Notification' in window && Notification.permission === 'default') {
-      const permission = await Notification.requestPermission()
-      console.log('Разрешение на уведомления:', permission)
-      return permission === 'granted'
+    if (!('Notification' in window)) {
+      console.warn('⚠️ Браузер не поддерживает уведомления')
+      return false
     }
-    return Notification.permission === 'granted'
+
+    // Если разрешение уже получено
+    if (Notification.permission === 'granted') {
+      console.log('✅ Разрешение на уведомления уже получено')
+      return true
+    }
+
+    // Если разрешение было отклонено
+    if (Notification.permission === 'denied') {
+      console.warn('⚠️ Разрешение на уведомления было отклонено пользователем')
+      return false
+    }
+
+    // Запрашиваем разрешение
+    try {
+      const permission = await Notification.requestPermission()
+      console.log('📱 Разрешение на уведомления:', permission)
+      
+      if (permission === 'granted') {
+        // Убеждаемся, что Service Worker готов для показа уведомлений в фоне
+        if ('serviceWorker' in navigator) {
+          try {
+            await navigator.serviceWorker.ready
+            console.log('✅ Service Worker готов для показа уведомлений')
+          } catch (error) {
+            console.warn('⚠️ Service Worker не готов:', error)
+          }
+        }
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('❌ Ошибка при запросе разрешения на уведомления:', error)
+      return false
+    }
   }
 
   /**
@@ -528,6 +624,18 @@ class WebSocketNotificationService {
 
     // Переподключаемся к WebSocket если отключены
     this.reconnectIfNeeded()
+    
+    // Убеждаемся, что есть разрешение на уведомления
+    if ('Notification' in window && Notification.permission === 'granted') {
+      // Проверяем, что Service Worker готов
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(() => {
+          console.log('✅ Service Worker готов после возврата на страницу')
+        }).catch(error => {
+          console.warn('⚠️ Service Worker не готов после возврата:', error)
+        })
+      }
+    }
 
     // Триггерим обновление данных во всех компонентах
     this.triggerDataUpdate({

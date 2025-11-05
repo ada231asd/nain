@@ -20,6 +20,20 @@ if ('serviceWorker' in navigator) {
     immediate: true,
     onRegistered(registration) {
       console.log('✅ Service Worker зарегистрирован:', registration)
+      
+      // Обработка клика по уведомлению
+      // Это важно для мобильных устройств - когда пользователь кликает на уведомление
+      if ('Notification' in window && Notification.permission === 'granted') {
+        // Обработчик уже должен быть в Service Worker, но убеждаемся что он работает
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+            console.log('📱 Пользователь кликнул на уведомление:', event.data)
+            // Фокус на окно приложения
+            window.focus()
+            // Можно добавить дополнительную логику, например переход на нужную страницу
+          }
+        })
+      }
     },
     onRegisterError(error) {
       console.error('❌ Ошибка регистрации Service Worker:', error)
