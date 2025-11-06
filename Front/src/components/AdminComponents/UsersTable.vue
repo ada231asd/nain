@@ -711,8 +711,12 @@ const handleBulkAction = async (action) => {
       }
       break
     case 'delete':
-      if (await showConfirm(`Вы уверены, что хотите удалить ${selectedUsers.value.length} пользователей? Это действие необратимо!`, 'Удалить', 'Отмена')) {
-        emit('bulk-delete', userIds)
+      const hardDelete = showDeletedUsers.value
+      const confirmMessage = hardDelete 
+        ? `Вы уверены, что хотите НАВСЕГДА удалить ${selectedUsers.value.length} пользователей?\n\nЭто действие необратимо!`
+        : `Вы уверены, что хотите удалить ${selectedUsers.value.length} пользователей?`
+      if (await showConfirm(confirmMessage, hardDelete ? 'Удалить навсегда' : 'Удалить', 'Отмена')) {
+        emit('bulk-delete', { userIds, hardDelete })
         clearSelection()
       }
       break

@@ -440,10 +440,19 @@ const bulkBlockUsers = async (userIds) => {
   }
 }
 
-const bulkDeleteUsers = async (userIds) => {
+const bulkDeleteUsers = async (deleteData) => {
+  // deleteData может быть объектом { userIds, hardDelete } или массивом userIds (для обратной совместимости)
+  const userIds = Array.isArray(deleteData) ? deleteData : deleteData.userIds
+  const hardDelete = Array.isArray(deleteData) ? false : deleteData.hardDelete
+  
   try {
     for (const userId of userIds) {
-      await adminStore.deleteUser(userId)
+      await adminStore.deleteUser(userId, hardDelete)
+    }
+    if (hardDelete) {
+      showSuccess('Пользователи удалены навсегда')
+    } else {
+      showSuccess('Пользователи успешно удалены')
     }
     await refreshAfterAction()
   } catch (error) {
