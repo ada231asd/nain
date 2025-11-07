@@ -73,6 +73,12 @@ POWERBANK_REMINDER_CONFIG = {
     "check_interval_hours": float(os.getenv("REMINDER_CHECK_INTERVAL", "0.5")),  # 1 раз в 30 минут
 }
 
+# Настройки мониторинга ресурсов
+RESOURCE_MONITOR_CONFIG = {
+    "enabled": os.getenv("RESOURCE_MONITOR_ENABLED", "true").lower() == "true",
+    "interval_minutes": float(os.getenv("RESOURCE_MONITOR_INTERVAL_MINUTES", "30")),
+}
+
 # Таймаут ожидания подтверждения возврата (в секундах), используется сервером
 # Клиент не может переопределять это значение через API
 RETURN_CONFIRMATION_TIMEOUT_SECONDS = int(os.getenv("RETURN_CONFIRMATION_TIMEOUT_SECONDS", "10"))

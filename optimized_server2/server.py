@@ -2,6 +2,8 @@
 Оптимизированный сервер с TCP и HTTP серверами
 """
 import asyncio
+import os
+from contextlib import suppress
 import hashlib
 import signal
 import sys
@@ -11,7 +13,15 @@ from typing import Optional
 import aiomysql
 from aiohttp import web
 
-from config.settings import SERVER_IP, TCP_PORTS, HTTP_PORT, DB_CONFIG, CONNECTION_TIMEOUT, MAX_PACKET_SIZE
+from config.settings import (
+    SERVER_IP,
+    TCP_PORTS,
+    HTTP_PORT,
+    DB_CONFIG,
+    CONNECTION_TIMEOUT,
+    MAX_PACKET_SIZE,
+    RESOURCE_MONITOR_CONFIG,
+)
 from models.connection import ConnectionManager, StationConnection
 from models.station import Station
 from handlers.station_handler import StationHandler
@@ -31,6 +41,7 @@ from http_server import HTTPServer
 from utils.packet_utils import parse_packet
 from utils.station_resolver import StationResolver
 from utils.unified_logger import get_logger, close_logger, get_logger_stats, log_server_event
+import psutil
 
 
 
@@ -59,6 +70,7 @@ class OptimizedServer:
         self.http_server: Optional[HTTPServer] = None
         self.running = False
         self.reminder_service = None  
+        self._resource_monitor_task: Optional[asyncio.Task] = None
         
     
     async def initialize_database(self):
@@ -491,7 +503,22 @@ class OptimizedServer:
             
             # Запускаем мониторинг соединений
             asyncio.create_task(self._connection_monitor())
-            
+
+            # Запускаем мониторинг ресурсов системы в фоне, если включен в настройках
+            monitor_enabled = RESOURCE_MONITOR_CONFIG.get("enabled", True)
+            if monitor_enabled:
+                interval_minutes = RESOURCE_MONITOR_CONFIG.get("interval_minutes", 30)
+                try:
+                    interval_minutes = float(interval_minutes)
+                except (TypeError, ValueError):
+                    interval_minutes = 30.0
+                if interval_minutes <= 0:
+                    interval_minutes = 30.0
+                self._resource_monitor_task = asyncio.create_task(
+                    self._resource_monitor(interval_minutes=interval_minutes)
+                )
+
+
             # Запускаем сервис напоминаний о возврате аккумуляторов
             from config.settings import POWERBANK_REMINDER_CONFIG
             if POWERBANK_REMINDER_CONFIG.get('enabled', True):
@@ -557,11 +584,48 @@ class OptimizedServer:
                 self.logger.error(f"Ошибка в мониторинге соединений: {e}")
                 await asyncio.sleep(60)
     
+    async def _resource_monitor(self, interval_minutes: float = 30.0):
+        """Периодически пишет метрики ресурсов в файл logs/resource_monitor.log"""
+        log_dir = "logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "resource_monitor.log")
+        while self.running:
+            try:
+                cpu_percent = psutil.cpu_percent(interval=None)
+                mem = psutil.virtual_memory()
+                disk = psutil.disk_usage("/") if os.name != 'nt' else psutil.disk_usage(os.getenv('SystemDrive', 'C:') + "\\")
+                proc = psutil.Process(os.getpid())
+                rss_mb = proc.memory_info().rss / (1024 * 1024)
+                num_conns = len(self.connection_manager.get_all_connections())
+
+                from utils.time_utils import get_moscow_time
+                ts = get_moscow_time().strftime('%Y-%m-%d %H:%M:%S')
+                line = (
+                    f"{ts} | CPU: {cpu_percent:.1f}% | RAM: {mem.percent:.1f}% "
+                    f"({mem.used // (1024*1024)}/{mem.total // (1024*1024)} MB) | "
+                    f"DISK: {disk.percent:.1f}% | PROC_RSS: {rss_mb:.1f} MB | TCP_CONNS: {num_conns}\n"
+                )
+                with open(log_path, "a", encoding="utf-8") as f:
+                    f.write(line)
+            except Exception as e:
+                self.logger.error(f"Ошибка мониторинга ресурсов: {e}")
+            # Спим заданный интервал
+            try:
+                await asyncio.sleep(interval_minutes * 60)
+            except asyncio.CancelledError:
+                break
+
     async def stop_servers(self):
         """Останавливает серверы"""
         print("Остановка серверов...")
         self.logger.info("Остановка серверов...")
         self.running = False
+        # Останавливаем задачу мониторинга ресурсов
+        if self._resource_monitor_task:
+            self._resource_monitor_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._resource_monitor_task
+            self._resource_monitor_task = None
         
         # Деактивируем все станции перед закрытием
         await self._deactivate_all_stations()

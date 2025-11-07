@@ -269,6 +269,19 @@ class InvitationAPI:
         
         async with self.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
+                # Определяем режим авто-одобрения по полю org_unit.aprof (1 — активировать сразу, 0 — ожидать)
+                aprof = 0
+                try:
+                    await cur.execute("""
+                        SELECT COALESCE(aprof, 0)
+                        FROM org_unit
+                        WHERE org_unit_id = %s
+                    """, (invitation_info['org_unit_id'],))
+                    row = await cur.fetchone()
+                    aprof = int(row[0]) if row and row[0] is not None else 0
+                except Exception:
+                    aprof = 0
+
                 # Проверяем, не существует ли уже пользователь
                 await cur.execute("""
                     SELECT user_id FROM app_user WHERE phone_e164 = %s OR email = %s
@@ -278,11 +291,12 @@ class InvitationAPI:
                 if existing_user:
                     raise ValueError("Пользователь с таким телефоном или email уже существует")
                 
-                # Создаем пользователя
+                # Создаем пользователя со статусом в зависимости от aprof
+                initial_status = 'active' if aprof == 1 else 'pending'
                 await cur.execute("""
                     INSERT INTO app_user (phone_e164, email, password_hash, fio, status, powerbank_limit)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                """, (phone_e164, email, password_hash, fio, 'pending', None))
+                """, (phone_e164, email, password_hash, fio, initial_status, None))
                 
                 user_id = cur.lastrowid
                 
@@ -300,7 +314,7 @@ class InvitationAPI:
                     email=email,
                     password_hash=password_hash,
                     fio=fio,
-                    status='pending',
+                    status=initial_status,
                     created_at=datetime.now()
                 )
                 

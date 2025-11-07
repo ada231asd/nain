@@ -4,7 +4,7 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import aiomysql
-from utils.time_utils import get_moscow_time
+from utils.time_utils import get_moscow_time, normalize_datetime_to_moscow
 
 
 class Order:
@@ -22,10 +22,24 @@ class Order:
         self.user_fio = user_fio
         self.powerbank_serial = powerbank_serial
         self.org_unit_name = org_unit_name
-        self.timestamp = timestamp or get_moscow_time()
-        self.completed_at = completed_at
-        self.borrow_time = borrow_time or (timestamp if status == 'borrow' else None)
-        self.return_time = return_time or (completed_at if status == 'return' else None)
+        base_timestamp = normalize_datetime_to_moscow(timestamp) if timestamp else get_moscow_time()
+        base_completed = normalize_datetime_to_moscow(completed_at) if completed_at else None
+        self.timestamp = base_timestamp
+        self.completed_at = base_completed
+
+        if borrow_time:
+            self.borrow_time = normalize_datetime_to_moscow(borrow_time)
+        elif status == 'borrow':
+            self.borrow_time = base_timestamp
+        else:
+            self.borrow_time = None
+
+        if return_time:
+            self.return_time = normalize_datetime_to_moscow(return_time)
+        elif status == 'return':
+            self.return_time = base_completed or base_timestamp
+        else:
+            self.return_time = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Преобразует заказ в словарь"""
@@ -48,6 +62,7 @@ class Order:
                                  station_id: int) -> 'Order':
         """Создает заказ со статусом pending (ожидание) - монолитная структура"""
         current_time = get_moscow_time()
+        current_time_naive = current_time.replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Получаем данные пользователя
@@ -99,11 +114,11 @@ class Order:
                         powerbank_serial, org_unit_name,
                         status, timestamp
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (
                     station_box_id, user_phone, user_fio,
                     powerbank_serial, org_unit_name,
-                    'pending'
+                    'pending', current_time_naive
                 ))
                 await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
@@ -126,6 +141,8 @@ class Order:
                     powerbank_id: int = None, status: str = 'borrow') -> 'Order':
         """Создает заказ с указанными параметрами"""
         current_time = get_moscow_time()
+        current_time_naive = current_time.replace(tzinfo=None)
+        current_time_naive = current_time.replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Проверяем существование пользователя
@@ -143,6 +160,7 @@ class Order:
                     """, (f'system_user_{user_id}', f'system_{user_id}@local', '0000000000', 'active', current_time, 1))
 
                 completed_at_value = current_time if status == 'return' else None
+                completed_at_value_naive = completed_at_value.replace(tzinfo=None) if completed_at_value else None
 
                 # Получаем org_unit_id станции
                 org_unit_id_value = None
@@ -159,7 +177,10 @@ class Order:
                 await cursor.execute("""
                     INSERT INTO orders (station_id, user_id, powerbank_id, org_unit_id, status, timestamp, completed_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (station_id, user_id, powerbank_id, org_unit_id_value, status, current_time, completed_at_value))
+                """, (
+                    station_id, user_id, powerbank_id, org_unit_id_value,
+                    status, current_time_naive, completed_at_value_naive
+                ))
                 await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
                 order_id = cursor.lastrowid
@@ -179,6 +200,7 @@ class Order:
                                  powerbank_id: int) -> 'Order':
         """Создает заказ на выдачу повербанка (монолитная структура)"""
         current_time = get_moscow_time()
+        current_time_naive = current_time.replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Получаем данные пользователя
@@ -230,11 +252,11 @@ class Order:
                         powerbank_serial, org_unit_name,
                         status, timestamp, completed_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     station_box_id, user_phone, user_fio,
                     powerbank_serial, org_unit_name,
-                    'borrow', None
+                    'borrow', current_time_naive, None
                 ))
                 await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
@@ -257,6 +279,7 @@ class Order:
                                 powerbank_id: int) -> 'Order':
         """Создает заказ на возврат повербанка (монолитная структура)"""
         current_time = get_moscow_time()
+        current_time_naive = current_time.replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 # Получаем данные пользователя
@@ -308,11 +331,11 @@ class Order:
                         powerbank_serial, org_unit_name,
                         status, timestamp, completed_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     station_box_id, user_phone, user_fio,
                     powerbank_serial, org_unit_name,
-                    'return'
+                    'return', current_time_naive, current_time_naive
                 ))
                 await conn.commit()  # КРИТИЧНО: сохраняем изменения в БД
 
@@ -630,12 +653,13 @@ class Order:
     async def update_status(self, db_pool, new_status: str) -> bool:
         """Обновляет статус заказа. Для 'return' устанавливает completed_at."""
         current_time = get_moscow_time()
+        current_time_naive = current_time.replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 if new_status == 'return':
                     await cursor.execute(
                         "UPDATE orders SET status = %s, completed_at = %s WHERE id = %s",
-                        (new_status, current_time, self.order_id)
+                        (new_status, current_time_naive, self.order_id)
                     )
                     self.completed_at = current_time
                 else:  # Для 'borrow' и других статусов
@@ -701,12 +725,13 @@ class Order:
             return False
 
         current_time = get_moscow_time()
+        current_time_naive = current_time.replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 if new_status == 'return':
                     await cursor.execute("""
                         UPDATE orders SET status = %s, completed_at = %s WHERE id = %s
-                    """, (new_status, current_time, order_id))
+                    """, (new_status, current_time_naive, order_id))
                 else:  # Для 'borrow' и других статусов
                     await cursor.execute("""
                         UPDATE orders SET status = %s, completed_at = NULL WHERE id = %s
