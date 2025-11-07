@@ -27,6 +27,7 @@
                 @bulk-approve="bulkApproveUsers"
                 @bulk-block="bulkBlockUsers"
                 @bulk-delete="bulkDeleteUsers"
+                @refresh="refreshUsers"
               />
             </div>
 
@@ -41,6 +42,7 @@
                 @delete-station="deleteStation"
                 @restore-station="restoreStation"
                 @station-updated="refreshAfterAction"
+                @refresh="refreshStations"
               />
             </div>
 
@@ -49,6 +51,7 @@
               <PowerbanksTable
                 :powerbanks="adminStore.powerbanks"
                 :org-units="orgUnits"
+                @refresh="refreshPowerbanks"
               />
             </div>
 
@@ -62,6 +65,7 @@
                 @restore="restoreOrgUnit"
                 @view-stations="viewOrgUnitStations"
                 @view-details="viewOrgUnitDetails"
+                @refresh="refreshOrgUnits"
               />
             </div>
 
@@ -70,19 +74,25 @@
               <OrdersTable
                 :orders="orders"
                 :org-units="orgUnits"
-                :is-loading="isLoading"
                 @refresh="refreshOrders"
               />
             </div>
 
             <!-- Отчеты об аномалиях слотов -->
             <div v-if="activeTab === 'slot-abnormal-reports'" class="tab-pane">
-              <SlotAbnormalReports :stations="stations" :active-tab="activeTab" />
+              <SlotAbnormalReports 
+                :stations="stations" 
+                :active-tab="activeTab"
+                @refresh="refreshSlotReports"
+              />
             </div>
 
             <!-- Статистика -->
             <div v-if="activeTab === 'stats'" class="tab-pane">
-              <h2>Статистика сервиса</h2>
+              <div class="stats-header">
+                <h2>Статистика сервиса</h2>
+                <RefreshButton @refresh="refreshStats" />
+              </div>
               
               <div class="stats-grid">
                 <div class="stat-card">
@@ -257,6 +267,7 @@ import OrgUnitsTable from '../components/AdminComponents/OrgUnitsTable.vue'
 import PowerbanksTable from '../components/AdminComponents/PowerbanksTable.vue'
 import OrdersTable from '../components/AdminComponents/OrdersTable.vue'
 import AdminSidebar from '../components/AdminComponents/AdminSidebar.vue'
+import RefreshButton from '../components/RefreshButton.vue'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -832,6 +843,68 @@ const refreshAfterAction = async () => {
     console.warn('Ошибка при обновлении данных после действия:', error)
   }
 }
+
+// Функции обновления для каждой вкладки
+const refreshUsers = async () => {
+  try {
+    await adminStore.fetchUsers()
+  } catch (error) {
+    console.error('Ошибка при обновлении пользователей:', error)
+    showError('Ошибка при обновлении пользователей')
+  }
+}
+
+const refreshStations = async () => {
+  try {
+    await adminStore.fetchStations()
+  } catch (error) {
+    console.error('Ошибка при обновлении станций:', error)
+    showError('Ошибка при обновлении станций')
+  }
+}
+
+const refreshPowerbanks = async () => {
+  try {
+    await adminStore.fetchPowerbanks()
+  } catch (error) {
+    console.error('Ошибка при обновлении повербанков:', error)
+    showError('Ошибка при обновлении повербанков')
+  }
+}
+
+const refreshOrgUnits = async () => {
+  try {
+    await adminStore.fetchOrgUnits()
+  } catch (error) {
+    console.error('Ошибка при обновлении групп:', error)
+    showError('Ошибка при обновлении групп')
+  }
+}
+
+const refreshSlotReports = async () => {
+  try {
+    // Обновляем станции для отчетов об аномалиях
+    await adminStore.fetchStations()
+  } catch (error) {
+    console.error('Ошибка при обновлении отчетов:', error)
+    showError('Ошибка при обновлении отчетов')
+  }
+}
+
+const refreshStats = async () => {
+  try {
+    // Для статистики обновляем все данные
+    await Promise.all([
+      adminStore.fetchUsers(),
+      adminStore.fetchStations(),
+      adminStore.fetchOrders(),
+      adminStore.fetchOrgUnits()
+    ])
+  } catch (error) {
+    console.error('Ошибка при обновлении статистики:', error)
+    showError('Ошибка при обновлении статистики')
+  }
+}
 const editOrgUnit = (orgUnit) => {
   selectedOrgUnit.value = orgUnit
   autoEditOrgUnit.value = true
@@ -997,6 +1070,20 @@ onMounted(async () => {
   border-radius: 15px;
   padding: 30px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.stats-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.8rem;
 }
 
 .section-header {
@@ -1240,6 +1327,16 @@ onMounted(async () => {
 
   .tab-content {
     padding: 20px;
+  }
+  
+  .stats-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 15px;
+  }
+  
+  .stats-header h2 {
+    font-size: 1.5rem;
   }
   
   .section-header {

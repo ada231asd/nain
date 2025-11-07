@@ -9,7 +9,7 @@
             {{ station.box_id }} ({{ station.org_unit_name || 'Без группы' }})
           </option>
         </select>
-        <button @click="loadReports" class="btn btn-primary">Обновить</button>
+        <RefreshButton @refresh="handleRefresh" />
       </div>
     </div>
 
@@ -157,6 +157,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import RefreshButton from './RefreshButton.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { formatMoscowTime, getRelativeTime } from '../utils/timeUtils'
 import { showSuccess, showError, showConfirm } from '../utils/notifications'
@@ -171,6 +172,8 @@ const props = defineProps({
     default: ''
   }
 })
+
+const emit = defineEmits(['refresh'])
 
 const loading = ref(false)
 const reports = ref([])
@@ -237,6 +240,12 @@ const loadStatistics = async () => {
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error)
   }
+}
+
+const handleRefresh = async () => {
+  await loadReports()
+  await loadStatistics()
+  emit('refresh')
 }
 
 const deleteReport = async (reportId) => {

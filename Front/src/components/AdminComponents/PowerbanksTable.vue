@@ -15,6 +15,7 @@
           />
           <span class="search-icon">🔍</span>
         </div>
+        <RefreshButton @refresh="handleRefresh" />
         <FilterButton 
           filter-type="powerbanks"
           :org-units="orgUnits"
@@ -45,6 +46,10 @@
 
     <!-- Таблица аккумуляторов -->
     <div class="table-wrapper">
+      <!-- Индикатор загрузки -->
+      <div v-if="isLoading" class="table-loading-overlay">
+        <div class="table-loading-spinner"></div>
+      </div>
       <table class="powerbanks-table">
         <thead>
           <tr>
@@ -398,6 +403,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAdminStore } from '../../stores/admin'
 import FilterButton from './FilterButton.vue'
+import RefreshButton from '../RefreshButton.vue'
 import { pythonAPI } from '../../api/pythonApi'
 import { showSuccess, showError, showConfirm } from '../../utils/notifications'
 
@@ -420,7 +426,8 @@ const emit = defineEmits([
   'powerbank-clicked',
   'powerbank-updated',
   'powerbank-deleted',
-  'powerbank-restored'
+  'powerbank-restored',
+  'refresh'
 ])
 
 const adminStore = useAdminStore()
@@ -430,6 +437,7 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const selectedPowerbank = ref(null)
 const isModalOpen = ref(false)
+const isLoading = ref(false)
 const activeFilters = ref({
   orgUnits: [],
   statuses: [],
@@ -591,6 +599,16 @@ const writtenOffCount = computed(() =>
 const handleFilterChange = (filters) => {
   activeFilters.value = filters
   currentPage.value = 1
+}
+
+const handleRefresh = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
+  try {
+    await emit('refresh')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const openPowerbankModal = (powerbank) => {
@@ -973,6 +991,33 @@ watch(searchQuery, () => {
   overflow: auto;
   min-height: 0;
   position: relative;
+}
+
+.table-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.table-loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .powerbanks-table {

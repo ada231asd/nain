@@ -15,6 +15,7 @@
           />
           <span class="search-icon">🔍</span>
         </div>
+        <RefreshButton @refresh="handleRefresh" />
         <FilterButton 
           filter-type="stations"
           :org-units="orgUnits"
@@ -25,6 +26,10 @@
 
     <!-- Таблица станций -->
     <div class="table-wrapper">
+      <!-- Индикатор загрузки -->
+      <div v-if="isLoading" class="table-loading-overlay">
+        <div class="table-loading-spinner"></div>
+      </div>
       <table class="stations-table">
         <thead>
           <tr>
@@ -495,6 +500,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import FilterButton from './FilterButton.vue'
+import RefreshButton from '../RefreshButton.vue'
 import QRCode from 'qrcode'
 import { pythonAPI } from '../../api/pythonApi.js'
 import { formatMoscowTime, getRelativeTime as getRelativeTimeUtil } from '../../utils/timeUtils.js'
@@ -522,7 +528,9 @@ const emit = defineEmits([
   'delete-station',
   'restore-station',
   'station-clicked',
-  'station-updated'
+  'station-updated',
+  'add-station',
+  'refresh'
 ])
 
 // Состояние компонента
@@ -533,6 +541,7 @@ const currentPage = ref(1)
 const itemsPerPage = ref(props.itemsPerPage)
 const selectedStation = ref(null)
 const isModalOpen = ref(false)
+const isLoading = ref(false)
 const activeFilters = ref({
   orgUnits: [],
   statuses: [],
@@ -692,6 +701,16 @@ const visiblePages = computed(() => {
 const handleFilterChange = (filters) => {
   activeFilters.value = filters
   currentPage.value = 1 // Сбрасываем на первую страницу при изменении фильтров
+}
+
+const handleRefresh = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
+  try {
+    await emit('refresh')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const openStationModal = async (station) => {
@@ -1276,6 +1295,34 @@ watch(searchQuery, () => {
 
 .table-wrapper {
   overflow-x: auto;
+  position: relative;
+}
+
+.table-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.table-loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .stations-table {
