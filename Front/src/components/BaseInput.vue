@@ -415,8 +415,8 @@ defineExpose({
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
+/* Dark mode support - отключено для предотвращения автоматического переключения темы */
+/* @media (prefers-color-scheme: dark) {
   .base-input__field {
     background-color: var(--background-dark);
     color: var(--text-primary-dark);
@@ -426,5 +426,5 @@ defineExpose({
   .base-input__field:focus {
     border-color: var(--primary-color);
   }
-}
+} */
 </style>

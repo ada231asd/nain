@@ -695,8 +695,8 @@ onUnmounted(() => {
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
+/* Dark mode support - отключено для предотвращения автоматического переключения темы */
+/* @media (prefers-color-scheme: dark) {
   .layout-header {
     background-color: rgba(0, 0, 0, 0.95);
   }
@@ -705,7 +705,7 @@ onUnmounted(() => {
     background: var(--background-dark);
     border-color: var(--border-dark);
   }
-}
+} */
 
 /* High contrast mode */
 @media (prefers-contrast: high) {

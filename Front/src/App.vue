@@ -28,6 +28,7 @@ onMounted(async () => {
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  color-scheme: light;
 }
 
 body {
@@ -37,6 +38,7 @@ body {
   background-color: var(--background-color, #ffffff);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
 }
 
 #app {

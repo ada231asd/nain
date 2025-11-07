@@ -896,12 +896,12 @@ onUnmounted(() => {
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
+/* Dark mode support - отключено для предотвращения автоматического переключения темы */
+/* @media (prefers-color-scheme: dark) {
   .station-card {
     background: var(--background-dark);
     border-color: var(--border-dark);
   }
   
-}
+} */
 </style>
