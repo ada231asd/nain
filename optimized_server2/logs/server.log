@@ -1,113 +1,217 @@
-2025-11-05 11:50:42 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
-2025-11-05 11:50:57 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:57 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:57 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:57 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3749 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1301 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 2806 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:50:58 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 819 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 1200 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/borrow/stations/17/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:04 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:04 +0300] "GET /api/borrow/stations/16/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:39 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:39 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 1200 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:40 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:40 +0300] "GET /api/borrow/stations/17/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:40 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:40 +0300] "GET /api/borrow/stations/16/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:40 - queryinventoryhandler - ERROR - Соединение со станцией DCHEY02504000019 (ID: 17) неактивно для запроса инвентаря.
-2025-11-05 11:51:40 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:40 +0300] "POST /api/query-inventory HTTP/1.1" 500 676 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:40 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:40 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:40 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:40 +0300] "GET /api/query-inventory/station/17 HTTP/1.1" 404 523 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:51:40 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:51:40 +0300] "GET /api/station-powerbanks?station_id=17 HTTP/1.1" 200 746 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:50:58 +0300] "GET /api/ws/notifications?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozMywicGhvbmVfZTE2NCI6Iis3OTAxMzM0NDA3NiIsImV4cCI6MTc2MjQxNzk2NSwiaWF0IjoxNzYyMzMxNTY1fQ.iR60EWpKPfPCJUOEPs-lJY3Fhpkin0ako3z7ccMAE1I HTTP/1.1" 101 0 "-" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:10 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:10 +0300] "GET /api/auth/profile HTTP/1.1" 200 772 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:10 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:10 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:10 +0300] "GET /api/powerbank-error-types HTTP/1.1" 200 819 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:10 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:10 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:11 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:11 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:11 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:11 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:11 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:11 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 1200 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:11 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:11 +0300] "GET /api/borrow/stations/17/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:11 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:11 +0300] "GET /api/borrow/stations/16/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:14 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:14 +0300] "GET /api/user-favorites?user_id=33 HTTP/1.1" 200 1200 "http://localhost:5173/dashboard" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:15 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:15 +0300] "GET /api/borrow/stations/17/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:15 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:15 +0300] "GET /api/borrow/stations/16/powerbanks HTTP/1.1" 200 865 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:15 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:15 +0300] "GET /api/user/stations/availability HTTP/1.1" 200 559 "http://localhost:5173/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:16 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:16 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:17 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:17 +0300] "GET /api/users?limit=10000 HTTP/1.1" 200 3749 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:17 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:17 +0300] "GET /api/orders?limit=10000 HTTP/1.1" 200 2806 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:17 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:17 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:17 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:17 +0300] "GET /api/stations?limit=10000 HTTP/1.1" 200 1301 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:17 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:17 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:17 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:17 +0300] "GET /api/org-units?limit=10000 HTTP/1.1" 200 2661 "http://localhost:5173/admin" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 YaBrowser/25.8.0.0 Safari/537.36"
-2025-11-05 11:52:22 - query_server_address - ERROR - Соединение со станцией DCHEY02504000018 (ID: 16) неактивно для запроса адреса сервера.
-2025-11-05 11:52:22 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:22 +0300] "POST /api/query-server-address HTTP/1.1" 500 676 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:22 - query_voice_volume_api - ERROR - API: Ошибка запроса уровня громкости для станции 16: Станция DCHEY02504000018 не подключена
-2025-11-05 11:52:22 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:22 +0300] "POST /api/query-voice-volume HTTP/1.1" 500 575 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:22 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:22 +0300] "GET /api/org-units/1 HTTP/1.1" 200 946 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:25 - queryinventoryhandler - ERROR - Соединение со станцией DCHEY02504000018 (ID: 16) неактивно для запроса инвентаря.
-2025-11-05 11:52:25 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:25 +0300] "POST /api/query-inventory HTTP/1.1" 500 676 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:25 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:25 +0300] "GET /api/query-inventory/station/16 HTTP/1.1" 404 523 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:52:25 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:25 +0300] "GET /api/station-powerbanks?station_id=16 HTTP/1.1" 200 1411 "http://localhost:5173/admin" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:55:06 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:55:06 +0300] "OPTIONS /api/auth/login HTTP/1.1" 200 395 "http://localhost:5173/" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:55:06 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:55:06 +0300] "POST /api/auth/login HTTP/1.1" 401 825 "http://localhost:5173/" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:55:25 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:55:24 +0300] "POST /api/auth/login HTTP/1.1" 200 1066 "http://localhost:5173/" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:55:25 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:55:25 +0300] "OPTIONS /api/powerbanks HTTP/1.1" 200 395 "http://localhost:5173/" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 11:55:25 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:55:25 +0300] "GET /api/powerbanks HTTP/1.1" 200 2546 "http://localhost:5173/" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 12:12:20 - aiohttp.access - INFO - 127.0.0.1 [05/Nov/2025:11:52:11 +0300] "GET /api/ws/notifications?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozMywicGhvbmVfZTE2NCI6Iis3OTAxMzM0NDA3NiIsImV4cCI6MTc2MjQxNzk2NSwiaWF0IjoxNzYyMzMxNTY1fQ.iR60EWpKPfPCJUOEPs-lJY3Fhpkin0ako3z7ccMAE1I HTTP/1.1" 101 0 "-" "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"
-2025-11-05 12:20:44 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+2025-11-10 09:58:41 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:41 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:42 - borrow_powerbank - ERROR - Ошибка: unpack requires a buffer of 9 bytes
+2025-11-10 09:58:42 - return_powerbank - ERROR - Ошибка обработки запроса на возврат с ошибкой: 'coroutine' object does not support the asynchronous context manager protocol
+2025-11-10 09:58:42 - queryinventoryhandler - ERROR - Соединение со станцией ST-001 (ID: 1) неактивно для запроса инвентаря.
+2025-11-10 09:58:42 - station_handler - INFO - Станция ST-001 (ID: 1) переведена в active после heartbeat
+2025-11-10 09:58:42 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:42 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:42 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:42 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:42 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:42 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:42 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:42 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:42 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:42 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:42 - borrow_powerbank - ERROR - Ошибка: unpack requires a buffer of 9 bytes
+2025-11-10 09:58:42 - return_powerbank - ERROR - Ошибка обработки запроса на возврат с ошибкой: 'coroutine' object does not support the asynchronous context manager protocol
+2025-11-10 09:58:44 - memory_cleanup - ERROR - Критическая ошибка при очистке памяти: Mock object has no attribute 'http_server'
 Traceback (most recent call last):
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
-    self._context.run(self._callback, *self._args)
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
-2025-11-05 12:20:45 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+  File "C:\OpenServer\domains\localhost\nain\optimized_server2\utils\memory_cleanup_service.py", line 122, in cleanup_all
+    if self.server_instance and self.server_instance.http_server:
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 658, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'http_server'. Did you mean: 'stop_servers'?
+2025-11-10 09:58:44 - memory_cleanup - INFO - Сервис очистки памяти запущен (интервал: 1 сек)
+2025-11-10 09:58:44 - memory_cleanup - INFO - Сервис очистки памяти остановлен
+2025-11-10 09:58:44 - memory_cleanup - ERROR - Критическая ошибка при очистке памяти: Mock object has no attribute 'connection_manager'
 Traceback (most recent call last):
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
-    self._context.run(self._callback, *self._args)
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
-2025-11-05 12:20:45 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+  File "C:\OpenServer\domains\localhost\nain\optimized_server2\utils\memory_cleanup_service.py", line 105, in cleanup_all
+    if self.server_instance and self.server_instance.connection_manager:
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 658, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'connection_manager'. Did you mean: '_connection_monitor'?
+2025-11-10 09:58:44 - memory_cleanup - ERROR - Критическая ошибка при очистке памяти: Mock object has no attribute 'station_handler'
 Traceback (most recent call last):
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
-    self._context.run(self._callback, *self._args)
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
-2025-11-05 12:20:45 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+  File "C:\OpenServer\domains\localhost\nain\optimized_server2\utils\memory_cleanup_service.py", line 78, in cleanup_all
+    if self.server_instance and self.server_instance.station_handler:
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 658, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'station_handler'
+2025-11-10 09:58:44 - memory_cleanup - ERROR - Критическая ошибка при очистке памяти: Mock object has no attribute 'station_handler'
 Traceback (most recent call last):
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
-    self._context.run(self._callback, *self._args)
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
-2025-11-05 12:20:45 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+  File "C:\OpenServer\domains\localhost\nain\optimized_server2\utils\memory_cleanup_service.py", line 78, in cleanup_all
+    if self.server_instance and self.server_instance.station_handler:
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 658, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'station_handler'
+2025-11-10 09:58:44 - memory_cleanup - INFO - Очистка памяти завершена: освобождено 1.77 MB (было: 101.74 MB, стало: 99.97 MB)
+2025-11-10 09:58:44 - memory_cleanup - ERROR - Критическая ошибка при очистке памяти: Mock object has no attribute 'station_handler'
 Traceback (most recent call last):
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
-    self._context.run(self._callback, *self._args)
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
-2025-11-05 12:50:45 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+  File "C:\OpenServer\domains\localhost\nain\optimized_server2\utils\memory_cleanup_service.py", line 78, in cleanup_all
+    if self.server_instance and self.server_instance.station_handler:
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 658, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'station_handler'
+2025-11-10 09:58:44 - memory_cleanup - INFO - Сервис очистки памяти запущен (интервал: 0.1 сек)
+2025-11-10 09:58:45 - memory_cleanup - INFO - Сервис очистки памяти остановлен
+2025-11-10 09:58:45 - memory_cleanup - ERROR - Ошибка очистки PowerbankStatusMonitor: Test error
+2025-11-10 09:58:45 - memory_cleanup - ERROR - Критическая ошибка при очистке памяти: Mock object has no attribute 'connection_manager'
 Traceback (most recent call last):
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 84, in _run
-    self._context.run(self._callback, *self._args)
-  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
-ConnectionResetError: [WinError 10054] Удаленный хост принудительно разорвал существующее подключение
+  File "C:\OpenServer\domains\localhost\nain\optimized_server2\utils\memory_cleanup_service.py", line 105, in cleanup_all
+    if self.server_instance and self.server_instance.connection_manager:
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\vurda\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 658, in __getattr__
+    raise AttributeError("Mock object has no attribute %r" % name)
+AttributeError: Mock object has no attribute 'connection_manager'. Did you mean: '_connection_monitor'?
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:45 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:45 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - ERROR - Некорректный email адрес получателя: invalid-email
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:45 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:45 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:45 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 09:58:45 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 09:58:45 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 09:58:45 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 09:58:49 - station_utils - INFO - Станция ST-001 онлайн (последнее подключение: 10 секунд назад)
+2025-11-10 10:05:13 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:13 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:13 - borrow_powerbank - ERROR - Ошибка: unpack requires a buffer of 9 bytes
+2025-11-10 10:05:13 - return_powerbank - ERROR - Ошибка обработки запроса на возврат с ошибкой: 'coroutine' object does not support the asynchronous context manager protocol
+2025-11-10 10:05:13 - queryinventoryhandler - ERROR - Соединение со станцией ST-001 (ID: 1) неактивно для запроса инвентаря.
+2025-11-10 10:05:13 - station_handler - INFO - Станция ST-001 (ID: 1) переведена в active после heartbeat
+2025-11-10 10:05:13 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:13 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:13 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:13 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:13 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:13 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:13 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:13 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:13 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:13 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:13 - borrow_powerbank - ERROR - Ошибка: unpack requires a buffer of 9 bytes
+2025-11-10 10:05:13 - return_powerbank - ERROR - Ошибка обработки запроса на возврат с ошибкой: 'coroutine' object does not support the asynchronous context manager protocol
+2025-11-10 10:05:16 - memory_cleanup - INFO - Сервис очистки памяти запущен (интервал: 1 сек)
+2025-11-10 10:05:16 - memory_cleanup - INFO - Сервис очистки памяти остановлен
+2025-11-10 10:05:16 - memory_cleanup - INFO - Сервис очистки памяти запущен (интервал: 0.1 сек)
+2025-11-10 10:05:16 - memory_cleanup - INFO - Сервис очистки памяти остановлен
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:16 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:16 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - ERROR - Некорректный email адрес получателя: invalid-email
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:16 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:16 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:16 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:05:16 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:05:16 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:05:16 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:05:19 - station_utils - INFO - Станция ST-001 онлайн (последнее подключение: 10 секунд назад)
+2025-11-10 10:07:33 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:33 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:33 - borrow_powerbank - ERROR - Ошибка: unpack requires a buffer of 9 bytes
+2025-11-10 10:07:33 - return_powerbank - ERROR - Ошибка обработки запроса на возврат с ошибкой: 'coroutine' object does not support the asynchronous context manager protocol
+2025-11-10 10:07:33 - queryinventoryhandler - ERROR - Соединение со станцией ST-001 (ID: 1) неактивно для запроса инвентаря.
+2025-11-10 10:07:33 - station_handler - INFO - Станция ST-001 (ID: 1) переведена в active после heartbeat
+2025-11-10 10:07:33 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:33 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:33 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:33 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:33 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:33 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:33 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:33 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:33 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:33 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:33 - borrow_powerbank - ERROR - Ошибка: unpack requires a buffer of 9 bytes
+2025-11-10 10:07:33 - return_powerbank - ERROR - Ошибка обработки запроса на возврат с ошибкой: 'coroutine' object does not support the asynchronous context manager protocol
+2025-11-10 10:07:34 - memory_cleanup - INFO - Сервис очистки памяти запущен (интервал: 1 сек)
+2025-11-10 10:07:34 - memory_cleanup - INFO - Сервис очистки памяти остановлен
+2025-11-10 10:07:34 - memory_cleanup - INFO - Сервис очистки памяти запущен (интервал: 0.1 сек)
+2025-11-10 10:07:34 - memory_cleanup - INFO - Сервис очистки памяти остановлен
+2025-11-10 10:07:34 - memory_cleanup - ERROR - Ошибка очистки PowerbankStatusMonitor: Test error
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:34 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:34 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - ERROR - Некорректный email адрес получателя: invalid-email
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:34 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:34 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:34 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:07:34 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:07:34 - notification_service - WARNING - Попытка отправки на тестовый/несуществующий email: test@example.com
+2025-11-10 10:07:34 - notification_service - WARNING - Email test@example.com не прошел проверку доставки, пропускаем отправку
+2025-11-10 10:07:37 - station_utils - INFO - Станция ST-001 онлайн (последнее подключение: 10 секунд назад)
+2025-11-10 10:11:51 - notification_service - INFO - SMTP настроен: smtp.mail.ru:587
+2025-11-10 10:11:51 - notification_service - INFO - Метод отправки уведомлений: email
+2025-11-10 10:11:53 - server - ERROR - Ошибка: (2003, "Can't connect to MySQL server on '127.0.0.1'")
+2025-11-10 10:11:53 - server - INFO - Остановка серверов...
+2025-11-10 10:11:53 - server - INFO - Деактивация всех станций...
+2025-11-10 10:11:53 - server - INFO - Активных станций не найдено
+2025-11-10 10:11:53 - server - INFO - Деактивация всех активных станций в БД...
+2025-11-10 10:11:53 - server - WARNING - Пул соединений с БД уже закрыт
+2025-11-10 10:11:53 - server - INFO - Принудительное закрытие всех TCP соединений...
+2025-11-10 10:11:53 - server - INFO - Логгеры закрыты

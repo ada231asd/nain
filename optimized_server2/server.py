@@ -21,6 +21,7 @@ from config.settings import (
     CONNECTION_TIMEOUT,
     MAX_PACKET_SIZE,
     RESOURCE_MONITOR_CONFIG,
+    MEMORY_CLEANUP_CONFIG,
 )
 from models.connection import ConnectionManager, StationConnection
 from models.station import Station
@@ -71,6 +72,7 @@ class OptimizedServer:
         self.running = False
         self.reminder_service = None  
         self._resource_monitor_task: Optional[asyncio.Task] = None
+        self.memory_cleanup_service = None
         
     
     async def initialize_database(self):
@@ -527,6 +529,13 @@ class OptimizedServer:
                 check_interval = POWERBANK_REMINDER_CONFIG.get('check_interval_hours', 1)
                 asyncio.create_task(self.reminder_service.run_periodic_check(interval_hours=check_interval))
             
+            # Запускаем сервис очистки памяти
+            if MEMORY_CLEANUP_CONFIG.get('enabled', True):
+                from utils.memory_cleanup_service import MemoryCleanupService
+                self.memory_cleanup_service = MemoryCleanupService(server_instance=self)
+                cleanup_interval = MEMORY_CLEANUP_CONFIG.get('interval_seconds', 300)
+                await self.memory_cleanup_service.start(interval_seconds=cleanup_interval)
+            
             # Ждем завершения серверов
             await asyncio.gather(*(srv.serve_forever() for srv in self.tcp_servers))
                         
@@ -578,6 +587,11 @@ class OptimizedServer:
                                 print(f"Закрываем дублирующееся соединение fd={fd}")
                                 self.connection_manager.close_connection(fd)
                 
+                # Проверяем heartbeat всех активных станций и обновляем их статус в БД
+                await self._check_station_heartbeat_status()
+                
+                # Периодическая очистка кэшей для предотвращения утечек памяти
+                await self._cleanup_caches()
                 
                 await asyncio.sleep(60)             
             except Exception as e:
@@ -626,6 +640,11 @@ class OptimizedServer:
             with suppress(asyncio.CancelledError):
                 await self._resource_monitor_task
             self._resource_monitor_task = None
+        
+        # Останавливаем сервис очистки памяти
+        if self.memory_cleanup_service:
+            await self.memory_cleanup_service.stop()
+            self.memory_cleanup_service = None
         
         # Деактивируем все станции перед закрытием
         await self._deactivate_all_stations()
@@ -726,6 +745,84 @@ class OptimizedServer:
             
         except Exception as e:
             self.logger.error(f"Ошибка при закрытии соединений: {e}")
+    
+    async def _cleanup_caches(self):
+        """Периодически очищает кэши для предотвращения утечек памяти"""
+        try:
+            # Очищаем кэш статусов повербанков
+            if self.station_handler and hasattr(self.station_handler, 'status_monitor'):
+                if hasattr(self.station_handler.status_monitor, 'cleanup_cache'):
+                    self.station_handler.status_monitor.cleanup_cache()
+            
+            # Если есть сервис очистки памяти, используем его
+            if self.memory_cleanup_service:
+                # Не вызываем полную очистку здесь, она выполняется по своему расписанию
+                # Но можно вызвать принудительно при необходимости
+                pass
+        except Exception as e:
+            self.logger.error(f"Ошибка очистки кэшей: {e}")
+    
+    async def _check_station_heartbeat_status(self):
+        """Проверяет heartbeat всех активных станций и обновляет их статус в БД"""
+        try:
+            from utils.time_utils import get_moscow_time
+            current_time = get_moscow_time()
+            heartbeat_timeout = CONNECTION_TIMEOUT  # 30 секунд
+            
+            # Проверяем, что пул соединений доступен
+            if not self.db_pool or self.db_pool._closed:
+                return
+            
+            # Получаем все активные станции из БД
+            active_stations = await Station.get_all_active(self.db_pool)
+            
+            if not active_stations:
+                return
+            
+            # Проверяем каждую активную станцию
+            for station in active_stations:
+                try:
+                    # Проверяем, есть ли активное соединение для станции
+                    connection = self.connection_manager.get_connection_by_station_id(station.station_id)
+                    
+                    if connection:
+                        # Проверяем время последнего heartbeat
+                        time_since_heartbeat = (current_time - connection.last_heartbeat).total_seconds()
+                        
+                        if time_since_heartbeat > heartbeat_timeout:
+                            # Heartbeat не приходит более 30 секунд - переводим станцию в inactive
+                            await station.update_status(self.db_pool, "inactive")
+                            self.logger.info(
+                                f"Станция {station.box_id} (ID: {station.station_id}) переведена в inactive: "
+                                f"heartbeat не приходит {time_since_heartbeat:.1f} секунд (таймаут: {heartbeat_timeout} сек)"
+                            )
+                        # Если heartbeat приходит регулярно (в пределах таймаута), станция остается active
+                    else:
+                        # Нет активного соединения - проверяем last_seen в БД
+                        if station.last_seen:
+                            from utils.time_utils import normalize_datetime_to_moscow
+                            last_seen = normalize_datetime_to_moscow(station.last_seen)
+                            time_since_last_seen = (current_time - last_seen).total_seconds()
+                            
+                            if time_since_last_seen > heartbeat_timeout:
+                                # Последний контакт был более 30 секунд назад - переводим в inactive
+                                await station.update_status(self.db_pool, "inactive")
+                                self.logger.info(
+                                    f"Станция {station.box_id} (ID: {station.station_id}) переведена в inactive: "
+                                    f"нет соединения, последний контакт {time_since_last_seen:.1f} секунд назад (таймаут: {heartbeat_timeout} сек)"
+                                )
+                        else:
+                            # Нет информации о последнем контакте - переводим в inactive
+                            await station.update_status(self.db_pool, "inactive")
+                            self.logger.info(
+                                f"Станция {station.box_id} (ID: {station.station_id}) переведена в inactive: "
+                                f"нет соединения и нет информации о последнем контакте"
+                            )
+                except Exception as e:
+                    self.logger.error(f"Ошибка проверки heartbeat для станции {station.station_id}: {e}")
+                    
+        except Exception as e:
+            self.logger.error(f"Ошибка проверки статуса heartbeat станций: {e}")
     
     async def _deactivate_all_active_stations_in_db(self):
         """Деактивирует все станции со статусом 'active' в базе данных"""

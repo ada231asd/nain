@@ -1,5 +1,5 @@
 """
-Сервис для отправки уведомлений (SMS, Email)
+Сервис для отправки уведомлений (Email)
 """
 import smtplib
 import logging
@@ -23,6 +23,8 @@ class NotificationService:
         # Проверяем доступность SMTP при инициализации
         if self.email_enabled:
             self._check_smtp_config()
+        
+        self.logger.info("Метод отправки уведомлений: email")
     
     def _validate_email(self, email: str) -> bool:
         """Валидирует email адрес"""
@@ -278,7 +280,7 @@ class NotificationService:
     
     async def send_account_approved_email(self, user_email: str, full_name: Optional[str] = None, 
                                         phone_number: Optional[str] = None) -> bool:
-        """Отправляет уведомление об одобрении аккаунта"""
+        """Отправляет уведомление об одобрении аккаунта на email"""
         subject = f"Аккаунт одобрен - {self.smtp_config.get('app_name', 'ЗАРЯД')}"
         max_retries = self.smtp_config.get('max_retries', 2)
         
@@ -394,8 +396,9 @@ class NotificationService:
     async def send_powerbank_reminder_email(self, user_email: str, full_name: Optional[str] = None,
                                            powerbank_serial: Optional[str] = None,
                                            hours_overdue: int = 0,
-                                           org_unit_name: Optional[str] = None) -> bool:
-        """Отправляет напоминание о необходимости вернуть аккумулятор"""
+                                           org_unit_name: Optional[str] = None,
+                                           user_phone: Optional[str] = None) -> bool:
+        """Отправляет напоминание о необходимости вернуть аккумулятор на email"""
         subject = f"Напоминание о возврате аккумулятора - {self.smtp_config.get('app_name', 'ЗАРЯД')}"
         max_retries = self.smtp_config.get('max_retries', 2)
         

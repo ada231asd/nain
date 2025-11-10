@@ -12,7 +12,9 @@ class PowerbankStatusMonitor:
     def __init__(self, db_pool):
         self.db_pool = db_pool
         self.status_cache: Dict[int, str] = {} 
-        self.station_powerbanks: Dict[int, Set[int]] = {} 
+        self.station_powerbanks: Dict[int, Set[int]] = {}
+        self.max_cache_size = 10000  # Максимальный размер кэша статусов
+        self.max_stations_cache = 1000  # Максимальное количество станций в кэше 
     
     async def initialize_station(self, station_id: int) -> None:
         """Инициализирует мониторинг для станции"""
@@ -134,3 +136,21 @@ class PowerbankStatusMonitor:
     def get_powerbank_status(self, powerbank_id: int) -> str:
         """Получает текущий статус повербанка"""
         return self.status_cache.get(powerbank_id, 'unknown')
+    
+    def cleanup_cache(self):
+        """Очищает кэш от старых записей, если он превышает лимит"""
+        # Очищаем кэш статусов, если он превышает лимит
+        if len(self.status_cache) > self.max_cache_size:
+            # Оставляем только последние записи (удаляем первые 20%)
+            items_to_remove = len(self.status_cache) - int(self.max_cache_size * 0.8)
+            keys_to_remove = list(self.status_cache.keys())[:items_to_remove]
+            for key in keys_to_remove:
+                del self.status_cache[key]
+        
+        # Очищаем кэш станций, если он превышает лимит
+        if len(self.station_powerbanks) > self.max_stations_cache:
+            # Оставляем только последние записи (удаляем первые 20%)
+            items_to_remove = len(self.station_powerbanks) - int(self.max_stations_cache * 0.8)
+            keys_to_remove = list(self.station_powerbanks.keys())[:items_to_remove]
+            for key in keys_to_remove:
+                del self.station_powerbanks[key]

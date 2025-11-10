@@ -16,14 +16,24 @@ class PowerbankReminderService:
         self.db_pool = db_pool
         self.logger = get_logger('powerbank_reminder')
         self.sent_reminders = set()  # Множество для отслеживания отправленных напоминаний (order_id)
+        self.max_reminders_cache = 5000  # Максимальный размер кэша напоминаний (увеличено с 1000)
     
     async def get_overdue_powerbanks(self) -> List[Dict[str, Any]]:
         """Получает список невозвращенных аккумуляторов, по которым нужно отправить напоминание"""
         try:
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor(aiomysql.DictCursor) as cur:
+                    # Для email проверяем наличие email
+                    where_condition = """
+                        o.status = 'borrow'
+                        AND o.completed_at IS NULL
+                        AND TIMESTAMPDIFF(HOUR, o.timestamp, NOW()) >= COALESCE(ou.reminder_hours, 24)
+                        AND u.email IS NOT NULL
+                        AND u.email != ''
+                    """
+                    
                     # Находим все невозвращенные аккумуляторы, где прошло больше reminder_hours
-                    await cur.execute("""
+                    await cur.execute(f"""
                         SELECT 
                             o.id as order_id,
                             o.user_phone,
@@ -37,11 +47,7 @@ class PowerbankReminderService:
                         FROM orders o
                         LEFT JOIN app_user u ON o.user_phone = u.phone_e164
                         LEFT JOIN org_unit ou ON o.org_unit_name = ou.name
-                        WHERE o.status = 'borrow'
-                          AND o.completed_at IS NULL
-                          AND TIMESTAMPDIFF(HOUR, o.timestamp, NOW()) >= COALESCE(ou.reminder_hours, 24)
-                          AND u.email IS NOT NULL
-                          AND u.email != ''
+                        WHERE {where_condition}
                     """)
                     
                     overdue = await cur.fetchall()
@@ -64,17 +70,19 @@ class PowerbankReminderService:
             
             user_email = order_data['user_email']
             user_name = order_data['user_name']
+            user_phone = order_data.get('user_phone')
             powerbank_serial = order_data['powerbank_serial']
             org_unit_name = order_data['org_unit_name']
             hours_borrowed = order_data['hours_borrowed']
             
-            # Отправляем email
+            # Отправляем уведомление по email
             success = await notification_service.send_powerbank_reminder_email(
                 user_email=user_email,
                 full_name=user_name,
                 powerbank_serial=powerbank_serial,
                 hours_overdue=hours_borrowed,
-                org_unit_name=org_unit_name
+                org_unit_name=org_unit_name,
+                user_phone=user_phone
             )
             
             if success:
@@ -145,8 +153,13 @@ class PowerbankReminderService:
             try:
                 await self.check_and_send_reminders()
                 
-                if len(self.sent_reminders) > 1000:
-                    self.sent_reminders.clear()
+                # Очищаем кэш напоминаний, если он превышает лимит
+                if len(self.sent_reminders) > self.max_reminders_cache:
+                    # Оставляем только последние записи (удаляем первые 20%)
+                    items_to_remove = len(self.sent_reminders) - int(self.max_reminders_cache * 0.8)
+                    reminders_list = list(self.sent_reminders)
+                    for item in reminders_list[:items_to_remove]:
+                        self.sent_reminders.discard(item)
                 
             except Exception as e:
                 self.logger.error(f"Ошибка в периодической проверке: {e}", exc_info=True)
