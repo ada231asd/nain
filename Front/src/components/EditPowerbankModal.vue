@@ -222,7 +222,7 @@ const resetError = async () => {
     emit('saved')
     closeModal()
   } catch (error) {
-    showError('Ошибка при сбросе ошибки повербанка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при сбросе ошибки аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isResettingError.value = false
   }

@@ -362,7 +362,7 @@
               🔋 Аккумуляторы
             </button>
             <button @click="refreshInventory" class="btn-action">
-              📦 Обновить инвентарь
+              Обновить
             </button>
             <button @click="toggleEditMode" class="btn-action">
               ✏️ Редактировать

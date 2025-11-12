@@ -770,7 +770,7 @@ const borrowPowerbank = async (powerbank) => {
 const forceEjectPowerbank = async (powerbank) => {
   if (!selectedStation.value || isBorrowing.value) return
 
-  const confirmMessage = `Вы уверены, что хотите принудительно извлечь повербанк из слота ${powerbank.slot_number}?`
+  const confirmMessage = `Вы уверены, что хотите принудительно извлечь аккумулятор из слота ${powerbank.slot_number}?`
   if (!await showConfirm(confirmMessage, 'Извлечь', 'Отмена')) return
 
   isBorrowing.value = true
@@ -868,7 +868,7 @@ const refreshPowerbanks = async () => {
     await adminStore.fetchPowerbanks()
   } catch (error) {
     console.error('Ошибка при обновлении повербанков:', error)
-    showError('Ошибка при обновлении повербанков')
+    showError('Ошибка при обновлении аккумуляторов')
   }
 }
 

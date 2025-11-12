@@ -546,7 +546,7 @@ const handleTakeBattery = async (station) => {
         const confirmed = await confirmBorrowAfterNetworkError(stationId, userId)
         if (confirmed) {
           // Сначала показываем успешное сообщение
-          showSuccess('Повербанк выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
+          showSuccess('Аккумулятор выдан (подтверждено по данным пользователя). Ответ API не успел прийти.')
           
           // Затем обновляем данные
           await refreshAllDataAfterBorrowLocal(stationId, userId)
@@ -653,7 +653,7 @@ const handleErrorReportSubmit = async (errorReport) => {
     isWaitingForReturn.value = true
     
     // Показываем уведомление об ожидании
-    showInfo('⏳ Ожидаем вставки повербанка в станцию (до 30 секунд)...')
+    showInfo('⏳ Ожидаем вставки аккумулятора в станцию (до 30 секунд)...')
     
     // Отправляем запрос на возврат с ошибкой через Long Polling API
     const response = await pythonAPI.returnError({
@@ -953,7 +953,7 @@ const borrowPowerbank = async (powerbank) => {
 
     if (result && result.success) {
       // Сначала показываем успешное сообщение
-      showSuccess('Повербанк успешно выдан!')
+      showSuccess('Аккумулятор успешно выдан!')
       
       // Затем выполняем централизованное обновление данных после выдачи аккумулятора
       const stationId = selectedStation.value.station_id || selectedStation.value.id
@@ -964,11 +964,11 @@ const borrowPowerbank = async (powerbank) => {
       const inv = await pythonAPI.getStationInventory(stationId)
       selectedStationPowerbanks.value = Array.isArray(inv?.inventory) ? inv.inventory : []
     } else {
-      showError('Ошибка при выдаче повербанка: ' + (result?.error || 'Неизвестная ошибка сервера'))
+      showError('Ошибка при выдаче аккумулятора: ' + (result?.error || 'Неизвестная ошибка сервера'))
     }
   } catch (error) {
     console.error('Ошибка при выдаче повербанка:', error)
-    showError('Ошибка при выдаче повербанка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при выдаче аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isBorrowing.value = false
   }
@@ -977,7 +977,7 @@ const borrowPowerbank = async (powerbank) => {
 const forceEjectPowerbank = async (powerbank) => {
   if (!selectedStation.value || isBorrowing.value) return
 
-  const confirmMessage = `Вы уверены, что хотите принудительно извлечь повербанк из слота ${powerbank.slot_number}?`
+  const confirmMessage = `Вы уверены, что хотите принудительно извлечь аккумулятор из слота ${powerbank.slot_number}?`
   if (!await showConfirm(confirmMessage)) return
 
   isBorrowing.value = true
@@ -998,7 +998,7 @@ const forceEjectPowerbank = async (powerbank) => {
     await pythonAPI.forceEjectPowerbank(requestData)
     
     // Сначала показываем успешное сообщение
-    showSuccess('Повербанк принудительно извлечен!')
+    showSuccess('Аккумулятор принудительно извлечен!')
 
     // Затем выполняем централизованное обновление данных после принудительного извлечения
     const stationId = selectedStation.value.station_id || selectedStation.value.id
@@ -1011,7 +1011,7 @@ const forceEjectPowerbank = async (powerbank) => {
 
   } catch (error) {
     console.error('Ошибка при принудительном извлечении повербанка:', error)
-    showError('Ошибка при принудительном извлечении повербанка: ' + (error.message || 'Неизвестная ошибка'))
+    showError('Ошибка при принудительном извлечении аккумулятора: ' + (error.message || 'Неизвестная ошибка'))
   } finally {
     isBorrowing.value = false
   }
