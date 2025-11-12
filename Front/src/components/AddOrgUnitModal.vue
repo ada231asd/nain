@@ -103,6 +103,30 @@
           <small class="form-hint">Через сколько часов считать повербанк не возвращенным</small>
         </div>
 
+        <div
+          v-if="formData.unit_type === 'group'"
+          class="form-group auto-approval-group"
+        >
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              v-model="formData.aprof"
+            />
+            Включить автоодобрение пользователей
+          </label>
+
+          <label
+            v-if="formData.aprof"
+            class="checkbox-label confirmation"
+          >
+            <input
+              type="checkbox"
+              v-model="autoApprovalConfirmed"
+            />
+            Вы точно хотитите включить автоподтверждение
+          </label>
+        </div>
+
         <div class="form-group">
           <label for="logo">Логотип группы</label>
           <div class="logo-upload-section">
@@ -176,6 +200,10 @@ const logoPreview = ref(null)
 const logoInput = ref(null)
 const logoUrl = ref('')
 
+const normalizeAutoApproval = (value) => {
+  return value === 1 || value === '1' || value === true
+}
+
 const formData = ref({
   unit_type: '',
   parent_org_unit_id: '',
@@ -183,10 +211,12 @@ const formData = ref({
   adress: '',
   default_powerbank_limit: 1,
   reminder_hours: 24,
-  write_off_hours: 48
+  write_off_hours: 48,
+  aprof: false
 })
 
 const isEditing = computed(() => !!props.orgUnit)
+const autoApprovalConfirmed = ref(false)
 
 // Доступные родительские группы
 const availableParents = computed(() => {
@@ -210,11 +240,13 @@ const resetForm = () => {
     adress: '',
     default_powerbank_limit: 1,
     reminder_hours: 24,
-    write_off_hours: 48
+    write_off_hours: 48,
+    aprof: false
   }
   logoFile.value = null
   logoPreview.value = null
   logoUrl.value = ''
+  autoApprovalConfirmed.value = false
   if (logoInput.value) {
     logoInput.value.value = ''
   }
@@ -224,6 +256,14 @@ const resetForm = () => {
 watch(() => formData.value.unit_type, (newType, oldType) => {
   if (newType === 'group') {
     formData.value.parent_org_unit_id = ''
+  } else {
+    formData.value.aprof = false
+  }
+})
+
+watch(() => formData.value.aprof, (isEnabled) => {
+  if (!isEnabled) {
+    autoApprovalConfirmed.value = false
   }
 })
 
@@ -237,8 +277,10 @@ const fillForm = () => {
       adress: props.orgUnit.adress || '',
       default_powerbank_limit: props.orgUnit.default_powerbank_limit || 1,
       reminder_hours: props.orgUnit.reminder_hours || 24,
-      write_off_hours: props.orgUnit.write_off_hours || 48
+      write_off_hours: props.orgUnit.write_off_hours || 48,
+      aprof: normalizeAutoApproval(props.orgUnit.aprof)
     }
+    autoApprovalConfirmed.value = normalizeAutoApproval(props.orgUnit.aprof)
     
     // Устанавливаем предварительный просмотр существующего логотипа
     if (props.orgUnit.logo_url) {
@@ -256,6 +298,12 @@ const handleSubmit = async () => {
   isSubmitting.value = true
   
   try {
+    if (formData.value.unit_type === 'group' && formData.value.aprof && !autoApprovalConfirmed.value) {
+      showWarning('Подтвердите включение автоподтверждения пользователей')
+      isSubmitting.value = false
+      return
+    }
+
     const data = { ...formData.value }
     
     // Валидация: группа не должна иметь родительскую группу
@@ -279,6 +327,8 @@ const handleSubmit = async () => {
     if (!data.adress) {
       delete data.adress
     }
+
+    data.aprof = data.unit_type === 'group' && formData.value.aprof ? 1 : 0
     
     let orgUnitId
     
@@ -552,6 +602,24 @@ watch(() => props.isVisible, (isVisible) => {
   margin-top: 4px;
   color: #666;
   font-size: 0.85rem;
+}
+
+.auto-approval-group .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: #333;
+}
+
+.auto-approval-group .checkbox-label.confirmation {
+  font-weight: 400;
+  color: #555;
+}
+
+.auto-approval-group input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
 }
 
 .btn-primary,

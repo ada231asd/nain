@@ -97,6 +97,31 @@
                 <input v-else v-model.number="editData.write_off_hours" class="edit-input" type="number" min="1" max="720" />
               </div>
 
+              <!-- Автоодобрение -->
+              <div
+                v-if="(isEditing && editData.unit_type === 'group') || (!isEditing && orgUnit.unit_type === 'group')"
+                class="detail-row auto-approval-row"
+                :class="{ 'editable-field': isEditing }"
+              >
+                <span class="detail-label">Включить автоодобрение пользователей:</span>
+                <span v-if="!isEditing" class="detail-value">
+                  {{ isAutoApprovalEnabled ? 'Включено' : 'Выключено' }}
+                </span>
+                <div v-else class="auto-approval-controls">
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="editData.aprof" />
+                    Включить автоодобрение пользователей
+                  </label>
+                  <label
+                    v-if="editData.aprof"
+                    class="checkbox-label confirmation"
+                  >
+                    <input type="checkbox" v-model="autoApprovalConfirmed" />
+                    Вы точно хотитите включить автоподтверждение
+                  </label>
+                </div>
+              </div>
+
               <!-- URL логотипа -->
               <div class="detail-row" :class="{ 'editable-field': isEditing }">
                 <span class="detail-label">URL логотипа:</span>
@@ -155,7 +180,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useAdminStore } from '../stores/admin'
-import { showSuccess, showError, showConfirm } from '../utils/notifications'
+import { showSuccess, showError, showConfirm, showWarning } from '../utils/notifications'
 
 const props = defineProps({
   isVisible: {
@@ -176,10 +201,19 @@ const emit = defineEmits(['close', 'updated', 'view-stations'])
 
 const adminStore = useAdminStore()
 
+const normalizeAutoApproval = (value) => {
+  return value === 1 || value === '1' || value === true
+}
+
 const isEditing = ref(false)
 const isSaving = ref(false)
 const logoError = ref(false)
 const previewError = ref(false)
+const autoApprovalConfirmed = ref(false)
+const isAutoApprovalEnabled = computed(() => {
+  if (!props.orgUnit) return false
+  return normalizeAutoApproval(props.orgUnit.aprof)
+})
 
 const editData = ref({
   name: '',
@@ -189,7 +223,8 @@ const editData = ref({
   default_powerbank_limit: 1,
   reminder_hours: 24,
   write_off_hours: 48,
-  parent_org_unit_id: null
+  parent_org_unit_id: null,
+  aprof: false
 })
 
 // Доступные родительские группы (исключая текущую группу и её дочерние)
@@ -267,9 +302,11 @@ const startEditing = () => {
     default_powerbank_limit: props.orgUnit.default_powerbank_limit || 1,
     reminder_hours: props.orgUnit.reminder_hours || 24,
     write_off_hours: props.orgUnit.write_off_hours || 48,
-    parent_org_unit_id: props.orgUnit.parent_org_unit_id || null
+    parent_org_unit_id: props.orgUnit.parent_org_unit_id || null,
+    aprof: normalizeAutoApproval(props.orgUnit.aprof)
   }
   
+  autoApprovalConfirmed.value = normalizeAutoApproval(props.orgUnit.aprof)
   isEditing.value = true
 }
 
@@ -277,6 +314,7 @@ const startEditing = () => {
 const cancelEditing = () => {
   isEditing.value = false
   previewError.value = false
+  autoApprovalConfirmed.value = false
 }
 
 // Сохранить изменения
@@ -286,10 +324,21 @@ const saveChanges = async () => {
   isSaving.value = true
   
   try {
-    await adminStore.updateOrgUnit(props.orgUnit.org_unit_id, editData.value)
+    if (editData.value.unit_type === 'group' && editData.value.aprof && !autoApprovalConfirmed.value) {
+      showWarning('Подтвердите включение автоподтверждения пользователей')
+      isSaving.value = false
+      return
+    }
+
+    const payload = {
+      ...editData.value,
+      aprof: editData.value.unit_type === 'group' && editData.value.aprof ? 1 : 0
+    }
+
+    await adminStore.updateOrgUnit(props.orgUnit.org_unit_id, payload)
     
     // Обновляем локальные данные
-    Object.assign(props.orgUnit, editData.value)
+    Object.assign(props.orgUnit, payload)
     
     isEditing.value = false
     emit('updated', props.orgUnit)
@@ -327,9 +376,23 @@ watch(() => props.isVisible, (newValue) => {
     isEditing.value = false
     logoError.value = false
     previewError.value = false
+    autoApprovalConfirmed.value = false
   } else if (newValue && props.autoEdit) {
     // Автоматически включаем режим редактирования, если передан флаг autoEdit
     startEditing()
+  }
+})
+
+watch(() => editData.value.unit_type, (newType) => {
+  if (newType !== 'group') {
+    editData.value.aprof = false
+    autoApprovalConfirmed.value = false
+  }
+})
+
+watch(() => editData.value.aprof, (isEnabled) => {
+  if (!isEnabled) {
+    autoApprovalConfirmed.value = false
   }
 })
 </script>
@@ -504,6 +567,37 @@ watch(() => props.isVisible, (newValue) => {
   font-size: 1rem;
   text-align: right;
   flex: 1;
+}
+
+.auto-approval-row {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.auto-approval-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+}
+
+.auto-approval-row .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.auto-approval-row .checkbox-label.confirmation {
+  font-weight: 400;
+  color: #555;
+}
+
+.auto-approval-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
 }
 
 .url-value {
