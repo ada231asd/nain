@@ -2,7 +2,8 @@
   <div class="station-card" :class="{ 
     'station-card--favorite': isFavorite,
     'station-card--highlighted': isHighlighted,
-    'station-card--collapsed': !isExpanded
+    'station-card--collapsed': !isExpanded,
+    'station-card--inactive': isStationInactive
   }" @click="handleCardClick">
     <div class="station-card__header">
       <div class="station-card__name-section">
@@ -108,6 +109,8 @@
         variant="success"
         size="small"
         @click="$emit('takeBattery', station)"
+        :disabled="isStationInactive"
+        :class="{ 'station-card__button--inactive': isStationInactive }"
       >
         Взять аккумулятор
       </BaseButton>
@@ -117,6 +120,8 @@
         variant="primary"
         size="small"
         @click="$emit('returnBattery', station)"
+        :disabled="isStationInactive"
+        :class="{ 'station-card__button--inactive': isStationInactive }"
       >
         Вернуть аккумулятор
       </BaseButton>
@@ -125,6 +130,8 @@
         variant="warning"
         size="small"
         @click="$emit('returnWithError', station)"
+        :disabled="isStationInactive"
+        :class="{ 'station-card__button--inactive': isStationInactive }"
       >
         Вернуть с ошибкой
       </BaseButton>
@@ -135,6 +142,8 @@
         variant="warning"
         size="small"
         @click="$emit('adminClick', station)"
+        :disabled="isStationInactive"
+        :class="{ 'station-card__button--inactive': isStationInactive }"
       >
         Управление аккумуляторами
       </BaseButton>
@@ -143,6 +152,7 @@
         v-if="showFavoriteButton"
         :variant="isFavorite ? 'danger' : 'secondary'"
         size="small"
+        class="station-card__actions-favorite"
         @click="toggleFavorite"
       >
         {{ isFavorite ? 'Удалить из избранного' : 'Добавить в избранное' }}
@@ -212,6 +222,11 @@ const hasNickname = computed(() => {
 
 const displayName = computed(() => {
   return props.station.nickname || props.station.nik || props.station.box_id || 'Без ID'
+})
+
+const isStationInactive = computed(() => {
+  const status = (props.station.status || '').toLowerCase()
+  return status !== 'active' && status !== 'online'
 })
 
 // ПРАВИЛЬНАЯ ЛОГИКА (по протоколу):
@@ -839,6 +854,22 @@ onUnmounted(() => {
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 0;
+}
+
+.station-card--inactive .station-card__actions .base-button:not(.station-card__actions-favorite) {
+  cursor: not-allowed;
+}
+
+.station-card__button--inactive {
+  background-color: #d1d5db !important;
+  color: #6b7280 !important;
+  border-color: #d1d5db !important;
+  box-shadow: none !important;
+}
+
+.station-card__button--inactive:hover {
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .station-card__distance {
