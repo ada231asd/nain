@@ -294,7 +294,16 @@
                   </div>
                   <div class="detail-row" v-if="selectedPowerbank.active_order_station_box_id">
                     <span class="detail-label">Станция заказа:</span>
-                    <span class="detail-value">{{ selectedPowerbank.active_order_station_box_id }}</span>
+                    <span
+                      class="detail-value station-link"
+                      role="button"
+                      tabindex="0"
+                      @click="handleStationNavigate('order')"
+                      @keydown.enter.prevent="handleStationNavigate('order')"
+                      @keydown.space.prevent="handleStationNavigate('order')"
+                    >
+                      {{ selectedPowerbank.active_order_station_box_id }}
+                    </span>
                   </div>
                 </template>
                 
@@ -306,7 +315,16 @@
                   </div>
                   <div class="detail-row" v-if="selectedPowerbank.station_box_id">
                     <span class="detail-label">ID станции:</span>
-                    <span class="detail-value">{{ selectedPowerbank.station_box_id }}</span>
+                    <span
+                      class="detail-value station-link"
+                      role="button"
+                      tabindex="0"
+                      @click="handleStationNavigate('station')"
+                      @keydown.enter.prevent="handleStationNavigate('station')"
+                      @keydown.space.prevent="handleStationNavigate('station')"
+                    >
+                      {{ selectedPowerbank.station_box_id }}
+                    </span>
                   </div>
                   <div class="detail-row" v-if="selectedPowerbank.station_slot_number !== null && selectedPowerbank.station_slot_number !== undefined">
                     <span class="detail-label">Номер слота:</span>
@@ -431,6 +449,7 @@ const emit = defineEmits([
   'powerbank-updated',
   'powerbank-deleted',
   'powerbank-restored',
+  'open-station',
   'refresh'
 ])
 
@@ -623,6 +642,34 @@ const openPowerbankModal = (powerbank) => {
   
   // Инициализируем форму редактирования
   initEditForm(powerbank)
+}
+
+const handleStationNavigate = (context = 'station') => {
+  if (!selectedPowerbank.value) return
+
+  const payload = (() => {
+    if (context === 'order') {
+      return {
+        stationId: selectedPowerbank.value.active_order_station_id || null,
+        stationBoxId: selectedPowerbank.value.active_order_station_box_id || null,
+        slotNumber: selectedPowerbank.value.active_order_station_slot ?? null
+      }
+    }
+
+    return {
+      stationId: selectedPowerbank.value.station_id || null,
+      stationBoxId: selectedPowerbank.value.station_box_id || null,
+      slotNumber: selectedPowerbank.value.station_slot_number ?? null
+    }
+  })()
+
+  if (!payload.stationId && !payload.stationBoxId) {
+    showError('Не удалось определить связанную станцию для этого повербанка')
+    return
+  }
+
+  emit('open-station', payload)
+  closePowerbankModal()
 }
 
 const closePowerbankModal = () => {
@@ -1500,6 +1547,21 @@ watch(searchQuery, () => {
   font-size: 1rem;
   text-align: right;
   flex: 1;
+}
+
+.station-link {
+  color: #5a6fd8;
+  cursor: pointer;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.station-link:hover,
+.station-link:focus {
+  color: #3f51b5;
+  outline: none;
 }
 
 .order-info {

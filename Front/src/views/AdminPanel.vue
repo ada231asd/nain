@@ -34,6 +34,7 @@
             <!-- Управление станциями -->
             <div v-if="activeTab === 'stations'" class="tab-pane">
               <StationsTable 
+                ref="stationsTableRef"
                 :stations="stations"
                 :org-units="orgUnits"
                 @add-station="() => { showAddStationModal = true }"
@@ -51,6 +52,7 @@
               <PowerbanksTable
                 :powerbanks="adminStore.powerbanks"
                 :org-units="orgUnits"
+                @open-station="handlePowerbankOpenStation"
                 @refresh="refreshPowerbanks"
               />
             </div>
@@ -244,7 +246,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '../stores/admin'
 import { useAuthStore } from '../stores/auth'
@@ -278,6 +280,7 @@ const authStore = useAuthStore()
 
 // Состояние
 const activeTab = ref('users')
+const stationsTableRef = ref(null)
 
 // Модальные окна
 const showBulkImportModal = ref(false)
@@ -754,6 +757,32 @@ const handleSlotReportOpenStation = async ({ stationId, powerbankTerminalId, slo
   }
 
   await openPowerbanks(station, { keepHighlight: true })
+}
+
+const handlePowerbankOpenStation = async ({ stationId = null, stationBoxId = null } = {}) => {
+  if (!stationId && !stationBoxId) {
+    showError('Не удалось определить станцию для выбранного повербанка')
+    return
+  }
+
+  activeTab.value = 'stations'
+  await nextTick()
+
+  const stationsComponent = stationsTableRef.value
+
+  if (!stationsComponent || typeof stationsComponent.openStationExternally !== 'function') {
+    showError('Не удалось открыть карточку станции')
+    return
+  }
+
+  const isOpened = await stationsComponent.openStationExternally({
+    stationId,
+    stationBoxId
+  })
+
+  if (!isOpened) {
+    showError('Станция не найдена в текущем списке')
+  }
 }
 
 

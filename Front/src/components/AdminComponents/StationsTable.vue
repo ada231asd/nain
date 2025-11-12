@@ -498,7 +498,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import FilterButton from './FilterButton.vue'
 import RefreshButton from '../RefreshButton.vue'
 import QRCode from 'qrcode'
@@ -724,6 +724,59 @@ const openStationModal = async (station) => {
   
   // Загружаем дополнительные данные
   await loadStationData(station)
+}
+
+const normalizeStationIdentifier = (value) => {
+  if (value === null || value === undefined) return null
+  const stringValue = String(value).trim()
+  return stringValue ? stringValue.toLowerCase() : null
+}
+
+const findStationForExternalOpen = ({ stationId = null, stationBoxId = null } = {}) => {
+  const normalizedId = normalizeStationIdentifier(stationId)
+  const normalizedBox = normalizeStationIdentifier(stationBoxId)
+
+  if (!normalizedId && !normalizedBox) return null
+
+  return props.stations.find((station) => {
+    const candidateId = normalizeStationIdentifier(station?.station_id ?? station?.id)
+    const candidateBox = normalizeStationIdentifier(
+      station?.box_id ?? station?.station_box_id ?? station?.stationBoxId ?? station?.code
+    )
+
+    return (normalizedId && candidateId === normalizedId) || (normalizedBox && candidateBox === normalizedBox)
+  }) || null
+}
+
+const openStationExternally = async ({ stationId = null, stationBoxId = null } = {}) => {
+  const targetStation = findStationForExternalOpen({ stationId, stationBoxId })
+
+  if (!targetStation) {
+    return false
+  }
+
+  const normalizedId = normalizeStationIdentifier(targetStation?.station_id ?? targetStation?.id)
+  const normalizedBox = normalizeStationIdentifier(
+    targetStation?.box_id ?? targetStation?.station_box_id ?? targetStation?.stationBoxId ?? targetStation?.code
+  )
+
+  const targetIndex = filteredStations.value.findIndex((station) => {
+    const stationIdCandidate = normalizeStationIdentifier(station?.station_id ?? station?.id)
+    const stationBoxCandidate = normalizeStationIdentifier(
+      station?.box_id ?? station?.station_box_id ?? station?.stationBoxId ?? station?.code
+    )
+
+    return (normalizedId && stationIdCandidate === normalizedId) ||
+           (normalizedBox && stationBoxCandidate === normalizedBox)
+  })
+
+  if (targetIndex !== -1 && itemsPerPage.value > 0) {
+    currentPage.value = Math.floor(targetIndex / itemsPerPage.value) + 1
+    await nextTick()
+  }
+
+  await openStationModal(targetStation)
+  return true
 }
 
 const closeStationModal = () => {
@@ -1203,6 +1256,10 @@ const handleRestore = async () => {
 // Сброс страницы при изменении поиска
 watch(searchQuery, () => {
   currentPage.value = 1
+})
+
+defineExpose({
+  openStationExternally
 })
 </script>
 
