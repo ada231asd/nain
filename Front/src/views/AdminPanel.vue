@@ -84,6 +84,7 @@
                 :stations="stations" 
                 :active-tab="activeTab"
                 @refresh="refreshSlotReports"
+                @open-station="handleSlotReportOpenStation"
               />
             </div>
 
@@ -182,6 +183,8 @@
       :station="selectedStation"
       :powerbanks="selectedStationPowerbanks"
       :is-borrowing="isBorrowing"
+      :highlighted-powerbank-id="highlightedPowerbankId"
+      :highlighted-slot-number="highlightedSlotNumber"
       @close="closePowerbanks"
       @borrow-powerbank="borrowPowerbank"
       @force-eject-powerbank="forceEjectPowerbank"
@@ -287,6 +290,8 @@ const selectedStationPowerbanks = ref([])
 const isBorrowing = ref(false)
 const showStationQRModal = ref(false)
 const selectedStationForQR = ref(null)
+const highlightedPowerbankId = ref(null)
+const highlightedSlotNumber = ref(null)
 
 
 // Модальные окна для групп
@@ -660,7 +665,12 @@ const closeUserHistoryModal = () => {
   selectedUser.value = null
 }
 
-const openPowerbanks = async (station) => {
+const openPowerbanks = async (station, options = {}) => {
+  const { keepHighlight = false } = options
+  if (!keepHighlight) {
+    highlightedPowerbankId.value = null
+    highlightedSlotNumber.value = null
+  }
   try {
     selectedStation.value = station
     const stationId = station.station_id || station.id
@@ -690,6 +700,60 @@ const closePowerbanks = () => {
   showPowerbanksModal.value = false
   selectedStation.value = null
   selectedStationPowerbanks.value = []
+  highlightedPowerbankId.value = null
+  highlightedSlotNumber.value = null
+}
+
+const handleSlotReportOpenStation = async ({ stationId, powerbankTerminalId, slotNumber }) => {
+  if (!stationId) {
+    showError('Не удалось определить станцию для отчета')
+    return
+  }
+
+  highlightedPowerbankId.value = powerbankTerminalId || null
+  highlightedSlotNumber.value = slotNumber ?? null
+
+  const normalizeId = (value) => {
+    if (value === null || value === undefined) return null
+    const numeric = Number(value)
+    return Number.isNaN(numeric) ? String(value) : numeric
+  }
+
+  const targetId = normalizeId(stationId)
+
+  const findStationById = (collection) => {
+    if (!Array.isArray(collection)) return null
+    return collection.find((item) => {
+      const candidate = item?.station_id ?? item?.id
+      if (candidate === undefined || candidate === null) return false
+      const normalizedCandidate = normalizeId(candidate)
+      if (normalizedCandidate === null) return false
+
+      if (typeof targetId === 'number' && typeof normalizedCandidate === 'number') {
+        return normalizedCandidate === targetId
+      }
+
+      return String(normalizedCandidate) === String(targetId)
+    }) || null
+  }
+
+  let station = findStationById(stations.value)
+
+  if (!station) {
+    try {
+      await adminStore.fetchStations()
+      station = findStationById(adminStore.stations)
+    } catch (error) {
+      console.error('Ошибка при загрузке станций для отчета об аномалии:', error)
+    }
+  }
+
+  if (!station) {
+    showError('Станция для выбранного повербанка не найдена')
+    return
+  }
+
+  await openPowerbanks(station, { keepHighlight: true })
 }
 
 

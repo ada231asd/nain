@@ -1,14 +1,13 @@
 """
 Модель пользователя
 """
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from datetime import datetime
 import aiomysql
 import bcrypt
 from utils.time_utils import get_moscow_time
 import secrets
 import string
-import json
 from config.settings import PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_HASH_ROUNDS
 from utils.centralized_logger import get_logger
 
@@ -230,158 +229,3 @@ class User:
             return None
         
         return user
-
-
-
-
-class VerificationCode:
-    """Модель кода подтверждения"""
-    
-    def __init__(self, code: str, phone_e164: str, email: str, 
-                 expires_at: datetime, is_used: bool = False):
-        self.code = code
-        self.phone_e164 = phone_e164
-        self.email = email
-        self.expires_at = expires_at
-        self.is_used = is_used
-    
-    @staticmethod
-    def generate_code(length: int = 6) -> str:
-        """Генерирует код подтверждения"""
-        return ''.join(secrets.choice(string.digits) for _ in range(length))
-    
-    @classmethod
-    async def create_code(cls, pool, phone_e164: str, email: str, 
-                         expiration_minutes: int = 10) -> 'VerificationCode':
-        """Создает новый код подтверждения"""
-        code = cls.generate_code()
-        expires_at = get_moscow_time() + timedelta(minutes=expiration_minutes)
-        
-        verification_code = cls(
-            code=code,
-            phone_e164=phone_e164,
-            email=email,
-            expires_at=expires_at
-        )
-        
-       
-        await cls._save_code_to_storage(verification_code)
-        
-        return verification_code
-    
-    @classmethod
-    async def verify_code(cls, pool, phone_e164: str, code: str) -> bool:
-        """Проверяет код подтверждения"""
-        stored_code = await cls._get_code_from_storage(phone_e164)
-        
-        if not stored_code:
-            return False
-        
-        if stored_code['code'] != code:
-            return False
-        
-        if stored_code['is_used']:
-            return False
-        
-        from utils.time_utils import MOSCOW_TZ
-        if get_moscow_time() > datetime.fromisoformat(stored_code['expires_at']).replace(tzinfo=MOSCOW_TZ):
-            return False
-        
-        # Помечаем код как использованный
-        await cls._mark_code_as_used(phone_e164)
-        
-        return True
-    
-    @staticmethod
-    async def _save_code_to_storage(code_obj: 'VerificationCode'):
-        """Сохраняет код в хранилище"""
-        # Простая реализация с JSON файлом
-        import json
-        import os
-        
-        storage_file = "verification_codes.json"
-        
-        # Загружаем существующие коды
-        if os.path.exists(storage_file):
-            with open(storage_file, 'r', encoding='utf-8') as f:
-                codes = json.load(f)
-        else:
-            codes = {}
-        
-        # Добавляем новый код
-        codes[code_obj.phone_e164] = {
-            'code': code_obj.code,
-            'email': code_obj.email,
-            'expires_at': code_obj.expires_at.isoformat(),
-            'is_used': code_obj.is_used
-        }
-        
-        # Сохраняем
-        with open(storage_file, 'w', encoding='utf-8') as f:
-            json.dump(codes, f, ensure_ascii=False, indent=2)
-    
-    @staticmethod
-    async def _get_code_from_storage(phone_e164: str) -> Optional[dict]:
-        """Получает код из хранилища"""
-        import json
-        import os
-        
-        storage_file = "verification_codes.json"
-        
-        if not os.path.exists(storage_file):
-            return None
-        
-        with open(storage_file, 'r', encoding='utf-8') as f:
-            codes = json.load(f)
-        
-        return codes.get(phone_e164)
-    
-    @staticmethod
-    async def _mark_code_as_used(phone_e164: str):
-        """Помечает код как использованный"""
-        import json
-        import os
-        
-        storage_file = "verification_codes.json"
-        
-        if not os.path.exists(storage_file):
-            return
-        
-        with open(storage_file, 'r', encoding='utf-8') as f:
-            codes = json.load(f)
-        
-        if phone_e164 in codes:
-            codes[phone_e164]['is_used'] = True
-            
-            with open(storage_file, 'w', encoding='utf-8') as f:
-                json.dump(codes, f, ensure_ascii=False, indent=2)
-    
-    @classmethod
-    async def get_all_active_users(cls, pool, limit: int = 10) -> List['User']:
-        """Получает всех активных пользователей"""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute("""
-                    SELECT user_id, fio, password_hash, email, phone_e164, status, created_at, last_login_at
-                    FROM app_user 
-                    WHERE status = 'active'
-                    ORDER BY created_at DESC
-                    LIMIT %s
-                """, (limit,))
-                
-                results = await cursor.fetchall()
-                
-                users = []
-                for result in results:
-                    users.append(cls(
-                        user_id=result[0],
-                        fio=result[1],
-                        password_hash=result[2],
-                        email=result[3],
-                        phone_e164=result[4],
-                        status=result[5],
-                        created_at=result[6],
-                        last_login_at=result[7]
-                    ))
-                
-                return users

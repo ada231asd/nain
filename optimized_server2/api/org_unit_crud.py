@@ -73,9 +73,14 @@ class OrgUnitCRUD(BaseAPI):
                             }, status=400)
                     
                     # Создаем организационную единицу
+                    # Поле aprof (автоапрув) может отсутствовать — по умолчанию 0
+                    aprof_value = int(data.get('aprof', 0))
                     await cur.execute("""
-                        INSERT INTO org_unit (parent_org_unit_id, unit_type, name, adress, logo_url, default_powerbank_limit, reminder_hours, write_off_hours)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO org_unit (
+                            parent_org_unit_id, unit_type, name, adress, logo_url,
+                            default_powerbank_limit, reminder_hours, write_off_hours, aprof
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         data.get('parent_org_unit_id') if data['unit_type'] == 'subgroup' else None,
                         data['unit_type'],
@@ -84,7 +89,8 @@ class OrgUnitCRUD(BaseAPI):
                         data.get('logo_url'),
                         data.get('default_powerbank_limit', 1),
                         data.get('reminder_hours', 24),
-                        data.get('write_off_hours', 48)
+                        data.get('write_off_hours', 48),
+                        aprof_value
                     ))
                     
                     org_unit_id = cur.lastrowid
@@ -169,6 +175,7 @@ class OrgUnitCRUD(BaseAPI):
                         SELECT ou.org_unit_id, ou.parent_org_unit_id, ou.unit_type, 
                                ou.name, ou.adress, ou.logo_url, ou.created_at,
                                ou.default_powerbank_limit, ou.reminder_hours, ou.write_off_hours,
+                               ou.aprof,
                                ou.is_deleted, ou.deleted_at,
                                parent.name as parent_name
                         FROM org_unit ou
@@ -213,6 +220,7 @@ class OrgUnitCRUD(BaseAPI):
                         SELECT ou.org_unit_id, ou.parent_org_unit_id, ou.unit_type, 
                                ou.name, ou.adress, ou.logo_url, ou.created_at,
                                ou.default_powerbank_limit, ou.reminder_hours, ou.write_off_hours,
+                               ou.aprof,
                                ou.is_deleted, ou.deleted_at,
                                parent.name as parent_name
                         FROM org_unit ou
@@ -307,7 +315,7 @@ class OrgUnitCRUD(BaseAPI):
                                 "error": "Подгруппа может иметь родителем только группу"
                             }, status=400)
             
-            allowed_fields = ['parent_org_unit_id', 'unit_type', 'name', 'adress', 'logo_url', 'default_powerbank_limit', 'reminder_hours', 'write_off_hours']
+            allowed_fields = ['parent_org_unit_id', 'unit_type', 'name', 'adress', 'logo_url', 'default_powerbank_limit', 'reminder_hours', 'write_off_hours', 'aprof']
             for field in allowed_fields:
                 if field in data:
                     update_fields.append(f"{field} = %s")

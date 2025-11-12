@@ -58,10 +58,6 @@ NOTIFICATION_CONFIG = {
         
         "max_retries": int(os.getenv("SMTP_MAX_RETRIES", "2"))  # Количество повторных попыток
     },
-    "sms": {
-        "enabled": False,  
-        "provider": "none"
-    },
     "admin_email": "admin@powerbank.app"
 }
 
@@ -73,6 +69,18 @@ POWERBANK_REMINDER_CONFIG = {
     "check_interval_hours": float(os.getenv("REMINDER_CHECK_INTERVAL", "0.5")),  # 1 раз в 30 минут
 }
 
+# Настройки мониторинга ресурсов
+RESOURCE_MONITOR_CONFIG = {
+    "enabled": os.getenv("RESOURCE_MONITOR_ENABLED", "true").lower() == "true",
+    "interval_minutes": float(os.getenv("RESOURCE_MONITOR_INTERVAL_MINUTES", "30")),
+}
+
 # Таймаут ожидания подтверждения возврата (в секундах), используется сервером
 # Клиент не может переопределять это значение через API
 RETURN_CONFIRMATION_TIMEOUT_SECONDS = int(os.getenv("RETURN_CONFIRMATION_TIMEOUT_SECONDS", "10"))
+
+# Настройки очистки памяти
+MEMORY_CLEANUP_CONFIG = {
+    "enabled": os.getenv("MEMORY_CLEANUP_ENABLED", "true").lower() == "true",
+    "interval_seconds": int(os.getenv("MEMORY_CLEANUP_INTERVAL_SECONDS", "300")),  # 5 минут по умолчанию
+}

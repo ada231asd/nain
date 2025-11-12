@@ -124,6 +124,10 @@ class StationHandler:
                 station = await Station.get_by_id(self.db_pool, connection.station_id)
                 if station:
                     await station.update_last_seen(self.db_pool)
+                    # Если станция была inactive, переводим её в active при получении heartbeat
+                    if station.status != 'active':
+                        await station.update_status(self.db_pool, "active")
+                        self.logger.info(f"Станция {station.box_id} (ID: {station.station_id}) переведена в active после heartbeat")
             except Exception as db_error:
                 self.logger.error(f"Ошибка обновления last_seen в БД: {db_error}")
             

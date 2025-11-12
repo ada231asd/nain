@@ -133,9 +133,11 @@ class AuthHandler:
                     'error': 'Ошибка отправки email с паролем'
                 }, status=500)
             
+            message = 'Регистрация прошла успешно. Аккаунт активирован.' if user.status == 'active' \
+                else 'Регистрация прошла успешно. Пароль отправлен на email. Ожидает подтверждения администратора.'
             return web.json_response({
                 'success': True,
-                'message': 'Регистрация по приглашению прошла успешно. Пароль отправлен на email. Ожидает подтверждения администратора.',
+                'message': message,
                 'user_id': user.user_id,
                 'status': user.status,
                 'org_unit_id': invitation_info['org_unit_id'],

@@ -24,9 +24,15 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(pb, idx) in powerbanks" :key="pb.id || pb.terminal_id || idx" :class="getRowClass(pb)">
+              <tr
+                v-for="(pb, idx) in powerbanks"
+                :key="pb.id || pb.terminal_id || idx"
+                :class="getRowClass(pb)"
+                :data-terminal="getPowerbankIdentifier(pb)"
+                :data-slot="pb.slot_number || idx + 1"
+              >
                 <td class="slot-number">{{ pb.slot_number || idx + 1 }}</td>
-                <td class="battery-id">{{ pb.terminal_id || pb.powerbank_serial || pb.serial_number || '-' }}</td>
+                <td class="battery-id">{{ formatDisplayId(pb.terminal_id || pb.powerbank_serial || pb.serial_number || '-') }}</td>
                 <td class="battery-level">
                   <div class="level-container">
                     <span :class="getBatteryLevelClass(pb.level)">
@@ -78,13 +84,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   isVisible: { type: Boolean, default: false },
   station: { type: Object, default: null },
   powerbanks: { type: Array, default: () => [] },
-  isBorrowing: { type: Boolean, default: false }
+  isBorrowing: { type: Boolean, default: false },
+  highlightedPowerbankId: { type: [String, Number], default: null },
+  highlightedSlotNumber: { type: [String, Number], default: null }
 })
 
 const availablePowerbanks = computed(() => {
@@ -97,6 +105,78 @@ const errorPowerbanks = computed(() => {
     return hasError
   }).length
 })
+
+const isLikelyHex = (value) => {
+  if (value == null) return false
+  const s = String(value).trim()
+  if (s.length < 4 || s.length % 2 !== 0) return false
+  return /^[0-9a-fA-F]+$/.test(s)
+}
+
+const decodeHexAscii = (hex) => {
+  try {
+    const bytes = hex.match(/.{1,2}/g) || []
+    const chars = bytes.map(b => String.fromCharCode(parseInt(b, 16)))
+    const ascii = chars.join('')
+    // Убираем нули и непечатаемые
+    const cleaned = ascii.replace(/\x00+/g, '').replace(/[^\x20-\x7E]/g, '')
+    return cleaned
+  } catch {
+    return null
+  }
+}
+
+const formatHybridId = (hex) => {
+  const s = String(hex).toUpperCase()
+  if (s.length < 8 || s.length % 2 !== 0) return null
+  const prefixHex = s.slice(0, 8)
+  const restHex = s.slice(8)
+  try {
+    const prefixBytes = prefixHex.match(/.{1,2}/g) || []
+    const prefixAscii = prefixBytes.map(b => String.fromCharCode(parseInt(b, 16))).join('')
+    if (/^[A-Za-z0-9]{4}$/.test(prefixAscii)) {
+      return prefixAscii + restHex
+    }
+  } catch {}
+  return null
+}
+
+const formatDisplayId = (value) => {
+  if (value == null || value === '') return '-'
+  const raw = String(value).trim()
+  if (isLikelyHex(raw)) {
+    const hybrid = formatHybridId(raw)
+    if (hybrid) return hybrid
+    const decoded = decodeHexAscii(raw)
+    if (decoded && decoded.length >= 4) {
+      return decoded
+    }
+  }
+  return raw
+}
+
+const getPowerbankIdentifier = (pb) => {
+  if (!pb) return ''
+  return pb.terminal_id || pb.powerbank_serial || pb.serial_number || pb.id || ''
+}
+
+const isPowerbankHighlighted = (pb) => {
+  if (!pb) return false
+  const targetTerminal = props.highlightedPowerbankId
+  const targetSlot = props.highlightedSlotNumber
+
+  if (targetTerminal === null && targetSlot === null) {
+    return false
+  }
+
+  const identifier = getPowerbankIdentifier(pb)
+  const slotValue = pb.slot_number ?? null
+
+  const matchesTerminal = targetTerminal !== null && identifier !== '' && String(identifier) === String(targetTerminal)
+  const matchesSlot = targetSlot !== null && slotValue !== null && String(slotValue) === String(targetSlot)
+
+  return matchesTerminal || matchesSlot
+}
 
 const getBatteryStatusClass = (pb) => {
   // Ошибочный, если есть флаги ошибок слота или статус powerbank не 'active'
@@ -159,10 +239,64 @@ const getRowClass = (pb) => {
   const slotError = pb.error_typec || pb.error_lightning || pb.error_microusb || pb.powerbank_error || pb.has_errors
   const broken = pb.powerbank_status && pb.powerbank_status !== 'active'
   const isAvailable = canBorrowPowerbank(pb)
-  if (slotError || broken) return 'row-error'
-  if (isAvailable) return 'row-available'
-  return 'row-unavailable'
+
+  const classes = []
+
+  if (slotError || broken) {
+    classes.push('row-error')
+  } else if (isAvailable) {
+    classes.push('row-available')
+  } else {
+    classes.push('row-unavailable')
+  }
+
+  if (isPowerbankHighlighted(pb)) {
+    classes.push('row-highlight')
+  }
+
+  return classes.join(' ')
 }
+
+const scrollHighlightedIntoView = async () => {
+  if (!props.isVisible) return
+  if (props.highlightedPowerbankId === null && props.highlightedSlotNumber === null) return
+  if (typeof window === 'undefined') return
+
+  await nextTick()
+
+  const rows = document.querySelectorAll('.pb-table tbody tr')
+  const targetTerminal = props.highlightedPowerbankId !== null ? String(props.highlightedPowerbankId) : null
+  const targetSlot = props.highlightedSlotNumber !== null ? String(props.highlightedSlotNumber) : null
+
+  for (const row of rows) {
+    const rowTerminal = row.getAttribute('data-terminal')
+    const rowSlot = row.getAttribute('data-slot')
+    const matchesTerminal = targetTerminal && rowTerminal === targetTerminal
+    const matchesSlot = targetSlot && rowSlot === targetSlot
+
+    if (matchesTerminal || matchesSlot) {
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      row.classList.add('row-highlight-active')
+      if (row.dataset.highlightTimeout) {
+        window.clearTimeout(Number(row.dataset.highlightTimeout))
+      }
+      const timeoutId = window.setTimeout(() => {
+        row.classList.remove('row-highlight-active')
+        delete row.dataset.highlightTimeout
+      }, 1600)
+      row.dataset.highlightTimeout = String(timeoutId)
+      break
+    }
+  }
+}
+
+watch(
+  () => [props.isVisible, props.powerbanks, props.highlightedPowerbankId, props.highlightedSlotNumber],
+  () => {
+    if (!props.isVisible) return
+    scrollHighlightedIntoView()
+  }
+)
 </script>
 
 <style scoped>
@@ -299,6 +433,27 @@ const getRowClass = (pb) => {
 
 .pb-table tbody tr.row-unavailable {
   background: rgba(108, 117, 125, 0.05);
+}
+
+.pb-table tbody tr.row-highlight {
+  box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.4);
+  position: relative;
+}
+
+.pb-table tbody tr.row-highlight-active {
+  animation: highlight-pulse 1.2s ease-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(13, 110, 253, 0.6);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px rgba(13, 110, 253, 0.35);
+  }
+  100% {
+    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.25);
+  }
 }
 
 .pb-table thead th { 

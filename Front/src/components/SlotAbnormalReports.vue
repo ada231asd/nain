@@ -82,6 +82,7 @@
               </th>
               <th>ID</th>
               <th>Станция</th>
+              <th>Аккумулятор</th>
               <th>Слот</th>
               <th>Описание</th>
               <th>Время события</th>
@@ -89,11 +90,18 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="report in reports" :key="report.report_id" class="report-row" :class="{ selected: selectedReports.includes(report.report_id) }">
+            <tr
+              v-for="report in reports"
+              :key="report.report_id"
+              class="report-row"
+              :class="{ selected: selectedReports.includes(report.report_id) }"
+              @click="handleRowClick(report)"
+            >
               <td class="col-checkbox">
                 <input 
                   type="checkbox" 
                   :checked="selectedReports.includes(report.report_id)"
+                  @click.stop
                   @change="toggleReportSelection(report.report_id)"
                   class="row-checkbox"
                 >
@@ -106,6 +114,15 @@
                     ({{ getStationOrgUnit(report.station_id) }})
                   </span>
                 </div>
+              </td>
+              <td>
+                <span
+                  v-if="getReportPowerbank(report)"
+                  class="powerbank-link"
+                >
+                  {{ getReportPowerbankDisplay(report) }}
+                </span>
+                <span v-else class="text-muted">—</span>
               </td>
               <td>{{ report.slot_number }}</td>
               <td class="event-text">
@@ -120,7 +137,7 @@
               </td>
               <td>
                 <button 
-                  @click="deleteReport(report.report_id)" 
+                  @click.stop="deleteReport(report.report_id)" 
                   class="btn btn-danger btn-sm"
                   title="Удалить отчет"
                 >
@@ -173,7 +190,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'open-station'])
 
 const loading = ref(false)
 const reports = ref([])
@@ -341,10 +358,77 @@ const getEventTypeText = (eventType) => {
   return eventTypeMap[eventType] || `Неизвестный тип (${eventType})`
 }
 
+const getReportPowerbank = (report) => {
+  return report?.terminal_id || report?.powerbank_terminal_id || report?.powerbank_id || null
+}
+
+const isLikelyHex = (value) => {
+  if (value == null) return false
+  const s = String(value).trim()
+  if (s.length < 4 || s.length % 2 !== 0) return false
+  return /^[0-9a-fA-F]+$/.test(s)
+}
+
+const decodeHexAscii = (hex) => {
+  try {
+    const bytes = hex.match(/.{1,2}/g) || []
+    const chars = bytes.map(b => String.fromCharCode(parseInt(b, 16)))
+    const ascii = chars.join('')
+    const cleaned = ascii.replace(/\x00+/g, '').replace(/[^\x20-\x7E]/g, '')
+    return cleaned
+  } catch {
+    return null
+  }
+}
+
+// Специальный формат для ID: первые 4 байта как ASCII, остальное — как HEX парами
+const formatHybridId = (hex) => {
+  const s = String(hex).toUpperCase()
+  if (s.length < 8 || s.length % 2 !== 0) return null
+  const prefixHex = s.slice(0, 8)
+  const restHex = s.slice(8)
+
+  // Конвертируем первые 4 байта в ASCII-буквы/цифры
+  try {
+    const prefixBytes = prefixHex.match(/.{1,2}/g) || []
+    const prefixAscii = prefixBytes.map(b => String.fromCharCode(parseInt(b, 16))).join('')
+    // Если префикс выглядит как буквы/цифры — используем гибридный формат
+    if (/^[A-Za-z0-9]{4}$/.test(prefixAscii)) {
+      return prefixAscii + restHex
+    }
+  } catch {}
+  return null
+}
+
+const getReportPowerbankDisplay = (report) => {
+  const raw = getReportPowerbank(report)
+  if (!raw) return null
+  const s = String(raw)
+  if (isLikelyHex(s)) {
+    const hybrid = formatHybridId(s)
+    if (hybrid) return hybrid
+    const decoded = decodeHexAscii(s)
+    if (decoded && decoded.length >= 4) return decoded
+  }
+  return s
+}
+
 const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
   }
+}
+
+const handleRowClick = (report) => {
+  if (!report) return
+  const stationId = report?.station_id
+  if (!stationId || !getReportPowerbank(report)) return
+  emit('open-station', {
+    stationId,
+    powerbankTerminalId: getReportPowerbank(report),
+    slotNumber: report?.slot_number || null,
+    reportId: report?.report_id
+  })
 }
 
 
@@ -471,7 +555,11 @@ th {
 }
 
 .report-row:hover {
-  background: #f8f9fa;
+  background: #f0f4ff;
+}
+
+.report-row {
+  cursor: pointer;
 }
 
 .event-type {
@@ -526,6 +614,22 @@ th {
 .text-muted {
   color: #6c757d;
   font-style: italic;
+}
+
+.powerbank-link {
+  background: none;
+  border: none;
+  color: #000000;
+  cursor: pointer;
+  font-weight: 500;
+  padding: 0;
+  font-family: inherit;
+}
+
+.powerbank-link:hover,
+.powerbank-link:focus {
+  text-decoration: none;
+  outline: none;
 }
 
 .pagination {
