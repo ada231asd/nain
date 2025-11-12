@@ -262,10 +262,14 @@
               </div>
             </div>
 
-            <!-- Местоположение (Станция или Заказ) -->
+            <!-- Расположение (Станция, Заказ, Адрес) -->
             <div class="detail-section" v-if="hasLocationInfo(selectedPowerbank)">
-              <h4>Местоположение</h4>
+              <h4>Расположение</h4>
               <div class="detail-rows">
+                <div class="detail-row" v-if="selectedPowerbank.adres">
+                  <span class="detail-label">Адрес:</span>
+                  <span class="detail-value">{{ selectedPowerbank.adres }}</span>
+                </div>
                 <!-- Информация о заказе (приоритет) -->
                 <template v-if="hasActiveOrder(selectedPowerbank)">
                   <div class="detail-row">
@@ -856,7 +860,7 @@ const formatTime = (timestamp) => {
 // Проверка наличия информации о местоположении
 const hasLocationInfo = (powerbank) => {
   if (!powerbank) return false
-  return hasActiveOrder(powerbank) || hasStationInfo(powerbank)
+  return hasActiveOrder(powerbank) || hasStationInfo(powerbank) || !!powerbank.adres
 }
 
 // Проверка наличия активного заказа
