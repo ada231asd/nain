@@ -145,34 +145,38 @@ onUnmounted(() => {
 .pwa-install-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: #667eea;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  white-space: nowrap;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  text-align: center;
 }
 
 .pwa-install-btn:hover:not(:disabled) {
+  background: #5a6fd8;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.15);
 }
 
 .pwa-install-btn:active:not(:disabled) {
   transform: translateY(0);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
 }
 
 .pwa-install-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .pwa-install-btn__icon {
@@ -181,22 +185,7 @@ onUnmounted(() => {
 }
 
 .pwa-install-btn__text {
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .pwa-install-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-  
-  .pwa-install-btn__text {
-    display: none;
-  }
-  
-  .pwa-install-btn__icon {
-    font-size: 20px;
-  }
+  font-weight: 600;
 }
 
 /* Safari инструкции модальное окно */

@@ -140,6 +140,7 @@
           <button @click="showQRScanner = true" class="action-btn-standard">
             Найти станцию
           </button>
+          <PWAInstallButton />
         </div>
       </section>
 
@@ -193,6 +194,7 @@ import QRScanner from '../components/QRScanner.vue'
 import StationCard from '../components/StationCard.vue'
 import StationPowerbanksModal from '../components/StationPowerbanksModal.vue'
 import ErrorReportModal from '../components/ErrorReportModal.vue'
+import PWAInstallButton from '../components/PWAInstallButton.vue'
 import { pythonAPI } from '../api/pythonApi'
 import { refreshAllDataAfterBorrow, refreshAllDataAfterReturn } from '../utils/dataSync'
 import { formatMoscowTime } from '../utils/timeUtils'
@@ -1357,20 +1359,36 @@ const handleQRScan = async (payload) => {
 }
 
 const getStatusClass = (status) => {
-  switch (status) {
-    case 'active': return 'status-active'
-    case 'inactive': return 'status-inactive'
-    case 'maintenance': return 'status-maintenance'
-    default: return 'status-unknown'
+  const normalizedStatus = (status || '').toLowerCase()
+
+  switch (normalizedStatus) {
+    case 'active':
+    case 'online':
+      return 'status-active'
+    case 'inactive':
+    case 'offline':
+      return 'status-inactive'
+    case 'maintenance':
+      return 'status-maintenance'
+    default:
+      return 'status-unknown'
   }
 }
 
 const getStatusText = (status) => {
-  switch (status) {
-    case 'active': return 'Активна'
-    case 'inactive': return 'Неактивна'
-    case 'maintenance': return 'Обслуживание'
-    default: return 'Неизвестно'
+  const normalizedStatus = (status || '').toLowerCase()
+
+  switch (normalizedStatus) {
+    case 'active':
+    case 'online':
+      return 'В сети'
+    case 'inactive':
+    case 'offline':
+      return 'Не в сети'
+    case 'maintenance':
+      return 'Обслуживание'
+    default:
+      return 'Неизвестно'
   }
 }
 

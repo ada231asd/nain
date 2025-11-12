@@ -61,7 +61,7 @@
         <div class="station-card__status">
           <span
             class="station-card__status-indicator"
-            :class="`station-card__status-indicator--${station.status}`"
+            :class="`station-card__status-indicator--${(station.status || 'unknown').toLowerCase()}`"
           ></span>
           <span class="station-card__status-text">{{ getStatusText(station.status) }}</span>
         </div>
@@ -330,14 +330,18 @@ const brokenCount = computed(() => {
 })
 
 const getStatusText = (status) => {
+  const normalizedStatus = (status || '').toLowerCase()
   const statusMap = {
-    'online': 'Онлайн',
-    'offline': 'Офлайн',
+    'online': 'В сети',
+    'active': 'В сети',
+    'offline': 'Не в сети',
+    'inactive': 'Не в сети',
     'maintenance': 'Обслуживание',
     'error': 'Ошибка',
     'blocked': 'Заблокирована'
   }
-  return statusMap[status] || status
+
+  return statusMap[normalizedStatus] || status || 'Неизвестно'
 }
 
 
@@ -688,7 +692,20 @@ onUnmounted(() => {
   box-shadow: 0 0 8px var(--success-color);
 }
 
+.station-card__status-indicator--active {
+  background-color: var(--success-color);
+  box-shadow: 0 0 8px var(--success-color);
+}
+
 .station-card__status-indicator--offline {
+  background-color: var(--text-secondary);
+}
+
+.station-card__status-indicator--inactive {
+  background-color: var(--text-secondary);
+}
+
+.station-card__status-indicator--unknown {
   background-color: var(--text-secondary);
 }
 

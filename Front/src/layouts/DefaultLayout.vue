@@ -51,7 +51,6 @@
         </div>
         
         <div class="layout-header__right">
-          <PWAInstallButton />
           <slot name="header-actions" />
           
           <div v-if="user" class="layout-header__user">
@@ -130,7 +129,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import PWAInstallButton from '../components/PWAInstallButton.vue'
 
 const props = defineProps({
   title: {
